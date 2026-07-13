@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from mnemos.schemas.common import APIModel
-
 from typing import Literal
 
 from pydantic import Field, model_validator
+
+from mnemos.schemas.common import APIModel
 
 
 class AgentScope(APIModel):
@@ -104,5 +104,7 @@ class AgentQueryResult(APIModel):
         for claim in self.claims:
             missing = set(claim.citation_ids) - citation_ids
             if missing:
-                raise ValueError(f"Claim {claim.id} references unknown citations: {sorted(missing)}")
+                raise ValueError(
+                    f"Claim {claim.id} references unknown citations: {sorted(missing)}"
+                )
         return self

@@ -44,7 +44,12 @@ async def seed() -> None:
             code="SUP",
         )
         users = [
-            User(id="usr_admin", email="admin@mnemos.local", full_name="Mnemos Admin", password_hash=password_hash),
+            User(
+                id="usr_admin",
+                email="admin@mnemos.local",
+                full_name="Mnemos Admin",
+                password_hash=password_hash,
+            ),
             User(
                 id="usr_engineer_north",
                 email="engineer.north@mnemos.local",
@@ -167,16 +172,18 @@ async def seed() -> None:
             )
         ]
 
-        db.add_all([
-            org,
-            north,
-            south,
-            *users,
-            *memberships,
-            *assets,
-            *aliases,
-            *relationships,
-        ])
+        db.add_all(
+            [
+                org,
+                north,
+                south,
+                *users,
+                *memberships,
+                *assets,
+                *aliases,
+                *relationships,
+            ]
+        )
         await db.commit()
 
 

@@ -17,9 +17,7 @@ async def list_sites(
     principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[list[SiteResponse]]:
-    unrestricted_orgs = {
-        m.organisation_id for m in principal.memberships if m.site_id is None
-    }
+    unrestricted_orgs = {m.organisation_id for m in principal.memberships if m.site_id is None}
     site_ids = {m.site_id for m in principal.memberships if m.site_id is not None}
 
     conditions = []
@@ -32,6 +30,7 @@ async def list_sites(
         sites = []
     else:
         from sqlalchemy import or_
+
         sites = list((await db.scalars(select(Site).where(or_(*conditions)))).all())
 
     return Envelope(

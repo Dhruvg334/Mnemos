@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.asyncio
 async def test_health_endpoints(client):
     live = await client.get("/health/live")

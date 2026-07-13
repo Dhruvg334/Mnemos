@@ -1,6 +1,6 @@
-from mnemos.schemas.common import APIModel
 from datetime import datetime
 
+from mnemos.schemas.common import APIModel
 
 
 class AuditEventResponse(APIModel):

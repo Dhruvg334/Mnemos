@@ -10,13 +10,13 @@ from mnemos.models import Document, IngestionEvent, IngestionRun
 from mnemos.schemas.common import Envelope, Meta
 from mnemos.schemas.ingestion import IngestionEventResponse, IngestionRunResponse
 from mnemos.services.audit import write_audit
-from mnemos.services.ingestion_execution import execute_ingestion
 from mnemos.services.idempotency import (
     find_idempotent_resource,
     request_hash,
     save_idempotency_record,
     validate_idempotency_key,
 )
+from mnemos.services.ingestion_execution import execute_ingestion
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
@@ -41,9 +41,7 @@ async def ingest_document(
         raise AppError("DOCUMENT_NOT_READY", "Document has no stored object.", 409)
 
     key = validate_idempotency_key(idempotency_key)
-    payload_hash = request_hash(
-        {"document_id": document.id, "document_version": document.version}
-    )
+    payload_hash = request_hash({"document_id": document.id, "document_version": document.version})
     if key:
         existing = await find_idempotent_resource(
             db,
@@ -159,7 +157,6 @@ async def get_ingestion_events(
         data=[IngestionEventResponse.model_validate(item) for item in rows],
         meta=Meta(request_id=request.state.request_id),
     )
-
 
 
 @router.post(

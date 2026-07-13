@@ -1,7 +1,6 @@
 from datetime import datetime
 
-
-from mnemos.schemas.common import ORMModel, APIModel
+from mnemos.schemas.common import APIModel, ORMModel
 
 
 class AssetResponse(ORMModel):
@@ -11,7 +10,6 @@ class AssetResponse(ORMModel):
     name: str
     asset_type: str
     status: str
-
 
 
 class AssetAliasResponse(ORMModel):

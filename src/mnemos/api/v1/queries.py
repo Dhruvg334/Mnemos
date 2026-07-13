@@ -6,20 +6,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from mnemos.api.deps import Principal, get_principal, require_site_access
+from mnemos.core.config import settings
 from mnemos.core.db import get_db
 from mnemos.core.errors import AppError
 from mnemos.models import Asset, Document, Query, QueryEvent, Site
 from mnemos.schemas.common import Envelope, Meta
 from mnemos.schemas.query import QueryAccepted, QueryCreate, QueryEventResponse, QueryResponse
 from mnemos.services.audit import write_audit
-from mnemos.services.query_execution import add_query_event, execute_query_background
 from mnemos.services.idempotency import (
     find_idempotent_resource,
     request_hash,
     save_idempotency_record,
     validate_idempotency_key,
 )
-from mnemos.core.config import settings
+from mnemos.services.query_execution import add_query_event, execute_query_background
 
 router = APIRouter(prefix="/queries", tags=["queries"])
 
@@ -44,22 +44,30 @@ async def create_query(
         raise AppError("VALIDATION_ERROR", "Duplicate document IDs are not allowed.", 422)
 
     if payload.context.asset_ids:
-        assets = list((await db.scalars(
-            select(Asset).where(Asset.id.in_(payload.context.asset_ids))
-        )).all())
+        assets = list(
+            (await db.scalars(select(Asset).where(Asset.id.in_(payload.context.asset_ids)))).all()
+        )
         if len(assets) != len(payload.context.asset_ids) or any(
             asset.site_id != site.id for asset in assets
         ):
-            raise AppError("VALIDATION_ERROR", "One or more assets are outside the selected site.", 422)
+            raise AppError(
+                "VALIDATION_ERROR", "One or more assets are outside the selected site.", 422
+            )
 
     if payload.context.document_ids:
-        documents = list((await db.scalars(
-            select(Document).where(Document.id.in_(payload.context.document_ids))
-        )).all())
+        documents = list(
+            (
+                await db.scalars(
+                    select(Document).where(Document.id.in_(payload.context.document_ids))
+                )
+            ).all()
+        )
         if len(documents) != len(payload.context.document_ids) or any(
             document.site_id != site.id for document in documents
         ):
-            raise AppError("VALIDATION_ERROR", "One or more documents are outside the selected site.", 422)
+            raise AppError(
+                "VALIDATION_ERROR", "One or more documents are outside the selected site.", 422
+            )
 
     key = validate_idempotency_key(idempotency_key)
     payload_hash = request_hash(payload.model_dump(mode="json"))
@@ -192,7 +200,6 @@ async def list_query_events(
     )
 
 
-
 @router.post("/{query_id}/cancel", response_model=Envelope[QueryAccepted])
 async def cancel_query(
     query_id: str,
@@ -200,14 +207,14 @@ async def cancel_query(
     principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[QueryAccepted]:
-    query = await db.scalar(
-        select(Query).where(Query.id == query_id).with_for_update()
-    )
+    query = await db.scalar(select(Query).where(Query.id == query_id).with_for_update())
     if query is None:
         raise AppError("NOT_FOUND", "Query not found.", 404)
     membership = require_site_access(principal, query.site_id)
     if query.user_id != principal.user.id and membership.role not in {
-        "platform_admin", "organisation_admin", "site_admin"
+        "platform_admin",
+        "organisation_admin",
+        "site_admin",
     }:
         raise AppError("FORBIDDEN", "Only the query owner or an administrator may cancel it.", 403)
     if query.status not in {"queued", "running"}:
@@ -254,14 +261,14 @@ async def retry_query(
     principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[QueryAccepted]:
-    query = await db.scalar(
-        select(Query).where(Query.id == query_id).with_for_update()
-    )
+    query = await db.scalar(select(Query).where(Query.id == query_id).with_for_update())
     if query is None:
         raise AppError("NOT_FOUND", "Query not found.", 404)
     membership = require_site_access(principal, query.site_id)
     if query.user_id != principal.user.id and membership.role not in {
-        "platform_admin", "organisation_admin", "site_admin"
+        "platform_admin",
+        "organisation_admin",
+        "site_admin",
     }:
         raise AppError("FORBIDDEN", "Only the query owner or an administrator may retry it.", 403)
     if query.status not in {"failed", "cancelled"}:

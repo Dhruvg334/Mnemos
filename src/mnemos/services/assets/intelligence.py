@@ -81,9 +81,7 @@ async def build_asset_graph(
 
         missing_ids = next_frontier - set(nodes)
         if missing_ids:
-            related = list(
-                (await db.scalars(select(Asset).where(Asset.id.in_(missing_ids)))).all()
-            )
+            related = list((await db.scalars(select(Asset).where(Asset.id.in_(missing_ids)))).all())
             for item in related:
                 nodes[item.id] = AssetGraphNode(
                     id=item.id,
@@ -134,13 +132,7 @@ async def build_asset_timeline(
             )
         )
 
-    rcas = list(
-        (
-            await db.scalars(
-                select(RCACase).where(RCACase.asset_id == asset.id)
-            )
-        ).all()
-    )
+    rcas = list((await db.scalars(select(RCACase).where(RCACase.asset_id == asset.id))).all())
     for row in rcas:
         items.append(
             AssetTimelineItem(
@@ -158,9 +150,7 @@ async def build_asset_timeline(
     evaluations = list(
         (
             await db.scalars(
-                select(ComplianceEvaluation).where(
-                    ComplianceEvaluation.asset_id == asset.id
-                )
+                select(ComplianceEvaluation).where(ComplianceEvaluation.asset_id == asset.id)
             )
         ).all()
     )
@@ -179,11 +169,7 @@ async def build_asset_timeline(
         )
 
     cards = list(
-        (
-            await db.scalars(
-                select(KnowledgeCard).where(KnowledgeCard.asset_id == asset.id)
-            )
-        ).all()
+        (await db.scalars(select(KnowledgeCard).where(KnowledgeCard.asset_id == asset.id))).all()
     )
     for row in cards:
         items.append(
@@ -211,9 +197,7 @@ async def list_asset_aliases(
     return list(
         (
             await db.scalars(
-                select(AssetAlias)
-                .where(AssetAlias.asset_id == asset_id)
-                .order_by(AssetAlias.alias)
+                select(AssetAlias).where(AssetAlias.asset_id == asset_id).order_by(AssetAlias.alias)
             )
         ).all()
     )

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from mnemos.schemas.common import ORMModel, APIModel
+from mnemos.schemas.common import APIModel, ORMModel
 
 
 class KnowledgeCardCreate(APIModel):

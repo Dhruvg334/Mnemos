@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.core.db import get_db
 from mnemos.core.errors import AppError
-from mnemos.core.security import decode_access_token
 from mnemos.core.rate_limit import enforce_rate_limit
+from mnemos.core.security import decode_access_token
 from mnemos.models import Membership, User
 
 bearer = HTTPBearer(auto_error=False)
@@ -30,8 +30,8 @@ async def get_principal(
 
     try:
         payload = decode_access_token(credentials.credentials)
-    except ValueError:
-        raise AppError("UNAUTHENTICATED", "Invalid access token.", 401)
+    except ValueError as exc:
+        raise AppError("UNAUTHENTICATED", "Invalid access token.", 401) from exc
 
     user_id = payload.get("sub")
     user = await db.scalar(select(User).where(User.id == user_id, User.is_active.is_(True)))
@@ -42,11 +42,7 @@ async def get_principal(
     await enforce_rate_limit(request, user.id)
 
     memberships = list(
-        (
-            await db.scalars(
-                select(Membership).where(Membership.user_id == user.id)
-            )
-        ).all()
+        (await db.scalars(select(Membership).where(Membership.user_id == user.id))).all()
     )
     return Principal(user=user, memberships=memberships)
 
@@ -72,7 +68,6 @@ def require_site_role(
             details={"required_roles": sorted(allowed_roles), "current_role": membership.role},
         )
     return membership
-
 
 
 async def rate_limited_principal(

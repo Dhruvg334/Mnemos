@@ -59,7 +59,10 @@ class Settings(BaseSettings):
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [
-        "application/pdf", "text/markdown", "text/plain", "text/csv",
+        "application/pdf",
+        "text/markdown",
+        "text/plain",
+        "text/csv",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ]
@@ -72,7 +75,6 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
-
 
     @model_validator(mode="after")
     def validate_secure_configuration(self):

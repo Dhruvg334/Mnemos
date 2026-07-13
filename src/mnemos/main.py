@@ -1,21 +1,35 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from mnemos.api.v1 import assets, audit, auth, compliance, documents, health, ingestion, knowledge, queries, rcas, sites
+from mnemos.api.v1 import (
+    assets,
+    audit,
+    auth,
+    compliance,
+    documents,
+    health,
+    ingestion,
+    knowledge,
+    queries,
+    rcas,
+    sites,
+)
 from mnemos.core.config import settings
 from mnemos.core.db import close_database
 from mnemos.core.errors import (
     AppError,
     app_error_handler,
+    http_error_handler,
     unexpected_error_handler,
     validation_error_handler,
-    http_error_handler,
 )
 from mnemos.core.logging import configure_logging
 from mnemos.core.middleware import (
-    RequestIdMiddleware, RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+    RequestIdMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
 )
 from mnemos.core.rate_limit import close_rate_limit_client
 
@@ -57,7 +71,6 @@ app.include_router(knowledge.router, prefix=settings.api_v1_prefix)
 
 app.include_router(ingestion.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
-
 
 
 @app.on_event("shutdown")

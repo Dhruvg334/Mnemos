@@ -12,8 +12,8 @@ from mnemos.schemas.asset import (
     AssetResponse,
     AssetTimelineResponse,
 )
-from mnemos.services.assets import build_asset_graph, build_asset_timeline, list_asset_aliases
 from mnemos.schemas.common import Envelope, Meta
+from mnemos.services.assets import build_asset_graph, build_asset_timeline, list_asset_aliases
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -48,7 +48,6 @@ async def get_asset(
         data=AssetResponse.model_validate(asset),
         meta=Meta(request_id=request.state.request_id),
     )
-
 
 
 @router.get("/{asset_id}/timeline", response_model=Envelope[AssetTimelineResponse])

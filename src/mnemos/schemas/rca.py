@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from mnemos.schemas.common import ORMModel, APIModel
+from mnemos.schemas.common import APIModel, ORMModel
 
 
 class RCACreate(APIModel):
@@ -29,7 +29,9 @@ class RCAObservationCreate(APIModel):
 
 class RCAHypothesisCreate(APIModel):
     text: str = Field(min_length=3, max_length=10000)
-    support_status: Literal["supported", "partially_supported", "conflicting", "unsupported", "not_evaluated"] = "not_evaluated"
+    support_status: Literal[
+        "supported", "partially_supported", "conflicting", "unsupported", "not_evaluated"
+    ] = "not_evaluated"
     confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
     evidence_region_ids: list[str] = Field(default_factory=list)
 

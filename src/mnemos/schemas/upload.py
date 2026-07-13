@@ -1,6 +1,9 @@
-from mnemos.schemas.common import APIModel
 from datetime import datetime
+
 from pydantic import Field
+
+from mnemos.schemas.common import APIModel
+
 
 class UploadSessionCreate(APIModel):
     site_id: str
@@ -8,7 +11,10 @@ class UploadSessionCreate(APIModel):
     mime_type: str = Field(min_length=1, max_length=255)
     size_bytes: int = Field(gt=0)
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
-    document_type: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9 _.-]*$")
+    document_type: str = Field(
+        min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9 _.-]*$"
+    )
+
 
 class UploadSessionResponse(APIModel):
     upload_session_id: str
@@ -17,8 +23,10 @@ class UploadSessionResponse(APIModel):
     expires_at: datetime
     required_headers: dict[str, str]
 
+
 class UploadConfirmRequest(APIModel):
     upload_session_id: str
+
 
 class ProcessingStatusResponse(APIModel):
     document_id: str
@@ -29,6 +37,7 @@ class ProcessingStatusResponse(APIModel):
     progress_percent: int
     warnings: list[str]
     updated_at: datetime | None
+
 
 class EvidenceRegionResponse(APIModel):
     id: str

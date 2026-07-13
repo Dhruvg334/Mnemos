@@ -19,19 +19,11 @@ async def validate_agent_result(
         raise AppError("AGENT_RESPONSE_INVALID", "Agent run identifier is missing.", 502)
 
     document_ids = {
-        citation.document_id
-        for citation in result.citations
-        if citation.document_id is not None
+        citation.document_id for citation in result.citations if citation.document_id is not None
     }
     documents: dict[str, Document] = {}
     if document_ids:
-        rows = list(
-            (
-                await db.scalars(
-                    select(Document).where(Document.id.in_(document_ids))
-                )
-            ).all()
-        )
+        rows = list((await db.scalars(select(Document).where(Document.id.in_(document_ids)))).all())
         documents = {row.id: row for row in rows}
 
     for citation in result.citations:
@@ -45,7 +37,10 @@ async def validate_agent_result(
             continue
         document = documents.get(citation.document_id)
         if document is None:
-            if settings.agent_gateway_mode == "mock" and settings.app_env.lower() not in {"production", "prod"}:
+            if settings.agent_gateway_mode == "mock" and settings.app_env.lower() not in {
+                "production",
+                "prod",
+            }:
                 continue
             raise AppError(
                 "AGENT_EVIDENCE_INVALID",
@@ -53,20 +48,14 @@ async def validate_agent_result(
                 502,
                 details={"document_id": citation.document_id},
             )
-        if (
-            document.organisation_id != query.organisation_id
-            or document.site_id != query.site_id
-        ):
+        if document.organisation_id != query.organisation_id or document.site_id != query.site_id:
             raise AppError(
                 "AGENT_EVIDENCE_FORBIDDEN",
                 "Agent result references evidence outside the query scope.",
                 502,
                 details={"document_id": citation.document_id},
             )
-        if (
-            query.context_document_ids
-            and citation.document_id not in query.context_document_ids
-        ):
+        if query.context_document_ids and citation.document_id not in query.context_document_ids:
             raise AppError(
                 "AGENT_EVIDENCE_OUT_OF_SCOPE",
                 "Agent result references a document outside the requested scope.",

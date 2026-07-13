@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from mnemos.core.db import SessionLocal
 from mnemos.core.errors import AppError
@@ -42,9 +41,7 @@ async def add_query_event(
 
 async def execute_query_background(query_id: str) -> None:
     async with SessionLocal() as db:
-        query = await db.scalar(
-            select(Query).where(Query.id == query_id).with_for_update()
-        )
+        query = await db.scalar(select(Query).where(Query.id == query_id).with_for_update())
         if query is None or query.status not in {"queued", "running"}:
             return
 

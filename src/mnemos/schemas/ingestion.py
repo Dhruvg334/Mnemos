@@ -1,8 +1,9 @@
-from mnemos.schemas.common import APIModel
 from datetime import datetime
 from typing import Literal
 
 from pydantic import Field
+
+from mnemos.schemas.common import APIModel
 
 
 class IngestionDocumentMetadata(APIModel):

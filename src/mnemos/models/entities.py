@@ -124,7 +124,9 @@ class RefreshToken(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rtk"))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     replaced_by_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -164,7 +166,6 @@ class Asset(Base):
     site: Mapped[Site] = relationship(back_populates="assets")
 
 
-
 class AssetRelationship(Base):
     __tablename__ = "asset_relationships"
     __table_args__ = (
@@ -178,9 +179,7 @@ class AssetRelationship(Base):
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rel"))
-    site_id: Mapped[str] = mapped_column(
-        ForeignKey("sites.id", ondelete="CASCADE"), index=True
-    )
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
     source_asset_id: Mapped[str] = mapped_column(
         ForeignKey("assets.id", ondelete="CASCADE"), index=True
     )
@@ -203,17 +202,11 @@ class AssetRelationship(Base):
 
 class AssetAlias(Base):
     __tablename__ = "asset_aliases"
-    __table_args__ = (
-        UniqueConstraint("site_id", "normalized_alias", name="uq_asset_alias_site"),
-    )
+    __table_args__ = (UniqueConstraint("site_id", "normalized_alias", name="uq_asset_alias_site"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("alias"))
-    site_id: Mapped[str] = mapped_column(
-        ForeignKey("sites.id", ondelete="CASCADE"), index=True
-    )
-    asset_id: Mapped[str] = mapped_column(
-        ForeignKey("assets.id", ondelete="CASCADE"), index=True
-    )
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
     alias: Mapped[str] = mapped_column(String(255), nullable=False)
     normalized_alias: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(64), nullable=False, default="manual")
@@ -248,7 +241,9 @@ class DocumentVersion(Base):
     __tablename__ = "document_versions"
     __table_args__ = (UniqueConstraint("document_id", "version"),)
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dver"))
-    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
     version: Mapped[int] = mapped_column(nullable=False)
     storage_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -259,7 +254,9 @@ class DocumentVersion(Base):
 class UploadSession(Base):
     __tablename__ = "upload_sessions"
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("upl"))
-    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
     object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -270,7 +267,9 @@ class UploadSession(Base):
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("job"))
-    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     stage: Mapped[str] = mapped_column(String(64), nullable=False, default="validating")
     progress_percent: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -286,13 +285,14 @@ class ProcessingJob(Base):
 class EvidenceRegion(Base):
     __tablename__ = "evidence_regions"
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("evr"))
-    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
     page_or_sheet: Mapped[str | None] = mapped_column(String(64), nullable=True)
     locator: Mapped[str | None] = mapped_column(String(255), nullable=True)
     text_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
 
 
 class IngestionRun(Base):
@@ -305,9 +305,7 @@ class IngestionRun(Base):
     organisation_id: Mapped[str] = mapped_column(
         ForeignKey("organisations.id", ondelete="CASCADE"), index=True
     )
-    site_id: Mapped[str] = mapped_column(
-        ForeignKey("sites.id", ondelete="CASCADE"), index=True
-    )
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
     document_version: Mapped[int] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     gateway: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -452,7 +450,6 @@ class Citation(Base):
     claim: Mapped[QueryClaim | None] = relationship(back_populates="citations")
 
 
-
 class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
     __table_args__ = (
@@ -464,12 +461,8 @@ class IdempotencyRecord(Base):
         ),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: new_id("idem")
-    )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("idem"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     organisation_id: Mapped[str] = mapped_column(String(64), index=True)
     site_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     operation: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -478,9 +471,7 @@ class IdempotencyRecord(Base):
     resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
     resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
     response_status: Mapped[int] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
@@ -519,7 +510,9 @@ class RCACase(Base):
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -604,7 +597,9 @@ class KnowledgeCard(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("kcard"))
     organisation_id: Mapped[str] = mapped_column(String(64), index=True)
     site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
-    asset_id: Mapped[str | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"), nullable=True, index=True)
+    asset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("assets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
@@ -614,6 +609,8 @@ class KnowledgeCard(Base):
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     supersedes_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
