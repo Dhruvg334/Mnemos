@@ -1,5 +1,8 @@
 from mnemos.models.entities import (
     Asset,
+    QueryEvent,
+    QueryClaim,
+    AgentRun,
     AuditEvent,
     Citation,
     Document,
@@ -16,6 +19,9 @@ from mnemos.models.entities import (
 
 __all__ = [
     "Asset",
+    "QueryEvent",
+    "QueryClaim",
+    "AgentRun",
     "AuditEvent",
     "Citation",
     "Document",

@@ -207,6 +207,8 @@ class Query(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
     mode: Mapped[str] = mapped_column(String(64), nullable=False, default="general")
+    context_asset_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    context_document_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=QueryStatus.QUEUED.value
     )
@@ -219,9 +221,68 @@ class Query(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    claims: Mapped[list[QueryClaim]] = relationship(
+        back_populates="query", cascade="all, delete-orphan"
+    )
     citations: Mapped[list[Citation]] = relationship(
         back_populates="query", cascade="all, delete-orphan"
     )
+    agent_runs: Mapped[list[AgentRun]] = relationship(
+        back_populates="query", cascade="all, delete-orphan"
+    )
+    events: Mapped[list[QueryEvent]] = relationship(
+        back_populates="query", cascade="all, delete-orphan"
+    )
+
+
+class QueryClaim(Base):
+    __tablename__ = "query_claims"
+    __table_args__ = (UniqueConstraint("query_id", "external_id"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("clm"))
+    query_id: Mapped[str] = mapped_column(ForeignKey("queries.id", ondelete="CASCADE"), index=True)
+    external_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    support_status: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    query: Mapped[Query] = relationship(back_populates="claims")
+    citations: Mapped[list[Citation]] = relationship(back_populates="claim")
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("run"))
+    query_id: Mapped[str] = mapped_column(ForeignKey("queries.id", ondelete="CASCADE"), index=True)
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    site_id: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    gateway: Mapped[str] = mapped_column(String(32), nullable=False)
+    pipeline_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(nullable=True)
+    request_payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    response_payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    query: Mapped[Query] = relationship(back_populates="agent_runs")
+
+
+class QueryEvent(Base):
+    __tablename__ = "query_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("qevt"))
+    query_id: Mapped[str] = mapped_column(ForeignKey("queries.id", ondelete="CASCADE"), index=True)
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    progress_percent: Mapped[int] = mapped_column(nullable=False)
+    message: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    query: Mapped[Query] = relationship(back_populates="events")
 
 
 class Citation(Base):
@@ -229,15 +290,24 @@ class Citation(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("cit"))
     query_id: Mapped[str] = mapped_column(ForeignKey("queries.id", ondelete="CASCADE"), index=True)
+    claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("query_claims.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
     support_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    document_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     document_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    document_version: Mapped[int | None] = mapped_column(nullable=True)
+    chunk_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    evidence_region_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     page_or_sheet: Mapped[str | None] = mapped_column(String(64), nullable=True)
     locator: Mapped[str | None] = mapped_column(String(255), nullable=True)
     text_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieval_sources: Mapped[list[str]] = mapped_column(JSON, default=list)
     access_allowed: Mapped[bool] = mapped_column(default=True)
 
     query: Mapped[Query] = relationship(back_populates="citations")
+    claim: Mapped[QueryClaim | None] = relationship(back_populates="citations")
 
 
 class AuditEvent(Base):

@@ -1,6 +1,4 @@
-from datetime import UTC, datetime
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -8,23 +6,23 @@ from sqlalchemy.orm import selectinload
 from mnemos.api.deps import Principal, get_principal, require_site_access
 from mnemos.core.db import get_db
 from mnemos.core.errors import AppError
-from mnemos.models import Citation, Query, Site
+from mnemos.models import Query, QueryEvent, Site
 from mnemos.schemas.common import Envelope, Meta
-from mnemos.schemas.query import QueryCreate, QueryResponse
+from mnemos.schemas.query import QueryAccepted, QueryCreate, QueryEventResponse, QueryResponse
 from mnemos.services.audit import write_audit
-from mnemos.services.mock_agent import MockAgentGateway
+from mnemos.services.query_execution import add_query_event, execute_query_background
 
 router = APIRouter(prefix="/queries", tags=["queries"])
-agent_gateway = MockAgentGateway()
 
 
-@router.post("", response_model=Envelope[QueryResponse], status_code=201)
+@router.post("", response_model=Envelope[QueryAccepted], status_code=202)
 async def create_query(
     payload: QueryCreate,
+    background_tasks: BackgroundTasks,
     request: Request,
     principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
-) -> Envelope[QueryResponse]:
+) -> Envelope[QueryAccepted]:
     membership = require_site_access(principal, payload.site_id)
     site = await db.get(Site, payload.site_id)
     if site is None:
@@ -36,54 +34,36 @@ async def create_query(
         user_id=principal.user.id,
         question=payload.question,
         mode=payload.mode,
-        status="running",
+        context_asset_ids=list(payload.context.asset_ids),
+        context_document_ids=list(payload.context.document_ids),
+        status="queued",
     )
     db.add(query)
     await db.flush()
-
-    result = await agent_gateway.execute_query(payload.question)
-    query.answer = result.answer
-    query.confidence_label = result.confidence_label
-    query.confidence_score = result.confidence_score
-    query.missing_evidence = result.missing_evidence
-    query.conflicts = result.conflicts
-    query.related_entities = result.related_entities
-    query.status = "partially_succeeded" if result.partial else "succeeded"
-    query.completed_at = datetime.now(UTC)
-
-    for item in result.citations:
-        db.add(
-            Citation(
-                query_id=query.id,
-                claim_text=item.claim_text,
-                support_status=item.support_status,
-                document_title=item.document_title,
-                page_or_sheet=item.page_or_sheet,
-                locator=item.locator,
-                text_excerpt=item.text_excerpt,
-                access_allowed=item.access_allowed,
-            )
-        )
-
+    await add_query_event(
+        db,
+        query_id=query.id,
+        stage="queued",
+        progress_percent=0,
+        message="Query queued",
+    )
     await write_audit(
         db,
         organisation_id=site.organisation_id,
         site_id=site.id,
         actor_id=principal.user.id,
-        action="query.executed",
+        action="query.created",
         resource_type="query",
         resource_id=query.id,
         request_id=request.state.request_id,
         metadata={"mode": payload.mode, "role": membership.role},
     )
     await db.commit()
+    await db.refresh(query)
 
-    query = await db.scalar(
-        select(Query).options(selectinload(Query.citations)).where(Query.id == query.id)
-    )
-    assert query is not None
+    background_tasks.add_task(execute_query_background, query.id)
     return Envelope(
-        data=QueryResponse.model_validate(query),
+        data=QueryAccepted(id=query.id, status=query.status, created_at=query.created_at),
         meta=Meta(request_id=request.state.request_id),
     )
 
@@ -96,12 +76,44 @@ async def get_query(
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[QueryResponse]:
     query = await db.scalar(
-        select(Query).options(selectinload(Query.citations)).where(Query.id == query_id)
+        select(Query)
+        .options(
+            selectinload(Query.claims),
+            selectinload(Query.citations),
+            selectinload(Query.agent_runs),
+        )
+        .where(Query.id == query_id)
     )
     if query is None:
         raise AppError("NOT_FOUND", "Query not found.", 404)
     require_site_access(principal, query.site_id)
     return Envelope(
         data=QueryResponse.model_validate(query),
+        meta=Meta(request_id=request.state.request_id),
+    )
+
+
+@router.get("/{query_id}/events", response_model=Envelope[list[QueryEventResponse]])
+async def list_query_events(
+    query_id: str,
+    request: Request,
+    principal: Principal = Depends(get_principal),
+    db: AsyncSession = Depends(get_db),
+) -> Envelope[list[QueryEventResponse]]:
+    query = await db.get(Query, query_id)
+    if query is None:
+        raise AppError("NOT_FOUND", "Query not found.", 404)
+    require_site_access(principal, query.site_id)
+    events = list(
+        (
+            await db.scalars(
+                select(QueryEvent)
+                .where(QueryEvent.query_id == query_id)
+                .order_by(QueryEvent.created_at)
+            )
+        ).all()
+    )
+    return Envelope(
+        data=[QueryEventResponse.model_validate(event) for event in events],
         meta=Meta(request_id=request.state.request_id),
     )

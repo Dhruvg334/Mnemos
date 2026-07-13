@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
     mock_agent_enabled: bool = True
+    agent_gateway_mode: str = "mock"
+    agent_service_url: str = "http://agent-service:8100"
+    agent_service_timeout_seconds: float = 30.0
+    agent_service_api_key: str | None = None
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [
