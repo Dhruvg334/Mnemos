@@ -1,0 +1,71 @@
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class IngestionDocumentMetadata(BaseModel):
+    filename: str
+    uploaded_at: datetime
+    asset_ids: list[str] = []
+    access_classification: str = "internal"
+
+
+class IngestionRequest(BaseModel):
+    run_id: str
+    document_id: str
+    organisation_id: str
+    site_id: str
+    document_version: int
+    document_type: str
+    storage_uri: str
+    mime_type: str
+    sha256: str
+    metadata: IngestionDocumentMetadata
+
+
+class IngestionResult(BaseModel):
+    run_id: str
+    document_id: str
+    document_version: int
+    status: Literal["succeeded", "partially_succeeded", "failed"]
+    chunks_created: int = Field(default=0, ge=0)
+    entities_created: int = Field(default=0, ge=0)
+    relationships_created: int = Field(default=0, ge=0)
+    warnings: list[str] = []
+    pipeline_version: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class IngestionRunResponse(BaseModel):
+    id: str
+    document_id: str
+    organisation_id: str
+    site_id: str
+    document_version: int
+    status: str
+    gateway: str
+    chunks_created: int
+    entities_created: int
+    relationships_created: int
+    warnings: list[str]
+    pipeline_version: str | None
+    error_code: str | None
+    error_message: str | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class IngestionEventResponse(BaseModel):
+    id: str
+    ingestion_run_id: str
+    stage: str
+    progress_percent: int
+    message: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

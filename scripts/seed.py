@@ -3,7 +3,15 @@ import asyncio
 from sqlalchemy import select
 
 from mnemos.core.db import SessionLocal
-from mnemos.models import Asset, Membership, Organisation, Site, User
+from mnemos.models import (
+    Asset,
+    AssetAlias,
+    AssetRelationship,
+    Membership,
+    Organisation,
+    Site,
+    User,
+)
 
 
 async def seed() -> None:
@@ -104,7 +112,57 @@ async def seed() -> None:
             ),
         ]
 
-        db.add_all([org, north, south, *users, *memberships, *assets])
+        aliases = [
+            AssetAlias(
+                id="alias_p117_n_1",
+                site_id=north.id,
+                asset_id="ast_p117_n",
+                alias="P117",
+                normalized_alias="p117",
+                source="seed",
+                confidence=1.0,
+            ),
+            AssetAlias(
+                id="alias_p117_n_2",
+                site_id=north.id,
+                asset_id="ast_p117_n",
+                alias="Pump-117",
+                normalized_alias="pump117",
+                source="seed",
+                confidence=0.95,
+            ),
+            AssetAlias(
+                id="alias_m117_n_1",
+                site_id=north.id,
+                asset_id="ast_m117_n",
+                alias="Motor-117",
+                normalized_alias="motor117",
+                source="seed",
+                confidence=0.95,
+            ),
+        ]
+        relationships = [
+            AssetRelationship(
+                id="rel_p117_driven_by_m117",
+                site_id=north.id,
+                source_asset_id="ast_p117_n",
+                target_asset_id="ast_m117_n",
+                relationship_type="DRIVEN_BY",
+                confidence=1.0,
+                review_status="approved",
+            )
+        ]
+
+        db.add_all([
+            org,
+            north,
+            south,
+            *users,
+            *memberships,
+            *assets,
+            *aliases,
+            *relationships,
+        ])
         await db.commit()
 
 

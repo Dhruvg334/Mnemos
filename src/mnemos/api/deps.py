@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mnemos.core.db import get_db
 from mnemos.core.errors import AppError
 from mnemos.core.security import decode_access_token
+from mnemos.core.rate_limit import enforce_rate_limit
 from mnemos.models import Membership, User
 
 bearer = HTTPBearer(auto_error=False)
@@ -67,3 +68,18 @@ def require_site_role(
             details={"required_roles": sorted(allowed_roles), "current_role": membership.role},
         )
     return membership
+
+
+
+async def rate_limited_principal(
+    request: Request,
+    principal: Principal = Depends(get_principal),
+) -> Principal:
+    await enforce_rate_limit(request, principal.user.id)
+    return principal
+
+
+def require_admin(principal: Principal) -> None:
+    allowed = {"platform_admin", "organisation_admin", "site_admin"}
+    if not any(membership.role in allowed for membership in principal.memberships):
+        raise AppError("FORBIDDEN", "Administrator access required.", 403)

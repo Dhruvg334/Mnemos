@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     agent_service_url: str = "http://agent-service:8100"
     agent_service_timeout_seconds: float = 30.0
     agent_service_api_key: str | None = None
+    ingestion_gateway_mode: str = "mock"
+    ingestion_service_url: str = "http://agent-service:8100"
+    ingestion_service_timeout_seconds: float = 60.0
+    ingestion_service_api_key: str | None = None
+    rate_limit_enabled: bool = True
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
+    audit_page_size_max: int = 100
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [

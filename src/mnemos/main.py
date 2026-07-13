@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from mnemos.api.v1 import assets, auth, compliance, documents, health, knowledge, queries, rcas, sites
+from mnemos.api.v1 import assets, audit, auth, compliance, documents, health, ingestion, knowledge, queries, rcas, sites
 from mnemos.core.config import settings
 from mnemos.core.errors import AppError, app_error_handler
 from mnemos.core.middleware import RequestIdMiddleware
+from mnemos.core.rate_limit import close_rate_limit_client
 
 app = FastAPI(
     title=settings.app_name,
@@ -31,3 +32,12 @@ app.include_router(queries.router, prefix=settings.api_v1_prefix)
 app.include_router(rcas.router, prefix=settings.api_v1_prefix)
 app.include_router(compliance.router, prefix=settings.api_v1_prefix)
 app.include_router(knowledge.router, prefix=settings.api_v1_prefix)
+
+app.include_router(ingestion.router, prefix=settings.api_v1_prefix)
+app.include_router(audit.router, prefix=settings.api_v1_prefix)
+
+
+
+@app.on_event("shutdown")
+async def shutdown_resources() -> None:
+    await close_rate_limit_client()

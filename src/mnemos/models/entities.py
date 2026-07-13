@@ -148,6 +148,63 @@ class Asset(Base):
     site: Mapped[Site] = relationship(back_populates="assets")
 
 
+
+class AssetRelationship(Base):
+    __tablename__ = "asset_relationships"
+    __table_args__ = (
+        UniqueConstraint(
+            "site_id",
+            "source_asset_id",
+            "relationship_type",
+            "target_asset_id",
+            name="uq_asset_relationship",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rel"))
+    site_id: Mapped[str] = mapped_column(
+        ForeignKey("sites.id", ondelete="CASCADE"), index=True
+    )
+    source_asset_id: Mapped[str] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), index=True
+    )
+    target_asset_id: Mapped[str] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), index=True
+    )
+    relationship_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(nullable=True)
+    source_document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    evidence_region_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_regions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified")
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AssetAlias(Base):
+    __tablename__ = "asset_aliases"
+    __table_args__ = (
+        UniqueConstraint("site_id", "normalized_alias", name="uq_asset_alias_site"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("alias"))
+    site_id: Mapped[str] = mapped_column(
+        ForeignKey("sites.id", ondelete="CASCADE"), index=True
+    )
+    asset_id: Mapped[str] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), index=True
+    )
+    alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_alias: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False, default="manual")
+    confidence: Mapped[float | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Document(Base):
     __tablename__ = "documents"
 
@@ -218,6 +275,50 @@ class EvidenceRegion(Base):
     locator: Mapped[str | None] = mapped_column(String(255), nullable=True)
     text_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+
+class IngestionRun(Base):
+    __tablename__ = "ingestion_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ing"))
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    organisation_id: Mapped[str] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), index=True
+    )
+    site_id: Mapped[str] = mapped_column(
+        ForeignKey("sites.id", ondelete="CASCADE"), index=True
+    )
+    document_version: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    gateway: Mapped[str] = mapped_column(String(64), nullable=False)
+    chunks_created: Mapped[int] = mapped_column(nullable=False, default=0)
+    entities_created: Mapped[int] = mapped_column(nullable=False, default=0)
+    relationships_created: Mapped[int] = mapped_column(nullable=False, default=0)
+    warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    pipeline_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    request_payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    response_payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class IngestionEvent(Base):
+    __tablename__ = "ingestion_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("iev"))
+    ingestion_run_id: Mapped[str] = mapped_column(
+        ForeignKey("ingestion_runs.id", ondelete="CASCADE"), index=True
+    )
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    progress_percent: Mapped[int] = mapped_column(nullable=False)
+    message: Mapped[str] = mapped_column(String(512), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

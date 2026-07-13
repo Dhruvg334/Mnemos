@@ -15,6 +15,7 @@ from mnemos.schemas.document import DocumentResponse
 from mnemos.schemas.upload import EvidenceRegionResponse, ProcessingStatusResponse, UploadConfirmRequest, UploadSessionCreate, UploadSessionResponse
 from mnemos.services.audit import write_audit
 from mnemos.services.ingestion import IngestionLifecycle
+from mnemos.services.ingestion_execution import execute_ingestion
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 storage = S3Storage(); ingestion = IngestionLifecycle()

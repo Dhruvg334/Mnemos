@@ -1,5 +1,9 @@
 from mnemos.models.entities import (
     Asset,
+    IngestionRun,
+    IngestionEvent,
+    AssetRelationship,
+    AssetAlias,
     KnowledgeCard,
     ComplianceEvaluation,
     ComplianceRequirement,
@@ -26,6 +30,10 @@ from mnemos.models.entities import (
 
 __all__ = [
     "Asset",
+    "IngestionRun",
+    "IngestionEvent",
+    "AssetRelationship",
+    "AssetAlias",
     "KnowledgeCard",
     "ComplianceEvaluation",
     "ComplianceRequirement",
