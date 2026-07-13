@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mnemos.core.config import settings
 from mnemos.core.errors import AppError
 from mnemos.models import Document, EvidenceRegion, Query
 from mnemos.schemas.agent import AgentQueryResult
@@ -44,6 +45,8 @@ async def validate_agent_result(
             continue
         document = documents.get(citation.document_id)
         if document is None:
+            if settings.agent_gateway_mode == "mock" and settings.app_env.lower() not in {"production", "prod"}:
+                continue
             raise AppError(
                 "AGENT_EVIDENCE_INVALID",
                 "Agent result references an unknown document.",

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from mnemos.api.deps import Principal, get_principal, require_site_access
+from mnemos.api.deps import Principal, get_principal, require_site_access, require_site_role
 from mnemos.core.config import settings
 from mnemos.core.db import get_db
 from mnemos.core.errors import AppError
@@ -16,6 +16,8 @@ from mnemos.schemas.upload import EvidenceRegionResponse, ProcessingStatusRespon
 from mnemos.services.audit import write_audit
 from mnemos.services.ingestion import IngestionLifecycle
 from mnemos.services.ingestion_execution import execute_ingestion
+
+DOCUMENT_WRITE_ROLES = {"platform_admin", "organisation_admin", "site_admin", "engineer", "maintenance_user", "safety_user", "quality_user"}
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 storage = S3Storage(); ingestion = IngestionLifecycle()
@@ -32,7 +34,7 @@ async def load_document(db: AsyncSession, document_id: str, principal: Principal
 
 @router.post("/upload-session", response_model=Envelope[UploadSessionResponse], status_code=201)
 async def create_upload_session(payload: UploadSessionCreate, request: Request, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)):
-    membership = require_site_access(principal, payload.site_id)
+    membership = require_site_role(principal, payload.site_id, DOCUMENT_WRITE_ROLES)
     site = await db.get(Site, payload.site_id)
     if site is None: raise AppError("NOT_FOUND", "Site not found.", 404)
     if payload.mime_type not in settings.allowed_upload_mime_types:
@@ -55,12 +57,18 @@ async def create_upload_session(payload: UploadSessionCreate, request: Request, 
 @router.post("/{document_id}/confirm", response_model=Envelope[DocumentResponse])
 async def confirm_upload(document_id: str, payload: UploadConfirmRequest, request: Request, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)):
     doc=await load_document(db,document_id,principal)
+    require_site_role(principal, doc.site_id, DOCUMENT_WRITE_ROLES)
     session=await db.scalar(select(UploadSession).where(UploadSession.id==payload.upload_session_id, UploadSession.document_id==doc.id))
     if session is None: raise AppError("NOT_FOUND", "Upload session not found.", 404)
     if session.status!="pending": raise AppError("CONFLICT", "Upload session is not pending.", 409)
     if session.expires_at < datetime.now(UTC): session.status="expired"; await db.commit(); raise AppError("CONFLICT", "Upload session has expired.", 409)
     if not await storage.object_exists(session.object_key): raise AppError("DOCUMENT_NOT_READY", "The object has not been uploaded.", 409, retryable=True)
-    actual=await storage.object_size(session.object_key)
+    metadata=await storage.object_metadata(session.object_key)
+    actual=int(metadata["size_bytes"])
+    actual_content_type=str(metadata["content_type"])
+    if actual_content_type and actual_content_type != doc.mime_type:
+        await storage.delete_object(session.object_key); doc.status="failed"; session.status="cancelled"; await db.commit()
+        raise AppError("VALIDATION_ERROR", "Uploaded object content type does not match the declared type.", 422)
     if actual!=doc.size_bytes:
         await storage.delete_object(session.object_key); doc.status="failed"; session.status="cancelled"; await db.commit()
         raise AppError("VALIDATION_ERROR", "Uploaded object size does not match the declared size.", 422, details={"declared_size_bytes":doc.size_bytes,"actual_size_bytes":actual})
@@ -92,6 +100,7 @@ async def get_status(document_id: str, request: Request, principal: Principal = 
 @router.post("/{document_id}/reprocess", response_model=Envelope[ProcessingStatusResponse], status_code=202)
 async def reprocess(document_id: str, request: Request, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)):
     doc=await load_document(db,document_id,principal)
+    require_site_role(principal, doc.site_id, DOCUMENT_WRITE_ROLES)
     if not doc.storage_key: raise AppError("DOCUMENT_NOT_READY", "Document has no stored object.", 409)
     job=await ingestion.queue(db,doc); await ingestion.run_mock(db,doc,job); await db.commit()
     data=ProcessingStatusResponse(document_id=doc.id,document_status=doc.status,job_id=job.id,job_status=job.status,stage=job.stage,progress_percent=job.progress_percent,warnings=list(job.warnings or []),updated_at=job.completed_at or job.started_at or job.created_at)

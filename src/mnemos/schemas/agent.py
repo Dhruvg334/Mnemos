@@ -1,24 +1,26 @@
 from __future__ import annotations
 
+from mnemos.schemas.common import APIModel
+
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
 
 
-class AgentScope(BaseModel):
+class AgentScope(APIModel):
     asset_ids: list[str] = Field(default_factory=list)
     document_ids: list[str] = Field(default_factory=list)
     allowed_document_types: list[str] = Field(default_factory=list)
     access_classifications: list[str] = Field(default_factory=lambda: ["internal"])
 
 
-class AgentOptions(BaseModel):
+class AgentOptions(APIModel):
     include_graph_context: bool = True
     include_missing_evidence: bool = True
     include_conflicts: bool = True
 
 
-class AgentQueryRequest(BaseModel):
+class AgentQueryRequest(APIModel):
     run_id: str
     query_id: str
     organisation_id: str
@@ -30,12 +32,12 @@ class AgentQueryRequest(BaseModel):
     options: AgentOptions = Field(default_factory=AgentOptions)
 
 
-class AgentConfidence(BaseModel):
+class AgentConfidence(APIModel):
     label: Literal["low", "medium", "high"]
     score: float = Field(ge=0.0, le=1.0)
 
 
-class AgentClaim(BaseModel):
+class AgentClaim(APIModel):
     id: str
     text: str
     support_status: Literal[
@@ -48,7 +50,7 @@ class AgentClaim(BaseModel):
     citation_ids: list[str] = Field(default_factory=list)
 
 
-class AgentCitation(BaseModel):
+class AgentCitation(APIModel):
     id: str
     document_id: str | None = None
     document_title: str
@@ -62,13 +64,13 @@ class AgentCitation(BaseModel):
     access_allowed: bool = True
 
 
-class AgentRelatedEntity(BaseModel):
+class AgentRelatedEntity(APIModel):
     entity_type: str
     entity_id: str
     label: str
 
 
-class AgentRunMetadata(BaseModel):
+class AgentRunMetadata(APIModel):
     pipeline_version: str | None = None
     embedding_model: str | None = None
     reranker_model: str | None = None
@@ -76,7 +78,7 @@ class AgentRunMetadata(BaseModel):
     token_usage: dict[str, int] = Field(default_factory=dict)
 
 
-class AgentQueryResult(BaseModel):
+class AgentQueryResult(APIModel):
     run_id: str
     status: Literal["succeeded", "partially_succeeded", "failed"]
     answer: str | None = None

@@ -10,7 +10,7 @@ from mnemos.models import (
     ComplianceEvaluation,
     KnowledgeCard,
     Query,
-    RCA,
+    RCACase,
 )
 from mnemos.schemas.asset import (
     AssetGraphEdge,
@@ -137,7 +137,7 @@ async def build_asset_timeline(
     rcas = list(
         (
             await db.scalars(
-                select(RCA).where(RCA.asset_id == asset.id)
+                select(RCACase).where(RCACase.asset_id == asset.id)
             )
         ).all()
     )
@@ -174,7 +174,7 @@ async def build_asset_timeline(
                 status=row.status,
                 severity=None,
                 source_id=row.id,
-                metadata={"overall_status": row.overall_status},
+                metadata={"overall_status": row.overall_result},
             )
         )
 

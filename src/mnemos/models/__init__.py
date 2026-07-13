@@ -25,6 +25,7 @@ from mnemos.models.entities import (
     Membership,
     Organisation,
     Query,
+    RefreshToken,
     Site,
     User,
 )
@@ -56,6 +57,7 @@ __all__ = [
     "Membership",
     "Organisation",
     "Query",
+    "RefreshToken",
     "Site",
     "User",
 ]

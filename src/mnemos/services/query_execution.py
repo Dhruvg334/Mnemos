@@ -84,6 +84,7 @@ async def execute_query_background(query_id: str) -> None:
         )
         run.request_payload_hash = _hash_payload(request.model_dump(mode="json"))
 
+        run_id = run.id
         try:
             await add_query_event(
                 db,
@@ -182,7 +183,7 @@ async def execute_query_background(query_id: str) -> None:
         except Exception as exc:
             await db.rollback()
             query = await db.get(Query, query_id)
-            run = await db.get(AgentRun, run.id)
+            run = await db.get(AgentRun, run_id)
             if query is not None:
                 query.status = "failed"
                 query.completed_at = datetime.now(UTC)

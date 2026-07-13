@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from mnemos.schemas.common import ORMModel
+from mnemos.schemas.common import ORMModel, APIModel
 
 
-class RCACreate(BaseModel):
+class RCACreate(APIModel):
     site_id: str
     asset_id: str
     title: str = Field(min_length=3, max_length=255)
@@ -14,34 +14,34 @@ class RCACreate(BaseModel):
     severity: Literal["low", "medium", "high", "critical"] = "medium"
 
 
-class RCAUpdate(BaseModel):
+class RCAUpdate(APIModel):
     title: str | None = Field(default=None, min_length=3, max_length=255)
     problem_statement: str | None = Field(default=None, min_length=10, max_length=10000)
     severity: Literal["low", "medium", "high", "critical"] | None = None
 
 
-class RCAObservationCreate(BaseModel):
+class RCAObservationCreate(APIModel):
     observation_type: Literal["fact", "event", "measurement", "missing_evidence"]
     text: str = Field(min_length=3, max_length=10000)
     evidence_region_id: str | None = None
     occurred_at: datetime | None = None
 
 
-class RCAHypothesisCreate(BaseModel):
+class RCAHypothesisCreate(APIModel):
     text: str = Field(min_length=3, max_length=10000)
     support_status: Literal["supported", "partially_supported", "conflicting", "unsupported", "not_evaluated"] = "not_evaluated"
     confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
     evidence_region_ids: list[str] = Field(default_factory=list)
 
 
-class RCAActionCreate(BaseModel):
+class RCAActionCreate(APIModel):
     title: str = Field(min_length=3, max_length=255)
     description: str = Field(min_length=3, max_length=10000)
     owner_id: str | None = None
     due_at: datetime | None = None
 
 
-class RCAReviewRequest(BaseModel):
+class RCAReviewRequest(APIModel):
     note: str | None = Field(default=None, max_length=5000)
 
 

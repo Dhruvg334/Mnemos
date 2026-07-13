@@ -2,6 +2,9 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_mnemos.db"
 os.environ["JWT_SECRET"] = "test-secret"
+os.environ["APP_ENV"] = "test"
+os.environ["DEV_LOGIN_ENABLED"] = "true"
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 from collections.abc import AsyncIterator
 

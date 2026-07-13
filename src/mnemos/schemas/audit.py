@@ -1,9 +1,9 @@
+from mnemos.schemas.common import APIModel
 from datetime import datetime
 
-from pydantic import BaseModel
 
 
-class AuditEventResponse(BaseModel):
+class AuditEventResponse(APIModel):
     id: str
     organisation_id: str
     site_id: str | None
@@ -16,7 +16,7 @@ class AuditEventResponse(BaseModel):
     occurred_at: datetime
 
 
-class AuditPageResponse(BaseModel):
+class AuditPageResponse(APIModel):
     items: list[AuditEventResponse]
     next_cursor: str | None
     has_more: bool

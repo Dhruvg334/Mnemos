@@ -21,6 +21,7 @@ class Principal:
 
 
 async def get_principal(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: AsyncSession = Depends(get_db),
 ) -> Principal:
@@ -36,6 +37,9 @@ async def get_principal(
     user = await db.scalar(select(User).where(User.id == user_id, User.is_active.is_(True)))
     if user is None:
         raise AppError("UNAUTHENTICATED", "User is not active.", 401)
+    if payload.get("ver") != user.token_version:
+        raise AppError("UNAUTHENTICATED", "Access token has been revoked.", 401)
+    await enforce_rate_limit(request, user.id)
 
     memberships = list(
         (

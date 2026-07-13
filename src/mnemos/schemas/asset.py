@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from pydantic import BaseModel
 
-from mnemos.schemas.common import ORMModel
+from mnemos.schemas.common import ORMModel, APIModel
 
 
 class AssetResponse(ORMModel):
@@ -39,14 +38,14 @@ class AssetRelationshipResponse(ORMModel):
     valid_to: datetime | None
 
 
-class AssetGraphNode(BaseModel):
+class AssetGraphNode(APIModel):
     id: str
     label: str
     node_type: str
     metadata: dict
 
 
-class AssetGraphEdge(BaseModel):
+class AssetGraphEdge(APIModel):
     id: str
     source: str
     target: str
@@ -57,13 +56,13 @@ class AssetGraphEdge(BaseModel):
     evidence_region_id: str | None
 
 
-class AssetGraphResponse(BaseModel):
+class AssetGraphResponse(APIModel):
     root_asset_id: str
     nodes: list[AssetGraphNode]
     edges: list[AssetGraphEdge]
 
 
-class AssetTimelineItem(BaseModel):
+class AssetTimelineItem(APIModel):
     id: str
     event_type: str
     title: str
@@ -74,6 +73,6 @@ class AssetTimelineItem(BaseModel):
     metadata: dict
 
 
-class AssetTimelineResponse(BaseModel):
+class AssetTimelineResponse(APIModel):
     asset_id: str
     items: list[AssetTimelineItem]

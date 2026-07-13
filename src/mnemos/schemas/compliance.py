@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from mnemos.schemas.common import ORMModel
+from mnemos.schemas.common import ORMModel, APIModel
 
 
-class RequirementCreate(BaseModel):
+class RequirementCreate(APIModel):
     organisation_id: str
     code: str = Field(min_length=2, max_length=128)
     title: str = Field(min_length=3, max_length=255)
@@ -25,20 +25,20 @@ class RequirementResponse(ORMModel):
     created_at: datetime
 
 
-class ComplianceEvaluationCreate(BaseModel):
+class ComplianceEvaluationCreate(APIModel):
     site_id: str
     asset_id: str
     requirement_ids: list[str] = Field(min_length=1)
 
 
-class ComplianceFinding(BaseModel):
+class ComplianceFinding(APIModel):
     requirement_id: str
     result: Literal["compliant", "non_compliant", "insufficient_evidence", "not_applicable"]
     summary: str
     evidence_region_ids: list[str] = Field(default_factory=list)
 
 
-class ComplianceReviewRequest(BaseModel):
+class ComplianceReviewRequest(APIModel):
     note: str | None = Field(default=None, max_length=5000)
 
 

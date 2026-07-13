@@ -1,28 +1,34 @@
 import pytest
 
+@pytest.mark.asyncio
+async def test_upload_metadata_validation(client, north_token):
+    response = await client.post(
+        "/api/v1/documents/upload-session",
+        json={
+            "site_id": "site_north",
+            "filename": "../unsafe.pdf",
+            "mime_type": "application/pdf",
+            "size_bytes": 1280,
+            "sha256": "a" * 64,
+            "document_type": "work_order",
+        },
+        headers={"Authorization": f"Bearer {north_token}"},
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 @pytest.mark.asyncio
-async def test_create_document_and_reject_duplicate(client, north_token):
-    payload = {
-        "site_id": "site_north",
-        "filename": "WO-2026-048.pdf",
-        "mime_type": "application/pdf",
-        "size_bytes": 1280,
-        "sha256": "a" * 64,
-        "document_type": "work_order",
-    }
-    first = await client.post(
-        "/api/v1/documents",
-        json=payload,
+async def test_reject_unsupported_upload_type(client, north_token):
+    response = await client.post(
+        "/api/v1/documents/upload-session",
+        json={
+            "site_id": "site_north",
+            "filename": "payload.exe",
+            "mime_type": "application/octet-stream",
+            "size_bytes": 1280,
+            "sha256": "a" * 64,
+            "document_type": "work_order",
+        },
         headers={"Authorization": f"Bearer {north_token}"},
     )
-    assert first.status_code == 201
-    assert first.json()["data"]["status"] == "uploaded"
-
-    second = await client.post(
-        "/api/v1/documents",
-        json=payload,
-        headers={"Authorization": f"Bearer {north_token}"},
-    )
-    assert second.status_code == 409
-    assert second.json()["error"]["code"] == "CONFLICT"
+    assert response.status_code == 415

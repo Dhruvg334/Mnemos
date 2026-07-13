@@ -1,17 +1,18 @@
+from mnemos.schemas.common import APIModel
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class IngestionDocumentMetadata(BaseModel):
+class IngestionDocumentMetadata(APIModel):
     filename: str
     uploaded_at: datetime
     asset_ids: list[str] = []
     access_classification: str = "internal"
 
 
-class IngestionRequest(BaseModel):
+class IngestionRequest(APIModel):
     run_id: str
     document_id: str
     organisation_id: str
@@ -24,7 +25,7 @@ class IngestionRequest(BaseModel):
     metadata: IngestionDocumentMetadata
 
 
-class IngestionResult(BaseModel):
+class IngestionResult(APIModel):
     run_id: str
     document_id: str
     document_version: int
@@ -38,7 +39,7 @@ class IngestionResult(BaseModel):
     error_message: str | None = None
 
 
-class IngestionRunResponse(BaseModel):
+class IngestionRunResponse(APIModel):
     id: str
     document_id: str
     organisation_id: str
@@ -60,7 +61,7 @@ class IngestionRunResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class IngestionEventResponse(BaseModel):
+class IngestionEventResponse(APIModel):
     id: str
     ingestion_run_id: str
     stage: str

@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from mnemos.api.v1 import assets, audit, auth, compliance, documents, health, ingestion, knowledge, queries, rcas, sites
@@ -8,9 +10,13 @@ from mnemos.core.errors import (
     AppError,
     app_error_handler,
     unexpected_error_handler,
+    validation_error_handler,
+    http_error_handler,
 )
 from mnemos.core.logging import configure_logging
-from mnemos.core.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
+from mnemos.core.middleware import (
+    RequestIdMiddleware, RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+)
 from mnemos.core.rate_limit import close_rate_limit_client
 
 configure_logging()
@@ -24,15 +30,18 @@ app = FastAPI(
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID"],
 )
 app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(Exception, unexpected_error_handler)
 
 app.include_router(health.router)

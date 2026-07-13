@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from mnemos.schemas.common import ORMModel
+from mnemos.schemas.common import ORMModel, APIModel
 
 
-class KnowledgeCardCreate(BaseModel):
+class KnowledgeCardCreate(APIModel):
     site_id: str
     asset_id: str | None = None
     title: str = Field(min_length=3, max_length=255)
@@ -13,12 +13,12 @@ class KnowledgeCardCreate(BaseModel):
     supersedes_id: str | None = None
 
 
-class KnowledgeCardUpdate(BaseModel):
+class KnowledgeCardUpdate(APIModel):
     title: str | None = Field(default=None, min_length=3, max_length=255)
     content: str | None = Field(default=None, min_length=10, max_length=20000)
 
 
-class KnowledgeReviewRequest(BaseModel):
+class KnowledgeReviewRequest(APIModel):
     note: str | None = Field(default=None, max_length=5000)
 
 

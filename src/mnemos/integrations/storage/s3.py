@@ -42,3 +42,14 @@ class S3Storage:
 
     async def delete_object(self, object_key: str) -> None:
         await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=object_key)
+
+
+    async def object_metadata(self, object_key: str) -> dict[str, object]:
+        response = await asyncio.to_thread(
+            self.client.head_object, Bucket=self.bucket, Key=object_key
+        )
+        return {
+            "size_bytes": int(response["ContentLength"]),
+            "content_type": str(response.get("ContentType") or ""),
+            "etag": str(response.get("ETag") or "").strip('"'),
+        }

@@ -1,17 +1,17 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from mnemos.schemas.common import ORMModel
-
-
-class QueryContext(BaseModel):
-    asset_ids: list[str] = Field(default_factory=list)
-    document_ids: list[str] = Field(default_factory=list)
+from mnemos.schemas.common import ORMModel, APIModel
 
 
-class QueryCreate(BaseModel):
+class QueryContext(APIModel):
+    asset_ids: list[str] = Field(default_factory=list, max_length=50)
+    document_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+class QueryCreate(APIModel):
     site_id: str
     question: str = Field(min_length=3, max_length=5000)
     context: QueryContext = Field(default_factory=QueryContext)
@@ -20,7 +20,7 @@ class QueryCreate(BaseModel):
     ] = "general"
 
 
-class QueryAccepted(BaseModel):
+class QueryAccepted(APIModel):
     id: str
     status: str
     created_at: datetime

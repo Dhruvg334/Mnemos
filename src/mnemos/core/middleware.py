@@ -49,3 +49,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                     "max-age=31536000; includeSubDomains"
                 )
         return response
+
+
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        from mnemos.core.errors import AppError
+        raw = request.headers.get("content-length")
+        if raw is not None:
+            try:
+                size = int(raw)
+            except ValueError as exc:
+                raise AppError("INVALID_CONTENT_LENGTH", "Invalid Content-Length header.", 400) from exc
+            if size < 0:
+                raise AppError("INVALID_CONTENT_LENGTH", "Invalid Content-Length header.", 400)
+            if size > settings.max_request_body_bytes:
+                raise AppError("REQUEST_TOO_LARGE", "Request body exceeds the configured limit.", 413,
+                               details={"max_request_body_bytes": settings.max_request_body_bytes})
+        return await call_next(request)

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +23,14 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 30
+    jwt_issuer: str = "mnemos-api"
+    jwt_audience: str = "mnemos-client"
+    refresh_token_expire_days: int = 7
+    password_min_length: int = 12
+    login_lock_threshold: int = 5
+    login_lock_minutes: int = 15
+    dev_login_enabled: bool = True
     cors_origins: list[str] = ["http://localhost:3000"]
     mock_agent_enabled: bool = True
     agent_gateway_mode: str = "mock"
@@ -37,6 +44,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
+    rate_limit_login_requests: int = 8
+    rate_limit_login_window_seconds: int = 300
+    rate_limit_fail_closed: bool = False
     audit_page_size_max: int = 100
     upstream_retry_attempts: int = 3
     upstream_retry_base_delay_seconds: float = 0.25
@@ -45,6 +55,7 @@ class Settings(BaseSettings):
     query_max_retry_attempts: int = 2
     ingestion_max_retry_attempts: int = 2
     security_headers_enabled: bool = True
+    max_request_body_bytes: int = 2_000_000
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [
@@ -61,6 +72,19 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+
+    @model_validator(mode="after")
+    def validate_secure_configuration(self):
+        if self.app_env.lower() in {"production", "prod"}:
+            self.dev_login_enabled = False
+            self.expose_api_docs = False
+            self.rate_limit_fail_closed = True
+            if self.jwt_secret in {"change-me", "test-secret"} or len(self.jwt_secret) < 32:
+                raise ValueError("JWT_SECRET must be strong in production")
+            if "*" in self.cors_origins:
+                raise ValueError("Wildcard CORS is not allowed in production")
+        return self
 
 
 @lru_cache

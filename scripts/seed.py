@@ -1,8 +1,11 @@
 import asyncio
+import os
 
 from sqlalchemy import select
 
+from mnemos.core.config import settings
 from mnemos.core.db import SessionLocal
+from mnemos.core.security import hash_password, validate_password_strength
 from mnemos.models import (
     Asset,
     AssetAlias,
@@ -15,6 +18,13 @@ from mnemos.models import (
 
 
 async def seed() -> None:
+    seed_password = os.getenv("SEED_DEFAULT_PASSWORD")
+    if settings.app_env.lower() in {"production", "prod"} and not seed_password:
+        raise RuntimeError("SEED_DEFAULT_PASSWORD is required for production seeding")
+    password_hash = None
+    if seed_password:
+        validate_password_strength(seed_password)
+        password_hash = hash_password(seed_password)
     async with SessionLocal() as db:
         existing = await db.scalar(select(Organisation).where(Organisation.id == "org_mn_001"))
         if existing is not None:
@@ -34,26 +44,30 @@ async def seed() -> None:
             code="SUP",
         )
         users = [
-            User(id="usr_admin", email="admin@mnemos.local", full_name="Mnemos Admin"),
+            User(id="usr_admin", email="admin@mnemos.local", full_name="Mnemos Admin", password_hash=password_hash),
             User(
                 id="usr_engineer_north",
                 email="engineer.north@mnemos.local",
                 full_name="North Engineer",
+                password_hash=password_hash,
             ),
             User(
                 id="usr_viewer_north",
                 email="viewer.north@mnemos.local",
                 full_name="North Viewer",
+                password_hash=password_hash,
             ),
             User(
                 id="usr_safety_north",
                 email="safety.north@mnemos.local",
                 full_name="North Safety",
+                password_hash=password_hash,
             ),
             User(
                 id="usr_engineer_south",
                 email="engineer.south@mnemos.local",
                 full_name="South Engineer",
+                password_hash=password_hash,
             ),
         ]
         memberships = [

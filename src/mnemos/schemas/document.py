@@ -1,16 +1,16 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from mnemos.schemas.common import ORMModel
+from mnemos.schemas.common import ORMModel, APIModel
 
 
-class DocumentCreate(BaseModel):
+class DocumentCreate(APIModel):
     site_id: str
-    filename: str = Field(min_length=1, max_length=512)
+    filename: str = Field(min_length=1, max_length=255, pattern=r"^[^/\\]+$")
     mime_type: str = Field(min_length=1, max_length=128)
     size_bytes: int = Field(gt=0)
-    sha256: str = Field(min_length=64, max_length=64)
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
     document_type: str = Field(min_length=1, max_length=128)
 
 

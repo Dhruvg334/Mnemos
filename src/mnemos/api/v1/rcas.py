@@ -119,6 +119,8 @@ async def submit_rca(rca_id: str, request: Request, principal: Principal = Depen
 async def approve_rca(rca_id: str, payload: RCAReviewRequest, request: Request, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)):
     rca = await _get_rca(db, rca_id, principal); require_site_role(principal, rca.site_id, APPROVE_ROLES)
     if rca.status != "under_review": raise AppError("CONFLICT", "RCA is not awaiting review.", 409)
+    if rca.created_by == principal.user.id or rca.submitted_by == principal.user.id:
+        raise AppError("FORBIDDEN", "Authors cannot approve their own RCA.", 403)
     bundle = await load_rca_bundle(db, rca); rca.status = "approved"; rca.approved_by = principal.user.id; rca.approved_at = datetime.now(UTC); rca.review_note = payload.note; rca.approved_snapshot = rca_snapshot(bundle)
     await db.commit()
     return Envelope(data=_serialize(await load_rca_bundle(db, rca)), meta=Meta(request_id=request.state.request_id))
@@ -128,6 +130,8 @@ async def approve_rca(rca_id: str, payload: RCAReviewRequest, request: Request, 
 async def reject_rca(rca_id: str, payload: RCAReviewRequest, request: Request, principal: Principal = Depends(get_principal), db: AsyncSession = Depends(get_db)):
     rca = await _get_rca(db, rca_id, principal); require_site_role(principal, rca.site_id, APPROVE_ROLES)
     if rca.status != "under_review": raise AppError("CONFLICT", "RCA is not awaiting review.", 409)
+    if rca.created_by == principal.user.id or rca.submitted_by == principal.user.id:
+        raise AppError("FORBIDDEN", "Authors cannot review their own RCA.", 403)
     rca.status = "rejected"; rca.rejected_by = principal.user.id; rca.review_note = payload.note
     await db.commit()
     return Envelope(data=_serialize(await load_rca_bundle(db, rca)), meta=Meta(request_id=request.state.request_id))
