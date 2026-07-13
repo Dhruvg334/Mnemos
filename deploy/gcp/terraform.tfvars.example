@@ -1,0 +1,17 @@
+project_id            = "your-gcp-project-id"
+region                = "asia-south1"
+environment           = "production"
+container_image       = "asia-south1-docker.pkg.dev/your-gcp-project-id/mnemos/mnemos-backend:initial"
+frontend_origins      = ["https://your-frontend.example"]
+agent_service_url     = "https://your-agent-service.example"
+ingestion_service_url = "https://your-agent-service.example"
+
+s3_endpoint_url = "https://your-s3-compatible-endpoint.example"
+s3_bucket       = "mnemos-documents"
+s3_region       = "auto"
+s3_access_key   = "replace-me"
+s3_secret_key   = "replace-me"
+jwt_secret      = "replace-with-a-long-random-secret"
+
+agent_service_api_key     = "replace-me"
+ingestion_service_api_key = "replace-me"

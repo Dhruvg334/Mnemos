@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from mnemos.api.v1 import assets, audit, auth, compliance, documents, health, ingestion, knowledge, queries, rcas, sites
 from mnemos.core.config import settings
+from mnemos.core.db import close_database
 from mnemos.core.errors import (
     AppError,
     app_error_handler,
@@ -16,7 +17,10 @@ configure_logging()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
+    version=settings.app_version,
+    docs_url="/docs" if settings.expose_api_docs else None,
+    redoc_url="/redoc" if settings.expose_api_docs else None,
+    openapi_url="/openapi.json" if settings.expose_api_docs else None,
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -50,3 +54,4 @@ app.include_router(audit.router, prefix=settings.api_v1_prefix)
 @app.on_event("shutdown")
 async def shutdown_resources() -> None:
     await close_rate_limit_client()
+    await close_database()

@@ -7,8 +7,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = "development"
     app_name: str = "Mnemos API"
+    app_version: str = "0.1.0"
+    expose_api_docs: bool = True
     api_v1_prefix: str = "/api/v1"
     database_url: str = "sqlite+aiosqlite:///./mnemos.db"
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_pool_timeout_seconds: int = 30
+    database_pool_recycle_seconds: int = 1800
     redis_url: str = "redis://localhost:6379/0"
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "mnemos"

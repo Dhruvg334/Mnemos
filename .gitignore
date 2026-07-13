@@ -53,3 +53,10 @@ redis-data/
 temporal-data/
 
 *.zip
+.env.production
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+crash.log

@@ -1,0 +1,41 @@
+name: Deploy Backend to GCP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: ${{ vars.GCP_REGION }}
+  SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+  MIGRATION_JOB: ${{ vars.GCP_MIGRATION_JOB }}
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}/mnemos-backend:${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - run: |
+          docker build --build-arg APP_VERSION="${GITHUB_SHA}" -t "${IMAGE}" .
+          docker push "${IMAGE}"
+      - run: |
+          gcloud run jobs update "${MIGRATION_JOB}" --region "${REGION}" --image "${IMAGE}" --args migrate --quiet
+          gcloud run jobs execute "${MIGRATION_JOB}" --region "${REGION}" --wait --quiet
+      - run: |
+          gcloud run services update "${SERVICE}" --region "${REGION}" --image "${IMAGE}" --quiet
+      - run: |
+          URL="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
+          curl --fail --retry 10 --retry-delay 3 "${URL}/health/live"
+          curl --fail --retry 10 --retry-delay 3 "${URL}/health/ready"
