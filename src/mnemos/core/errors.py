@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import Request
@@ -36,5 +37,34 @@ async def app_error_handler(request: Request, exc: AppError) -> ORJSONResponse:
                 "request_id": getattr(request.state, "request_id", None),
                 "api_version": "v1",
             },
+        },
+    )
+
+
+
+logger = logging.getLogger("mnemos.errors")
+
+
+async def unexpected_error_handler(request: Request, exc: Exception) -> ORJSONResponse:
+    request_id = getattr(request.state, "request_id", None)
+    logger.exception(
+        "request.unhandled_error",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": 500,
+        },
+    )
+    return ORJSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "The request could not be completed.",
+                "details": {},
+                "retryable": False,
+            },
+            "meta": {"request_id": request_id, "api_version": "v1"},
         },
     )

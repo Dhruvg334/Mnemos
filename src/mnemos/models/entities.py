@@ -436,6 +436,40 @@ class Citation(Base):
     claim: Mapped[QueryClaim | None] = relationship(back_populates="citations")
 
 
+
+class IdempotencyRecord(Base):
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "operation",
+            "idempotency_key",
+            name="uq_idempotency_user_operation_key",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: new_id("idem")
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    site_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    operation: Mapped[str] = mapped_column(String(128), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_status: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 

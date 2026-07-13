@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,6 +11,13 @@ from mnemos.schemas.common import Envelope, Meta
 from mnemos.schemas.query import QueryAccepted, QueryCreate, QueryEventResponse, QueryResponse
 from mnemos.services.audit import write_audit
 from mnemos.services.query_execution import add_query_event, execute_query_background
+from mnemos.services.idempotency import (
+    find_idempotent_resource,
+    request_hash,
+    save_idempotency_record,
+    validate_idempotency_key,
+)
+from mnemos.core.config import settings
 
 router = APIRouter(prefix="/queries", tags=["queries"])
 
@@ -20,6 +27,7 @@ async def create_query(
     payload: QueryCreate,
     background_tasks: BackgroundTasks,
     request: Request,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[QueryAccepted]:
@@ -27,6 +35,33 @@ async def create_query(
     site = await db.get(Site, payload.site_id)
     if site is None:
         raise AppError("NOT_FOUND", "Site not found.", 404)
+
+    key = validate_idempotency_key(idempotency_key)
+    payload_hash = request_hash(payload.model_dump(mode="json"))
+    if key:
+        existing = await find_idempotent_resource(
+            db,
+            user_id=principal.user.id,
+            operation="query.create",
+            key=key,
+            payload_hash=payload_hash,
+        )
+        if existing is not None:
+            previous = await db.get(Query, existing.resource_id)
+            if previous is None:
+                raise AppError(
+                    "IDEMPOTENCY_RESOURCE_MISSING",
+                    "The previous idempotent resource is unavailable.",
+                    409,
+                )
+            return Envelope(
+                data=QueryAccepted(
+                    id=previous.id,
+                    status=previous.status,
+                    created_at=previous.created_at,
+                ),
+                meta=Meta(request_id=request.state.request_id),
+            )
 
     query = Query(
         organisation_id=site.organisation_id,
@@ -58,6 +93,19 @@ async def create_query(
         request_id=request.state.request_id,
         metadata={"mode": payload.mode, "role": membership.role},
     )
+    if key:
+        await save_idempotency_record(
+            db,
+            user_id=principal.user.id,
+            organisation_id=site.organisation_id,
+            site_id=site.id,
+            operation="query.create",
+            key=key,
+            payload_hash=payload_hash,
+            resource_type="query",
+            resource_id=query.id,
+            response_status=202,
+        )
     await db.commit()
     await db.refresh(query)
 
@@ -115,5 +163,115 @@ async def list_query_events(
     )
     return Envelope(
         data=[QueryEventResponse.model_validate(event) for event in events],
+        meta=Meta(request_id=request.state.request_id),
+    )
+
+
+
+@router.post("/{query_id}/cancel", response_model=Envelope[QueryAccepted])
+async def cancel_query(
+    query_id: str,
+    request: Request,
+    principal: Principal = Depends(get_principal),
+    db: AsyncSession = Depends(get_db),
+) -> Envelope[QueryAccepted]:
+    query = await db.scalar(
+        select(Query).where(Query.id == query_id).with_for_update()
+    )
+    if query is None:
+        raise AppError("NOT_FOUND", "Query not found.", 404)
+    require_site_access(principal, query.site_id)
+    if query.status not in {"queued", "running"}:
+        raise AppError(
+            "INVALID_STATE",
+            "Only queued or running queries can be cancelled.",
+            409,
+            details={"current_status": query.status},
+        )
+
+    query.status = "cancelled"
+    query.completed_at = datetime.now(UTC)
+    await add_query_event(
+        db,
+        query_id=query.id,
+        stage="cancelled",
+        progress_percent=100,
+        message="Query cancelled",
+    )
+    await write_audit(
+        db,
+        organisation_id=query.organisation_id,
+        site_id=query.site_id,
+        actor_id=principal.user.id,
+        action="query.cancelled",
+        resource_type="query",
+        resource_id=query.id,
+        request_id=request.state.request_id,
+        metadata={},
+    )
+    await db.commit()
+    await db.refresh(query)
+    return Envelope(
+        data=QueryAccepted(id=query.id, status=query.status, created_at=query.created_at),
+        meta=Meta(request_id=request.state.request_id),
+    )
+
+
+@router.post("/{query_id}/retry", response_model=Envelope[QueryAccepted], status_code=202)
+async def retry_query(
+    query_id: str,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    principal: Principal = Depends(get_principal),
+    db: AsyncSession = Depends(get_db),
+) -> Envelope[QueryAccepted]:
+    query = await db.scalar(
+        select(Query).where(Query.id == query_id).with_for_update()
+    )
+    if query is None:
+        raise AppError("NOT_FOUND", "Query not found.", 404)
+    require_site_access(principal, query.site_id)
+    if query.status not in {"failed", "cancelled"}:
+        raise AppError(
+            "INVALID_STATE",
+            "Only failed or cancelled queries can be retried.",
+            409,
+            details={"current_status": query.status},
+        )
+
+    prior_attempts = len(query.agent_runs)
+    if prior_attempts >= settings.query_max_retry_attempts + 1:
+        raise AppError(
+            "RETRY_LIMIT_REACHED",
+            "Query retry limit reached.",
+            409,
+            details={"attempts": prior_attempts},
+        )
+
+    query.status = "queued"
+    query.completed_at = None
+    await add_query_event(
+        db,
+        query_id=query.id,
+        stage="queued",
+        progress_percent=0,
+        message="Query queued for retry",
+    )
+    await write_audit(
+        db,
+        organisation_id=query.organisation_id,
+        site_id=query.site_id,
+        actor_id=principal.user.id,
+        action="query.retry_requested",
+        resource_type="query",
+        resource_id=query.id,
+        request_id=request.state.request_id,
+        metadata={"previous_attempts": prior_attempts},
+    )
+    await db.commit()
+    await db.refresh(query)
+    background_tasks.add_task(execute_query_background, query.id)
+    return Envelope(
+        data=QueryAccepted(id=query.id, status=query.status, created_at=query.created_at),
         meta=Meta(request_id=request.state.request_id),
     )

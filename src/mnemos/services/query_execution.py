@@ -13,6 +13,7 @@ from mnemos.core.errors import AppError
 from mnemos.integrations.agents import get_agent_gateway
 from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import AgentOptions, AgentQueryRequest, AgentScope
+from mnemos.services.agent_validation import validate_agent_result
 
 
 def _hash_payload(payload: dict) -> str:
@@ -93,6 +94,13 @@ async def execute_query_background(query_id: str) -> None:
             )
             await db.commit()
             result = await gateway.execute_query(request)
+            await db.refresh(query)
+            if query.status == "cancelled":
+                run.status = "cancelled"
+                run.completed_at = datetime.now(UTC)
+                await db.commit()
+                return
+            await validate_agent_result(db, query=query, result=result)
             run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
 
             if result.status == "failed":

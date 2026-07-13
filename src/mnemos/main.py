@@ -3,15 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from mnemos.api.v1 import assets, audit, auth, compliance, documents, health, ingestion, knowledge, queries, rcas, sites
 from mnemos.core.config import settings
-from mnemos.core.errors import AppError, app_error_handler
-from mnemos.core.middleware import RequestIdMiddleware
+from mnemos.core.errors import (
+    AppError,
+    app_error_handler,
+    unexpected_error_handler,
+)
+from mnemos.core.logging import configure_logging
+from mnemos.core.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 from mnemos.core.rate_limit import close_rate_limit_client
+
+configure_logging()
 
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(Exception, unexpected_error_handler)
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix=settings.api_v1_prefix)

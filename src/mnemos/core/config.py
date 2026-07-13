@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
     audit_page_size_max: int = 100
+    upstream_retry_attempts: int = 3
+    upstream_retry_base_delay_seconds: float = 0.25
+    idempotency_key_max_length: int = 128
+    idempotency_ttl_hours: int = 24
+    query_max_retry_attempts: int = 2
+    ingestion_max_retry_attempts: int = 2
+    security_headers_enabled: bool = True
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [

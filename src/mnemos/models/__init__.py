@@ -1,6 +1,7 @@
 from mnemos.models.entities import (
     Asset,
     IngestionRun,
+    IdempotencyRecord,
     IngestionEvent,
     AssetRelationship,
     AssetAlias,
@@ -31,6 +32,7 @@ from mnemos.models.entities import (
 __all__ = [
     "Asset",
     "IngestionRun",
+    "IdempotencyRecord",
     "IngestionEvent",
     "AssetRelationship",
     "AssetAlias",
