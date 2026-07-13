@@ -51,3 +51,19 @@ def require_site_access(principal: Principal, site_id: str) -> Membership:
         if membership.site_id is None or membership.site_id == site_id:
             return membership
     raise AppError("FORBIDDEN", "Site access denied.", 403)
+
+
+def require_site_role(
+    principal: Principal,
+    site_id: str,
+    allowed_roles: set[str],
+) -> Membership:
+    membership = require_site_access(principal, site_id)
+    if membership.role not in allowed_roles:
+        raise AppError(
+            "FORBIDDEN",
+            "Your role does not permit this action.",
+            403,
+            details={"required_roles": sorted(allowed_roles), "current_role": membership.role},
+        )
+    return membership

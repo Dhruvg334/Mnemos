@@ -39,6 +39,31 @@ class DocumentStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class RCAStatus(StrEnum):
+    DRAFT = "draft"
+    UNDER_REVIEW = "under_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CLOSED = "closed"
+
+
+class KnowledgeCardStatus(StrEnum):
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class ComplianceEvaluationStatus(StrEnum):
+    DRAFT = "draft"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    PARTIALLY_SUCCEEDED = "partially_succeeded"
+    FAILED = "failed"
+    REVIEWED = "reviewed"
+
+
 class QueryStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -323,3 +348,121 @@ class AuditEvent(Base):
     request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RCACase(Base):
+    __tablename__ = "rca_cases"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rca"))
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    problem_statement: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    severity: Mapped[str] = mapped_column(String(32), nullable=False, default="medium")
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    submitted_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    rejected_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RCAObservation(Base):
+    __tablename__ = "rca_observations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("obs"))
+    rca_id: Mapped[str] = mapped_column(ForeignKey("rca_cases.id", ondelete="CASCADE"), index=True)
+    observation_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_region_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RCAHypothesis(Base):
+    __tablename__ = "rca_hypotheses"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("hyp"))
+    rca_id: Mapped[str] = mapped_column(ForeignKey("rca_cases.id", ondelete="CASCADE"), index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    support_status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_evaluated")
+    confidence_score: Mapped[float | None] = mapped_column(nullable=True)
+    evidence_region_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RCAAction(Base):
+    __tablename__ = "rca_actions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("act"))
+    rca_id: Mapped[str] = mapped_column(ForeignKey("rca_cases.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ComplianceRequirement(Base):
+    __tablename__ = "compliance_requirements"
+    __table_args__ = (UniqueConstraint("organisation_id", "code"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("req"))
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    code: Mapped[str] = mapped_column(String(128), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ComplianceEvaluation(Base):
+    __tablename__ = "compliance_evaluations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ceval"))
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
+    requirement_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    overall_result: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    findings: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    missing_evidence: Mapped[list[str]] = mapped_column(JSON, default=list)
+    conflicts: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class KnowledgeCard(Base):
+    __tablename__ = "knowledge_cards"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("kcard"))
+    organisation_id: Mapped[str] = mapped_column(String(64), index=True)
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    asset_id: Mapped[str | None] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
+    version: Mapped[int] = mapped_column(nullable=False, default=1)
+    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    reviewer_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supersedes_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

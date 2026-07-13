@@ -1,5 +1,12 @@
 from mnemos.models.entities import (
     Asset,
+    KnowledgeCard,
+    ComplianceEvaluation,
+    ComplianceRequirement,
+    RCAAction,
+    RCAHypothesis,
+    RCAObservation,
+    RCACase,
     QueryEvent,
     QueryClaim,
     AgentRun,
@@ -19,6 +26,13 @@ from mnemos.models.entities import (
 
 __all__ = [
     "Asset",
+    "KnowledgeCard",
+    "ComplianceEvaluation",
+    "ComplianceRequirement",
+    "RCAAction",
+    "RCAHypothesis",
+    "RCAObservation",
+    "RCACase",
     "QueryEvent",
     "QueryClaim",
     "AgentRun",

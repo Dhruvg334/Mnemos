@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from mnemos.api.v1 import assets, auth, documents, health, queries, sites
+from mnemos.api.v1 import assets, auth, compliance, documents, health, knowledge, queries, rcas, sites
 from mnemos.core.config import settings
 from mnemos.core.errors import AppError, app_error_handler
 from mnemos.core.middleware import RequestIdMiddleware
@@ -27,3 +27,7 @@ app.include_router(sites.router, prefix=settings.api_v1_prefix)
 app.include_router(assets.router, prefix=settings.api_v1_prefix)
 app.include_router(documents.router, prefix=settings.api_v1_prefix)
 app.include_router(queries.router, prefix=settings.api_v1_prefix)
+
+app.include_router(rcas.router, prefix=settings.api_v1_prefix)
+app.include_router(compliance.router, prefix=settings.api_v1_prefix)
+app.include_router(knowledge.router, prefix=settings.api_v1_prefix)
