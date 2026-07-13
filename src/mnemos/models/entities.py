@@ -146,6 +146,56 @@ class Document(Base):
     site: Mapped[Site] = relationship(back_populates="documents")
 
 
+class DocumentVersion(Base):
+    __tablename__ = "document_versions"
+    __table_args__ = (UniqueConstraint("document_id", "version"),)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dver"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class UploadSession(Base):
+    __tablename__ = "upload_sessions"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("upl"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProcessingJob(Base):
+    __tablename__ = "processing_jobs"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("job"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    stage: Mapped[str] = mapped_column(String(64), nullable=False, default="validating")
+    progress_percent: Mapped[int] = mapped_column(nullable=False, default=0)
+    warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EvidenceRegion(Base):
+    __tablename__ = "evidence_regions"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("evr"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    page_or_sheet: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    locator: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    text_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Query(Base):
     __tablename__ = "queries"
 

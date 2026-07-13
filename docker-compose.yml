@@ -34,8 +34,24 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     volumes:
       - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 mnemos mnemos-secret &&
+      mc mb --ignore-existing local/mnemos-documents
+      "
 
   api:
     build: .
@@ -48,6 +64,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     command: >
       sh -c "alembic upgrade head &&
              python scripts/seed.py &&

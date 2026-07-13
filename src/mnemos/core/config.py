@@ -20,10 +20,17 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     cors_origins: list[str] = ["http://localhost:3000"]
     mock_agent_enabled: bool = True
+    max_upload_size_bytes: int = 52_428_800
+    upload_session_expire_minutes: int = 15
+    allowed_upload_mime_types: list[str] = [
+        "application/pdf", "text/markdown", "text/plain", "text/csv",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ]
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "allowed_upload_mime_types", mode="before")
     @classmethod
     def parse_cors_origins(cls, value):
         if isinstance(value, str):

@@ -24,5 +24,6 @@ class DocumentResponse(ORMModel):
     sha256: str
     document_type: str
     status: str
+    storage_key: str | None
     version: int
     uploaded_at: datetime
