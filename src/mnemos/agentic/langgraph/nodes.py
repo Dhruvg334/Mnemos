@@ -1,6 +1,5 @@
 import re
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,23 +10,16 @@ from mnemos.agentic.retrieval.graph_rag import GraphRAGLayer
 from mnemos.agentic.retrieval.identity_resolver import AssetIdentityResolver
 from mnemos.agentic.schemas.base import (
     AgentResponse,
-    ClaimSupportStatus,
-    Contradiction,
-    EvidenceBundle,
-    EvidenceSource,
-    GroundedClaim,
     QueryIntent,
-    RecommendedAction,
     RetrievalPlan,
     RetrievalStrategy,
 )
 from mnemos.agentic.schemas.specialized import (
     AssetPassport,
-    ComplianceAuditPackage,
     FinalReport,
-    LessonsLearnedSummary,
     RCACaseReport,
 )
+from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.guardrails import GuardrailViolation, MnemosGuardrails
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -144,7 +136,8 @@ class EvidenceVerificationNode(BaseNode):
 class AssetAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         evidence = state["evidence_bundle"].verified_evidence
-        if not evidence: return state
+        if not evidence:
+            return state
 
         prompt = self.prompt_manager.get_prompt("asset_intelligence", query=state["query"], evidence=evidence)
         passport = await self.llm.call_structured(prompt, AssetPassport)
@@ -154,7 +147,8 @@ class AssetAgentNode(BaseNode):
 class RCAAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         evidence = state["evidence_bundle"].verified_evidence
-        if not evidence: return state
+        if not evidence:
+            return state
 
         prompt = self.prompt_manager.get_prompt("rca_analysis", query=state["query"], evidence=evidence)
         report = await self.llm.call_structured(prompt, RCACaseReport)

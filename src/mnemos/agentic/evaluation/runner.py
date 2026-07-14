@@ -1,20 +1,18 @@
 import time
-import asyncio
 import uuid
-from typing import List, Optional, Dict
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from mnemos.agentic.evaluation.industrial_eval import IndustrialEvaluator
 from mnemos.agentic.evaluation.models import (
+    BenchmarkReport,
     EvalDataset,
+    EvalPipelineType,
     EvalSample,
     SampleResult,
-    BenchmarkReport,
-    EvalPipelineType,
-    MetricResult
 )
 from mnemos.agentic.evaluation.ragas_impl import RagasEvaluatorImpl
-from mnemos.agentic.evaluation.industrial_eval import IndustrialEvaluator
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
 from mnemos.agentic.schemas.base import ClaimSupportStatus
 from mnemos.agentic.utils.logging import StructuredLogger
@@ -41,7 +39,7 @@ class BenchmarkRunner:
     ) -> BenchmarkReport:
         logger.info(f"Initiating benchmark: {benchmark_name or dataset.name}")
 
-        sample_results: List[SampleResult] = []
+        sample_results: list[SampleResult] = []
         for sample in dataset.samples:
             try:
                 result = await self._run_sample(sample, pipeline_type)
@@ -62,7 +60,6 @@ class BenchmarkRunner:
 
     async def _run_sample(self, sample: EvalSample, pipeline_type: EvalPipelineType) -> SampleResult:
         start_time = time.perf_counter()
-        run_id = f"eval_{uuid.uuid4().hex[:8]}"
 
         # 1. Execute real AI Layer Orchestration
         # In a real setup, we would trigger the orchestrator's run_query
@@ -114,10 +111,11 @@ class BenchmarkRunner:
 
         return sample_res
 
-    def _calculate_summary(self, results: List[SampleResult]) -> Dict[str, float]:
-        if not results: return {}
-        metric_sums: Dict[str, float] = {}
-        metric_counts: Dict[str, int] = {}
+    def _calculate_summary(self, results: list[SampleResult]) -> dict[str, float]:
+        if not results:
+            return {}
+        metric_sums: dict[str, float] = {}
+        metric_counts: dict[str, int] = {}
 
         for res in results:
             for m in res.metrics:

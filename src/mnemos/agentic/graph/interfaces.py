@@ -1,25 +1,26 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class GraphNode(BaseModel):
     id: str
     label: str
-    properties: Dict[str, Any] = {}
+    properties: dict[str, Any] = {}
 
 
 class GraphRelationship(BaseModel):
     source_id: str
     target_id: str
     type: str
-    properties: Dict[str, Any] = {}
+    properties: dict[str, Any] = {}
 
 
 class GraphQueryResult(BaseModel):
-    nodes: List[GraphNode]
-    relationships: List[GraphRelationship]
-    metadata: Dict[str, Any] = {}
+    nodes: list[GraphNode]
+    relationships: list[GraphRelationship]
+    metadata: dict[str, Any] = {}
 
 
 class BaseGraphClient(ABC):
@@ -28,7 +29,7 @@ class BaseGraphClient(ABC):
     """
 
     @abstractmethod
-    async def query(self, cypher: str, parameters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    async def query(self, cypher: str, parameters: dict[str, Any] = None) -> list[dict[str, Any]]:
         """Execute a raw Cypher query."""
         pass
 
@@ -38,6 +39,6 @@ class BaseGraphClient(ABC):
         pass
 
     @abstractmethod
-    async def find_related_failures(self, asset_id: str) -> List[GraphNode]:
+    async def find_related_failures(self, asset_id: str) -> list[GraphNode]:
         """Find historical failure events related to an asset or its components."""
         pass

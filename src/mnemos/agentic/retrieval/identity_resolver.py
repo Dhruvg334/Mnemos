@@ -1,11 +1,11 @@
 import re
 import unicodedata
-from typing import List, Optional, Set
-from sqlalchemy import select, or_, func
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.models.entities import Asset, AssetAlias
 from mnemos.agentic.schemas.base import ResolvedEntity
+from mnemos.models.entities import Asset, AssetAlias
 
 
 class AssetIdentityResolver:
@@ -23,14 +23,15 @@ class AssetIdentityResolver:
 
     def _normalize(self, text: str) -> str:
         """Deep normalization for robust matching."""
-        if not text: return ""
+        if not text:
+            return ""
         # Convert to NFKD to separate characters and accents
         text = unicodedata.normalize('NFKD', text)
         # Keep only alphanumeric
         text = re.sub(r'[^A-Z0-9]', '', text.upper())
         return text
 
-    def _generate_fuzzy_variants(self, normalized: str) -> Set[str]:
+    def _generate_fuzzy_variants(self, normalized: str) -> set[str]:
         """Generates common OCR substitution variants for better recall."""
         substitutions = {
             'O': '0', '0': 'O',
@@ -51,7 +52,7 @@ class AssetIdentityResolver:
 
         return variants
 
-    async def resolve(self, mention: str, site_id: str | None = None) -> List[ResolvedEntity]:
+    async def resolve(self, mention: str, site_id: str | None = None) -> list[ResolvedEntity]:
         """
         Resolves a string mention to a list of candidate assets.
         """

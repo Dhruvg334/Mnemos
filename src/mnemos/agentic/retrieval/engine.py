@@ -1,7 +1,5 @@
 import asyncio
-import logging
-from datetime import datetime
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,7 +43,7 @@ class HybridRetrievalEngine:
         self.reranker = reranker or CrossEncoderReranker()
 
     async def execute_plan(
-        self, query_id: str, query_text: str, plan: RetrievalPlan, context: Dict[str, Any]
+        self, query_id: str, query_text: str, plan: RetrievalPlan, context: dict[str, Any]
     ) -> EvidenceBundle:
         """
         Executes a dynamic retrieval plan with maximum parallelism.
@@ -87,7 +85,7 @@ class HybridRetrievalEngine:
         logger.info(f"Retrieval complete for {query_id}. Gathered {len(bundle.raw_vector_data)} candidates.")
         return bundle
 
-    async def _resolve_identities(self, plan: RetrievalPlan, site_id: str | None) -> List[ResolvedEntity]:
+    async def _resolve_identities(self, plan: RetrievalPlan, site_id: str | None) -> list[ResolvedEntity]:
         resolved_entities = []
         for entity_mention in plan.target_entities:
             if entity_mention.startswith("ast_"):
@@ -164,5 +162,5 @@ class HybridRetrievalEngine:
                     "score": 0.9 # High initial relevance for expert knowledge
                 })
 
-    async def _detect_contradictions(self, bundle: EvidenceBundle) -> List[Contradiction]:
+    async def _detect_contradictions(self, bundle: EvidenceBundle) -> list[Contradiction]:
         return []

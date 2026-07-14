@@ -1,6 +1,5 @@
-from typing import List, Set, Dict, Any
-from mnemos.agentic.evaluation.models import EvalSample, SampleResult, MetricResult
-from mnemos.agentic.schemas.base import ClaimSupportStatus
+from mnemos.agentic.evaluation.models import EvalSample, MetricResult, SampleResult
+
 
 class IndustrialEvaluator:
     """
@@ -8,7 +7,7 @@ class IndustrialEvaluator:
     Focuses on identity resolution, provenance, graph quality, and grounding.
     """
 
-    async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> List[MetricResult]:
+    async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> list[MetricResult]:
         metrics = []
 
         # 1. Identity Resolution Accuracy

@@ -1,19 +1,18 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mnemos.agentic.evaluation.models import (
+    BenchmarkReport,
+    ComparisonReport,
+    EvalDataset,
+    EvalPipelineType,
+)
+from mnemos.agentic.evaluation.reporter import EvaluationReporter
+from mnemos.agentic.evaluation.runner import BenchmarkRunner
+from mnemos.agentic.utils.logging import StructuredLogger
 from mnemos.api.deps import Principal, get_principal, require_admin
 from mnemos.core.db import get_db
 from mnemos.schemas.common import Envelope, Meta
-from mnemos.agentic.evaluation.models import (
-    EvalDataset,
-    BenchmarkReport,
-    ComparisonReport,
-    EvalPipelineType
-)
-from mnemos.agentic.evaluation.runner import BenchmarkRunner
-from mnemos.agentic.evaluation.reporter import EvaluationReporter
-from mnemos.agentic.utils.logging import StructuredLogger
 
 router = APIRouter(prefix="/evaluation", tags=["ai-evaluation"])
 logger = StructuredLogger("evaluation_api")

@@ -1,18 +1,20 @@
 import asyncio
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import AsyncGenerator, Dict, Any, List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.langgraph.workflow import create_agent_workflow
+from mnemos.agentic.schemas.base import (
+    AgentResponse,
+)
 from mnemos.agentic.schemas.state import AgentState
-from mnemos.agentic.schemas.base import AgentResponse, ClaimSupportStatus, RecommendedAction, Contradiction
-from mnemos.models import Query, QueryClaim, Citation, AgentRun, QueryEvent
+from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
+from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.services.query_execution import add_query_event
-from mnemos.agentic.utils.logging import StructuredLogger, setup_trace, trace_id_var
 
 logger = StructuredLogger("orchestrator")
 
@@ -69,7 +71,7 @@ class MnemosAIOrchestrator:
         try:
             # Execute workflow and stream node completions as progress events
             async for event in self.workflow.astream(initial_state, config={"configurable": {"thread_id": trace_id}}):
-                for node_name, state_update in event.items():
+                for node_name, _state_update in event.items():
                     await self._log_step_progress(query_id, node_name)
 
             # Retrieve final unified state

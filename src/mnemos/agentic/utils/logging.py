@@ -1,9 +1,8 @@
 import logging
 import sys
 import uuid
-import time
 from contextvars import ContextVar
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Context variable to correlate all logs for a single query across agents and retrievers
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="no-trace")
@@ -24,7 +23,7 @@ class StructuredLogger:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
-    def _get_extra(self, extra: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def _get_extra(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         full_extra = {"trace_id": trace_id_var.get()}
         if extra:
             full_extra.update(extra)

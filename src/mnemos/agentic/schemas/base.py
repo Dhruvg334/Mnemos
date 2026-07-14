@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MessageRole(StrEnum):
@@ -16,7 +17,7 @@ class AgentMessage(BaseModel):
     content: str
     name: str | None = None
     tool_call_id: str | None = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -51,7 +52,7 @@ class EvidenceSource(BaseModel):
     relevance_score: float = Field(ge=0.0, le=1.0)
     confidence_score: float = Field(ge=0.0, le=1.0)
     verification_status: VerificationStatus = VerificationStatus.UNVERIFIED
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ClaimSupportStatus(StrEnum):
@@ -66,7 +67,7 @@ class GroundedClaim(BaseModel):
     claim_id: str
     text: str
     status: ClaimSupportStatus
-    sources: List[EvidenceSource] = Field(default_factory=list)
+    sources: list[EvidenceSource] = Field(default_factory=list)
     reasoning: str | None = None
 
 
@@ -76,14 +77,14 @@ class RecommendedAction(BaseModel):
     description: str
     priority: str = "medium"  # low, medium, high, critical
     reasoning: str
-    linked_claim_ids: List[str] = Field(default_factory=list)
+    linked_claim_ids: list[str] = Field(default_factory=list)
 
 
 class Contradiction(BaseModel):
     contradiction_id: str
     summary: str
     description: str
-    involved_evidence_ids: List[str]
+    involved_evidence_ids: list[str]
     severity: str = "high"
 
 
@@ -106,9 +107,9 @@ class RetrievalStrategy(StrEnum):
 
 class RetrievalPlan(BaseModel):
     intent: QueryIntent
-    strategies: List[RetrievalStrategy]
-    target_entities: List[str] = Field(default_factory=list)
-    filters: Dict[str, Any] = Field(default_factory=dict)
+    strategies: list[RetrievalStrategy]
+    target_entities: list[str] = Field(default_factory=list)
+    filters: dict[str, Any] = Field(default_factory=dict)
     reasoning: str
 
 
@@ -118,19 +119,19 @@ class ResolvedEntity(BaseModel):
     entity_type: str
     confidence: float
     canonical_name: str
-    aliases: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    aliases: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvidenceBundle(BaseModel):
     query_id: str
     intent: QueryIntent
-    resolved_entities: List[ResolvedEntity] = Field(default_factory=list)
-    verified_evidence: List[EvidenceSource] = Field(default_factory=list)
-    raw_graph_data: Dict[str, Any] = Field(default_factory=dict)
-    raw_vector_data: List[Dict[str, Any]] = Field(default_factory=list)
-    contradictions: List[Contradiction] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    resolved_entities: list[ResolvedEntity] = Field(default_factory=list)
+    verified_evidence: list[EvidenceSource] = Field(default_factory=list)
+    raw_graph_data: dict[str, Any] = Field(default_factory=dict)
+    raw_vector_data: list[dict[str, Any]] = Field(default_factory=list)
+    contradictions: list[Contradiction] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     retrieved_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -140,11 +141,11 @@ class AgentResponse(BaseModel):
     """
     answer: str
     confidence_score: float = Field(ge=0.0, le=1.0)
-    claims: List[GroundedClaim] = Field(default_factory=list)
-    missing_evidence: List[str] = Field(default_factory=list)
-    contradictions: List[Contradiction] = Field(default_factory=list)
-    recommended_actions: List[RecommendedAction] = Field(default_factory=list)
-    graph_paths: List[List[str]] = Field(default_factory=list, description="KG paths supporting the answer")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    claims: list[GroundedClaim] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
+    contradictions: list[Contradiction] = Field(default_factory=list)
+    recommended_actions: list[RecommendedAction] = Field(default_factory=list)
+    graph_paths: list[list[str]] = Field(default_factory=list, description="KG paths supporting the answer")
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,7 +1,10 @@
-from typing import Any, Dict, List, Optional
-from sqlalchemy import select, text, func, or_
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from mnemos.models.entities import Document, EvidenceRegion
+
 
 class LexicalRetriever:
     """
@@ -12,7 +15,7 @@ class LexicalRetriever:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def search(self, keywords: str, site_id: str | None = None, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search(self, keywords: str, site_id: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
         """
         Executes a Full-Text Search (FTS) against document evidence regions.
         """

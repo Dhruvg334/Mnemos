@@ -1,6 +1,5 @@
-from typing import Optional
 from pydantic import BaseModel, Field
-from mnemos.core.config import settings
+
 
 class LLMConfig(BaseModel):
     model_name: str = Field(default="gpt-4-turbo-preview")

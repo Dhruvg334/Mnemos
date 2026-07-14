@@ -1,14 +1,14 @@
-from typing import Annotated, Any, Dict, List, Optional, TypedDict, Union
 from operator import add
+from typing import Annotated, Any, TypedDict
 
 from mnemos.agentic.schemas.base import (
     AgentMessage,
-    GroundedClaim,
     AgentResponse,
+    EvidenceBundle,
+    GroundedClaim,
     QueryIntent,
-    RetrievalPlan,
     ResolvedEntity,
-    EvidenceBundle
+    RetrievalPlan,
 )
 
 
@@ -21,13 +21,13 @@ class AgentState(TypedDict):
     query: str
 
     # Metadata about the user/context (site_id, org_id, trace_id)
-    context: Dict[str, Any]
+    context: dict[str, Any]
 
     # Classified intent of the query
     intent: QueryIntent | None
 
     # Entities resolved from the query (e.g. Asset tags)
-    resolved_entities: List[ResolvedEntity]
+    resolved_entities: list[ResolvedEntity]
 
     # The dynamic plan for retrieval
     retrieval_plan: RetrievalPlan | None
@@ -36,16 +36,16 @@ class AgentState(TypedDict):
     evidence_bundle: EvidenceBundle | None
 
     # History of messages in the current session
-    messages: Annotated[List[AgentMessage], add]
+    messages: Annotated[list[AgentMessage], add]
 
     # Extracted claims and their verification status
-    claims: Annotated[List[GroundedClaim], add]
+    claims: Annotated[list[GroundedClaim], add]
 
     # Final response object
     final_response: AgentResponse | None
 
     # List of steps completed for tracing
-    steps_completed: Annotated[List[str], add]
+    steps_completed: Annotated[list[str], add]
 
     # Errors encountered during execution
-    errors: Annotated[List[str], add]
+    errors: Annotated[list[str], add]

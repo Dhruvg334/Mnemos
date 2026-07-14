@@ -1,5 +1,5 @@
-from typing import List, Tuple
 from pydantic import BaseModel
+
 
 class RerankResult(BaseModel):
     index: int
@@ -9,7 +9,7 @@ class BaseReranker:
     """
     Abstract base class for reranking evidence.
     """
-    async def rerank(self, query: str, documents: List[str]) -> List[RerankResult]:
+    async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
         raise NotImplementedError
 
 class CrossEncoderReranker(BaseReranker):
@@ -22,7 +22,7 @@ class CrossEncoderReranker(BaseReranker):
         self.model_name = model_name
         # In production: self.model = CrossEncoder(model_name)
 
-    async def rerank(self, query: str, documents: List[str]) -> List[RerankResult]:
+    async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
         """
         Scores each document against the query.
         Returns a list of RerankResult sorted by score.

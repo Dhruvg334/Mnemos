@@ -1,12 +1,19 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, UTC
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.orchestrator import MnemosAIOrchestrator
 from mnemos.agentic.gateway import LangGraphAgentGateway
-from mnemos.models import Query, AgentRun, QueryEvent
-from mnemos.agentic.schemas.base import AgentResponse, GroundedClaim, ClaimSupportStatus, ProvenanceChain, EvidenceSource
+from mnemos.agentic.orchestrator import MnemosAIOrchestrator
+from mnemos.agentic.schemas.base import (
+    AgentResponse,
+    ClaimSupportStatus,
+    EvidenceSource,
+    GroundedClaim,
+    ProvenanceChain,
+)
+from mnemos.models import AgentRun, Query, QueryEvent
+
 
 @pytest.fixture
 def mock_db():
@@ -112,7 +119,7 @@ async def test_result_persistence_mapping(mock_db, mock_query, mock_run):
     assert mock_run.status == "succeeded"
 
     # Verify QueryClaim and Citation were added
-    from mnemos.models import QueryClaim, Citation
+    from mnemos.models import Citation, QueryClaim
     added_objects = [args[0] for args, _ in mock_db.add.call_args_list]
     assert any(isinstance(obj, QueryClaim) for obj in added_objects)
     assert any(isinstance(obj, Citation) for obj in added_objects)

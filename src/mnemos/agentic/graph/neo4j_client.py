@@ -1,6 +1,13 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from neo4j import AsyncGraphDatabase
-from mnemos.agentic.graph.interfaces import BaseGraphClient, GraphNode, GraphRelationship, GraphQueryResult
+
+from mnemos.agentic.graph.interfaces import (
+    BaseGraphClient,
+    GraphNode,
+    GraphQueryResult,
+    GraphRelationship,
+)
 from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("graph_client")
@@ -15,7 +22,7 @@ class Neo4jGraphClient(BaseGraphClient):
     async def close(self):
         await self.driver.close()
 
-    async def query(self, cypher: str, parameters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    async def query(self, cypher: str, parameters: dict[str, Any] = None) -> list[dict[str, Any]]:
         async with self.driver.session() as session:
             result = await session.run(cypher, parameters or {})
             records = await result.data()
@@ -42,7 +49,7 @@ class Neo4jGraphClient(BaseGraphClient):
             relationships=[GraphRelationship(**r) for r in data["rels"]]
         )
 
-    async def find_related_failures(self, asset_id: str) -> List[GraphNode]:
+    async def find_related_failures(self, asset_id: str) -> list[GraphNode]:
         cypher = """
         MATCH (a:Asset {id: $asset_id})
         MATCH (a)-[:HAS_COMPONENT*0..3]->(comp)-[:EXPERIENCED]->(f:Failure)

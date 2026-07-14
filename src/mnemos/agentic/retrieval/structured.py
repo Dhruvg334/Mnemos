@@ -1,7 +1,10 @@
-from typing import Any, Dict, List, Optional
-from sqlalchemy import select, and_
+from typing import Any
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from mnemos.models.entities import Asset, RCACase, RCAObservation, Site, KnowledgeCard
+
+from mnemos.models.entities import Asset, KnowledgeCard, RCACase, Site
+
 
 class StructuredRetriever:
     """
@@ -15,7 +18,7 @@ class StructuredRetriever:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_asset_specs(self, asset_id: str) -> Dict[str, Any]:
+    async def get_asset_specs(self, asset_id: str) -> dict[str, Any]:
         """Fetches technical specifications for a resolved asset."""
         stmt = select(Asset).where(Asset.id == asset_id)
         result = await self.db.execute(stmt)
@@ -30,7 +33,7 @@ class StructuredRetriever:
             "status": asset.status
         }
 
-    async def get_maintenance_history(self, asset_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def get_maintenance_history(self, asset_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """Retrieves historical RCA cases and observations for an asset."""
         stmt = (
             select(RCACase)
@@ -53,7 +56,7 @@ class StructuredRetriever:
             })
         return history
 
-    async def get_knowledge_cards(self, asset_id: str) -> List[Dict[str, Any]]:
+    async def get_knowledge_cards(self, asset_id: str) -> list[dict[str, Any]]:
         """
         Retrieves Expert Memory (Knowledge Cards) linked to an asset.
         """
@@ -73,7 +76,7 @@ class StructuredRetriever:
             "updated_at": card.updated_at.isoformat()
         } for card in cards]
 
-    async def get_site_context(self, site_id: str) -> Dict[str, Any]:
+    async def get_site_context(self, site_id: str) -> dict[str, Any]:
         """Retrieves operational context for a specific site."""
         stmt = select(Site).where(Site.id == site_id)
         result = await self.db.execute(stmt)

@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class ToolDefinition(BaseModel):
     name: str
     description: str
-    input_schema: Dict[str, Any]
+    input_schema: dict[str, Any]
 
 
 class MCPResource(BaseModel):
@@ -23,17 +24,17 @@ class BaseMCPClient(ABC):
     """
 
     @abstractmethod
-    async def list_tools(self) -> List[ToolDefinition]:
+    async def list_tools(self) -> list[ToolDefinition]:
         """List available tools from the MCP server."""
         pass
 
     @abstractmethod
-    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         """Execute a tool via MCP."""
         pass
 
     @abstractmethod
-    async def list_resources(self) -> List[MCPResource]:
+    async def list_resources(self) -> list[MCPResource]:
         """List available data resources."""
         pass
 

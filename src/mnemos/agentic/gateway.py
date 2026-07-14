@@ -1,17 +1,16 @@
 import logging
-from typing import Optional
 
-from mnemos.core.db import SessionLocal
-from mnemos.schemas.agent import (
-    AgentQueryRequest,
-    AgentQueryResult,
-    AgentConfidence,
-    AgentClaim,
-    AgentCitation,
-    AgentRunMetadata
-)
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
 from mnemos.agentic.schemas.base import ClaimSupportStatus
+from mnemos.core.db import SessionLocal
+from mnemos.schemas.agent import (
+    AgentCitation,
+    AgentClaim,
+    AgentConfidence,
+    AgentQueryRequest,
+    AgentQueryResult,
+    AgentRunMetadata,
+)
 
 logger = logging.getLogger(__name__)
 

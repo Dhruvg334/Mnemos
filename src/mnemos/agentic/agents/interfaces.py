@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from mnemos.agentic.schemas.base import AgentMessage, AgentResponse
 from mnemos.agentic.schemas.state import AgentState
 
 
@@ -30,6 +29,6 @@ class ToolCallingAgent(BaseAgent):
     """Interface for agents that can interact with external tools."""
 
     @abstractmethod
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Execute a specific tool."""
         pass

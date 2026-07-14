@@ -1,11 +1,12 @@
-from typing import Any, Dict, List, Optional
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class VectorSearchResult(BaseModel):
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     score: float
     document_id: str
     chunk_id: str
@@ -20,10 +21,10 @@ class VectorRetriever:
 
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         top_k: int = 10,
-        filters: Dict[str, Any] | None = None
-    ) -> List[VectorSearchResult]:
+        filters: dict[str, Any] | None = None
+    ) -> list[VectorSearchResult]:
         """
         Executes a vector similarity search.
         In production, this queries a table with a 'vector' column.
@@ -38,7 +39,7 @@ class VectorRetriever:
 
         return []
 
-    async def get_embeddings(self, text: str) -> List[float]:
+    async def get_embeddings(self, text: str) -> list[float]:
         """
         Interfaces with an embedding model (OpenAI, HuggingFace, etc.)
         """

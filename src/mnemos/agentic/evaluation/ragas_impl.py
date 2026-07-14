@@ -1,13 +1,14 @@
 import asyncio
-from typing import Any, Dict, List
-from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
+from typing import Any
+
 from datasets import Dataset
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from ragas import evaluate
+from ragas.metrics import answer_relevancy, context_precision, context_recall, faithfulness
 
-from mnemos.agentic.evaluation.interfaces import RAGEvaluator, EvaluationResult
-from mnemos.agentic.evaluation.models import EvalSample, SampleResult, MetricResult
 from mnemos.agentic.config import agent_settings
+from mnemos.agentic.evaluation.interfaces import EvaluationResult, RAGEvaluator
+from mnemos.agentic.evaluation.models import EvalSample, MetricResult, SampleResult
 from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("ragas_evaluator")
@@ -38,7 +39,7 @@ class RagasEvaluatorImpl(RAGEvaluator):
             context_recall
         ]
 
-    async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> List[MetricResult]:
+    async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> list[MetricResult]:
         """
         Runs RAGAS metrics on a single sample result.
         """
@@ -64,7 +65,7 @@ class RagasEvaluatorImpl(RAGEvaluator):
                 )
             )
 
-            metric_results: List[MetricResult] = []
+            metric_results: list[MetricResult] = []
             for name, score in score_results.items():
                 metric_results.append(MetricResult(
                     name=name,
@@ -77,10 +78,10 @@ class RagasEvaluatorImpl(RAGEvaluator):
             logger.error(f"RAGAS evaluation failed: {str(e)}", exc_info=True)
             return []
 
-    async def evaluate(self, input_data: Any, output_data: Any, context: Dict[str, Any]) -> List[EvaluationResult]:
+    async def evaluate(self, input_data: Any, output_data: Any, context: dict[str, Any]) -> list[EvaluationResult]:
         return []
 
-    async def evaluate_faithfulness(self, answer: str, context: List[str]) -> EvaluationResult:
+    async def evaluate_faithfulness(self, answer: str, context: list[str]) -> EvaluationResult:
         return EvaluationResult(metric_name="faithfulness", score=0.0, reasoning="Use evaluate_sample")
 
     async def evaluate_relevance(self, query: str, answer: str) -> EvaluationResult:

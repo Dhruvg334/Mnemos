@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class RetrievalQuery(BaseModel):
     text: str
-    filters: Dict[str, Any] = {}
+    filters: dict[str, Any] = {}
     top_k: int = 5
     site_id: str | None = None
     org_id: str | None = None
@@ -13,7 +14,7 @@ class RetrievalQuery(BaseModel):
 
 class RetrievalResult(BaseModel):
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     score: float
     source_id: str
 
@@ -24,7 +25,7 @@ class BaseRetriever(ABC):
     """
 
     @abstractmethod
-    async def retrieve(self, query: RetrievalQuery) -> List[RetrievalResult]:
+    async def retrieve(self, query: RetrievalQuery) -> list[RetrievalResult]:
         """Retrieve relevant information based on the query."""
         pass
 
@@ -34,6 +35,6 @@ class HybridRetriever(BaseRetriever):
     Interface for a retriever that combines multiple sources.
     """
     @abstractmethod
-    async def rerank(self, results: List[RetrievalResult], query: str) -> List[RetrievalResult]:
+    async def rerank(self, results: list[RetrievalResult], query: str) -> list[RetrievalResult]:
         """Rerank results using a cross-encoder or similar logic."""
         pass

@@ -1,9 +1,8 @@
-import httpx
 import logging
 import os
-from typing import Optional
+
+import httpx
 from neo4j import AsyncGraphDatabase
-from mnemos.core.config import settings
 
 logger = logging.getLogger(__name__)
 

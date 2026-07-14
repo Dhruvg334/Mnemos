@@ -1,19 +1,16 @@
-import asyncio
-from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.models.entities import EvidenceRegion, Document, DocumentVersion
+from mnemos.agentic.graph.neo4j_client import Neo4jGraphClient
+from mnemos.agentic.retrieval.reranker import CrossEncoderReranker
 from mnemos.agentic.schemas.base import (
+    EvidenceBundle,
     EvidenceSource,
     ProvenanceChain,
     VerificationStatus,
-    EvidenceBundle,
-    Contradiction
 )
-from mnemos.agentic.graph.neo4j_client import Neo4jGraphClient
-from mnemos.agentic.retrieval.reranker import CrossEncoderReranker
 from mnemos.agentic.utils.logging import StructuredLogger
+from mnemos.models.entities import Document, DocumentVersion, EvidenceRegion
 
 logger = StructuredLogger("graph_rag")
 
@@ -33,7 +30,7 @@ class GraphRAGLayer:
         self.graph_client = graph_client
         self.reranker = reranker or CrossEncoderReranker()
 
-    async def ground_evidence(self, region_ids: List[str], node_map: Dict[str, str] = None) -> List[EvidenceSource]:
+    async def ground_evidence(self, region_ids: list[str], node_map: dict[str, str] = None) -> list[EvidenceSource]:
         """
         Batched grounding of evidence regions with full version-aware provenance.
         """
@@ -79,7 +76,7 @@ class GraphRAGLayer:
 
         return grounded_sources
 
-    async def process_bundle(self, bundle: EvidenceBundle, query: str) -> List[EvidenceSource]:
+    async def process_bundle(self, bundle: EvidenceBundle, query: str) -> list[EvidenceSource]:
         """
         The core GraphRAG pipeline:
         Grounding -> Merging -> Reranking -> Filtering.
@@ -87,11 +84,11 @@ class GraphRAGLayer:
         logger.info(f"Starting GraphRAG grounding for query: {query[:50]}...")
 
         # 1. Collect all evidence IDs for batched grounding
-        region_ids: Set[str] = set()
-        node_map: Dict[str, str] = {} # region_id -> node_id
+        region_ids: set[str] = set()
+        node_map: dict[str, str] = {} # region_id -> node_id
 
         # From Graph Context
-        for asset_id, data in bundle.raw_graph_data.items():
+        for _asset_id, data in bundle.raw_graph_data.items():
             for node in data.get("nodes", []):
                 rid = node.get("properties", {}).get("evidence_region_id")
                 if rid:

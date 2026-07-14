@@ -1,7 +1,8 @@
-import json
-from typing import Any, Dict, List, Optional, Type, TypeVar
-from pydantic import BaseModel
+from typing import TypeVar
+
 import httpx
+from pydantic import BaseModel
+
 from mnemos.agentic.config import agent_settings
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -20,7 +21,7 @@ class LLMService:
     async def call_structured(
         self,
         prompt: str,
-        response_model: Type[T],
+        response_model: type[T],
         system_message: str = "You are an industrial intelligence assistant. You MUST respond with valid JSON matching the schema provided."
     ) -> T:
         """

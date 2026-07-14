@@ -1,6 +1,13 @@
-from typing import Any, Dict, List, Optional
-from mnemos.agentic.schemas.base import EvidenceSource, GroundedClaim, ClaimSupportStatus, VerificationStatus
+from typing import Any
+
+from mnemos.agentic.schemas.base import (
+    ClaimSupportStatus,
+    EvidenceSource,
+    GroundedClaim,
+    VerificationStatus,
+)
 from mnemos.agentic.utils.exceptions import AgenticError
+
 
 class GuardrailViolation(AgenticError):
     """Raised when a safety or grounding guardrail is violated."""
@@ -12,7 +19,7 @@ class MnemosGuardrails:
     """
 
     @staticmethod
-    def verify_grounding(claims: List[GroundedClaim]) -> None:
+    def verify_grounding(claims: list[GroundedClaim]) -> None:
         """
         Prevents unsupported claims.
         Every 'SUPPORTED' claim must have at least one verified evidence source.
@@ -28,7 +35,7 @@ class MnemosGuardrails:
                         raise GuardrailViolation(f"Claim '{claim.text}' relies on unverified evidence.")
 
     @staticmethod
-    def check_sop_version(procedure: Dict[str, Any], latest_version: int) -> None:
+    def check_sop_version(procedure: dict[str, Any], latest_version: int) -> None:
         """
         Prevents outdated SOP usage.
         """
@@ -39,7 +46,7 @@ class MnemosGuardrails:
             )
 
     @staticmethod
-    def validate_compliance_evidence(requirement_id: str, evidence: List[EvidenceSource]) -> None:
+    def validate_compliance_evidence(requirement_id: str, evidence: list[EvidenceSource]) -> None:
         """
         Prevents compliance claims without evidence.
         """
@@ -47,7 +54,7 @@ class MnemosGuardrails:
             raise GuardrailViolation(f"Compliance verification for {requirement_id} failed: No evidence found.")
 
     @staticmethod
-    def check_permissions(user_context: Dict[str, Any], evidence: List[EvidenceSource]) -> None:
+    def check_permissions(user_context: dict[str, Any], evidence: list[EvidenceSource]) -> None:
         """
         Prevents site/org permission violations.
         """

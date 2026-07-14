@@ -6,15 +6,13 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.config import AgenticSettings, agent_settings
-from mnemos.agentic.prompts.manager import PromptManager
-from mnemos.agentic.retrieval.interfaces import BaseRetriever
 from mnemos.agentic.graph.interfaces import BaseGraphClient
 from mnemos.agentic.graph.neo4j_client import Neo4jGraphClient
+from mnemos.agentic.prompts.manager import PromptManager
 from mnemos.agentic.retrieval.engine import HybridRetrievalEngine
+from mnemos.agentic.retrieval.interfaces import BaseRetriever
 from mnemos.agentic.services.llm import LLMService
-from mnemos.agentic.services.resource_pool import ResourcePool
 from mnemos.core.db import get_db
-from mnemos.core.config import settings
 
 
 @lru_cache

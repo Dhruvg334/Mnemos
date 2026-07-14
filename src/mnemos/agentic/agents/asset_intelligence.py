@@ -1,10 +1,10 @@
-from typing import Any, Dict, List
-from mnemos.agentic.agents.interfaces import BaseAgent
-from mnemos.agentic.schemas.state import AgentState
-from mnemos.agentic.schemas.base import EvidenceSource
-from mnemos.agentic.schemas.specialized import AssetPassport, AssetTimelineEvent
-from mnemos.agentic.utils.logging import setup_agent_logger
+from typing import Any
+
 from mnemos.agentic.deps import get_prompt_manager
+from mnemos.agentic.schemas.base import EvidenceSource
+from mnemos.agentic.schemas.specialized import AssetPassport
+from mnemos.agentic.schemas.state import AgentState
+from mnemos.agentic.utils.logging import setup_agent_logger
 
 logger = setup_agent_logger("asset_agent")
 
@@ -16,10 +16,10 @@ class AssetIntelligenceAgent:
     def __init__(self):
         self.prompt_manager = get_prompt_manager()
 
-    async def process(self, state: AgentState) -> Dict[str, Any]:
+    async def process(self, state: AgentState) -> dict[str, Any]:
         logger.info("Building Asset Passport from grounded evidence.")
 
-        evidence: List[EvidenceSource] = state.get("evidence_bundle", {}).get("verified_evidence", [])
+        evidence: list[EvidenceSource] = state.get("evidence_bundle", {}).get("verified_evidence", [])
         entities = state.get("resolved_entities", [])
 
         if not entities:

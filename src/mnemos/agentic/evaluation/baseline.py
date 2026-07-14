@@ -1,19 +1,16 @@
-from typing import Any, Dict, List
-from langgraph.graph import StateGraph, END
+from typing import Any
+
+from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.schemas.state import AgentState
-from mnemos.agentic.schemas.base import (
-    QueryIntent,
-    RetrievalPlan,
-    RetrievalStrategy,
-    AgentResponse
-)
 from mnemos.agentic.langgraph.nodes import (
-    QueryRouterNode,
     EvidenceRetrievalNode,
-    ResponseComposerNode
+    QueryRouterNode,
+    ResponseComposerNode,
 )
+from mnemos.agentic.schemas.base import AgentResponse, QueryIntent, RetrievalPlan, RetrievalStrategy
+from mnemos.agentic.schemas.state import AgentState
+
 
 class BaselineVectorRetrievalNode(EvidenceRetrievalNode):
     """
@@ -59,7 +56,7 @@ class BaselineVectorRAGOrchestrator:
 
         return workflow.compile()
 
-    async def run_baseline(self, question: str, context_metadata: Dict[str, Any]) -> AgentResponse:
+    async def run_baseline(self, question: str, context_metadata: dict[str, Any]) -> AgentResponse:
         """
         Executes a query through the baseline vector-only pipeline.
         """

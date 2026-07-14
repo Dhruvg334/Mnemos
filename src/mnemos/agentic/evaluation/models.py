@@ -1,7 +1,9 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Dict, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class EvalPipelineType(StrEnum):
     MNEMOS_GRAPH_RAG = "mnemos_graph_rag"
@@ -10,29 +12,29 @@ class EvalPipelineType(StrEnum):
 class EvalSample(BaseModel):
     query: str
     ground_truth: str | None = None
-    expected_entities: List[str] = Field(default_factory=list, description="Expected canonical asset IDs")
-    expected_document_ids: List[str] = Field(default_factory=list, description="Expected source document IDs")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    expected_entities: list[str] = Field(default_factory=list, description="Expected canonical asset IDs")
+    expected_document_ids: list[str] = Field(default_factory=list, description="Expected source document IDs")
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class EvalDataset(BaseModel):
     name: str
     description: str
-    samples: List[EvalSample]
+    samples: list[EvalSample]
 
 class MetricResult(BaseModel):
     name: str
     score: float = Field(ge=0.0, le=1.0)
     reasoning: str | None = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class SampleResult(BaseModel):
     sample: EvalSample
     answer: str
-    retrieved_contexts: List[str]
-    retrieved_document_ids: List[str] = Field(default_factory=list)
-    citations: List[str] = Field(default_factory=list)
-    resolved_entities: List[str] = Field(default_factory=list)
-    metrics: List[MetricResult] = Field(default_factory=list)
+    retrieved_contexts: list[str]
+    retrieved_document_ids: list[str] = Field(default_factory=list)
+    citations: list[str] = Field(default_factory=list)
+    resolved_entities: list[str] = Field(default_factory=list)
+    metrics: list[MetricResult] = Field(default_factory=list)
     latency_ms: float
     hallucination_detected: bool
     grounded_answer_rate: float
@@ -45,13 +47,13 @@ class BenchmarkReport(BaseModel):
     pipeline_type: EvalPipelineType
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     dataset_name: str
-    summary_metrics: Dict[str, float]
-    sample_results: List[SampleResult]
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    summary_metrics: dict[str, float]
+    sample_results: list[SampleResult]
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class ComparisonReport(BaseModel):
     comparison_id: str
     report_mnemos: BenchmarkReport
     report_baseline: BenchmarkReport
-    deltas: Dict[str, float] # Percentage lift/drop for each metric
+    deltas: dict[str, float] # Percentage lift/drop for each metric
     timestamp: datetime = Field(default_factory=datetime.utcnow)
