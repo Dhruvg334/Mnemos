@@ -69,14 +69,21 @@ class MnemosAIOrchestrator:
         logger.info(f"Starting analysis for: '{query.question[:50]}...'")
 
         try:
-            # Execute workflow and stream node completions as progress events
+            # Execute workflow and stream node completions as progress events.
+            # Use the streamed states as the authoritative execution (avoid running the workflow twice).
+            last_state = None
             async for event in self.workflow.astream(initial_state, config={"configurable": {"thread_id": trace_id}}):
                 for node_name, _state_update in event.items():
+                    # _state_update is the new partial/full state after node execution
+                    last_state = _state_update
                     await self._log_step_progress(query_id, node_name)
 
-            # Retrieve final unified state
-            final_state = await self.workflow.ainvoke(initial_state)
-            response: AgentResponse = final_state.get("final_response")
+            # After the stream completes, use the last observed state as the final state.
+            if last_state is None:
+                # No progress observed; treat it as a failure rather than re-invoking the workflow which would duplicate work
+                raise RuntimeError("Workflow stream produced no state updates.")
+
+            response: AgentResponse = last_state.get("final_response")
 
             if not response:
                 raise RuntimeError("Workflow terminated without a final response.")
