@@ -24,16 +24,16 @@ class AgentState(TypedDict):
     context: Dict[str, Any]
 
     # Classified intent of the query
-    intent: Optional[QueryIntent]
+    intent: QueryIntent | None
 
     # Entities resolved from the query (e.g. Asset tags)
     resolved_entities: List[ResolvedEntity]
 
     # The dynamic plan for retrieval
-    retrieval_plan: Optional[RetrievalPlan]
+    retrieval_plan: RetrievalPlan | None
 
     # The complete bundle of evidence retrieved
-    evidence_bundle: Optional[EvidenceBundle]
+    evidence_bundle: EvidenceBundle | None
 
     # History of messages in the current session
     messages: Annotated[List[AgentMessage], add]
@@ -42,7 +42,7 @@ class AgentState(TypedDict):
     claims: Annotated[List[GroundedClaim], add]
 
     # Final response object
-    final_response: Optional[AgentResponse]
+    final_response: AgentResponse | None
 
     # List of steps completed for tracing
     steps_completed: Annotated[List[str], add]

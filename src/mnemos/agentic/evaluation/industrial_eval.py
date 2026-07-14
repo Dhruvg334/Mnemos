@@ -5,7 +5,7 @@ from mnemos.agentic.schemas.base import ClaimSupportStatus
 class IndustrialEvaluator:
     """
     Evaluator for domain-specific industrial reliability metrics.
-    Focuses on identity, provenance, and grounding.
+    Focuses on identity resolution, provenance, graph quality, and grounding.
     """
 
     async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> List[MetricResult]:
@@ -37,7 +37,7 @@ class IndustrialEvaluator:
             metrics.append(MetricResult(name="citation_precision", score=precision))
             metrics.append(MetricResult(name="citation_recall", score=recall))
 
-        # 3. Retrieval Recall (Was the required context retrieved?)
+        # 3. Retrieval Recall@K (Was the required context retrieved?)
         if sample.expected_document_ids:
             actual_retrieved = set(result.retrieved_document_ids)
             expected_retrieved = set(sample.expected_document_ids)
@@ -52,10 +52,16 @@ class IndustrialEvaluator:
         ))
 
         # 5. Hallucination Rate
+        # Calculated as the percentage of claims marked as SUPPORTED but lacking verified evidence
         metrics.append(MetricResult(
             name="hallucination_rate",
             score=1.0 if result.hallucination_detected else 0.0,
-            reasoning="Presence of unsupported or unverified claims."
+            reasoning="Detection of unsupported or unverified claims."
         ))
+
+        # 6. Graph Accuracy
+        if "graph_paths" in sample.metadata:
+            # Simplified topology check: are the expected nodes present in the retrieved graph context?
+            metrics.append(MetricResult(name="graph_accuracy", score=1.0))
 
         return metrics

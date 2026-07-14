@@ -14,8 +14,8 @@ class MessageRole(StrEnum):
 class AgentMessage(BaseModel):
     role: MessageRole
     content: str
-    name: Optional[str] = None
-    tool_call_id: Optional[str] = None
+    name: str | None = None
+    tool_call_id: str | None = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
@@ -33,13 +33,13 @@ class ProvenanceChain(BaseModel):
     Detailed traceability from a result back to the original physical source.
     Maps: Graph Node -> Evidence Region -> Chunk -> Page -> Revision -> Original Document
     """
-    node_id: Optional[str] = None
+    node_id: str | None = None
     evidence_region_id: str
-    chunk_id: Optional[str] = None
+    chunk_id: str | None = None
     document_id: str
     document_version: int
-    page_number: Optional[str] = None
-    locator: Optional[str] = None
+    page_number: str | None = None
+    locator: str | None = None
     sha256: str
     source_filename: str
     storage_key: str
@@ -67,7 +67,7 @@ class GroundedClaim(BaseModel):
     text: str
     status: ClaimSupportStatus
     sources: List[EvidenceSource] = Field(default_factory=list)
-    reasoning: Optional[str] = None
+    reasoning: str | None = None
 
 
 class RecommendedAction(BaseModel):

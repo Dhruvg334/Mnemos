@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from langgraph.graph import StateGraph, END
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,31 +7,34 @@ from mnemos.agentic.schemas.base import (
     QueryIntent,
     RetrievalPlan,
     RetrievalStrategy,
-    AgentResponse,
-    AgentMessage,
-    MessageRole
+    AgentResponse
 )
-from mnemos.agentic.langgraph.nodes import BaseNode, QueryRouterNode, EvidenceRetrievalNode, ResponseComposerNode
+from mnemos.agentic.langgraph.nodes import (
+    QueryRouterNode,
+    EvidenceRetrievalNode,
+    ResponseComposerNode
+)
 
 class BaselineVectorRetrievalNode(EvidenceRetrievalNode):
     """
-    Overrides the retrieval node to force a vector-only strategy.
+    Overrides the standard retrieval node to strictly use vector search only.
+    Bypasses Knowledge Graph traversal and Metadata filtering.
     """
     async def execute(self, state: AgentState) -> AgentState:
-        # Force plan to only use vector search
+        # Force the plan to vector-only
         state["retrieval_plan"] = RetrievalPlan(
             intent=QueryIntent.GENERAL,
             strategies=[RetrievalStrategy.VECTOR_SEARCH],
             target_entities=[],
-            reasoning="Baseline: Vector-only retrieval."
+            reasoning="Evaluation Baseline: Vector-only retrieval."
         )
-        # Call the parent retrieval logic which will now only use the vector search strategy
+        # Execute standard retrieval which will now only run the vector task
         return await super().execute(state)
 
 class BaselineVectorRAGOrchestrator:
     """
-    A baseline pipeline that implements standard Vector-only RAG.
-    Used as a control group for comparative evaluation.
+    A baseline pipeline implementing standard 'Document -> Chunk -> Answer' RAG.
+    Used to measure the performance improvement of the Mnemos Asset-Centric approach.
     """
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -40,9 +43,10 @@ class BaselineVectorRAGOrchestrator:
     def _build_baseline_workflow(self):
         workflow = StateGraph(AgentState)
 
-        router = QueryRouterNode()
-        retrieval = BaselineVectorRetrievalNode()
-        composer = ResponseComposerNode()
+        # We reuse the standard router and composer, but use the restricted retrieval node
+        router = QueryRouterNode(self.db)
+        retrieval = BaselineVectorRetrievalNode(self.db)
+        composer = ResponseComposerNode(self.db)
 
         workflow.add_node("router", router)
         workflow.add_node("retrieval", retrieval)
@@ -55,10 +59,13 @@ class BaselineVectorRAGOrchestrator:
 
         return workflow.compile()
 
-    async def run(self, query_id: str, question: str, context: Dict[str, Any]) -> AgentResponse:
+    async def run_baseline(self, question: str, context_metadata: Dict[str, Any]) -> AgentResponse:
+        """
+        Executes a query through the baseline vector-only pipeline.
+        """
         initial_state: AgentState = {
             "query": question,
-            "context": {**context, "query_id": query_id},
+            "context": context_metadata,
             "intent": None,
             "resolved_entities": [],
             "retrieval_plan": None,
@@ -67,7 +74,6 @@ class BaselineVectorRAGOrchestrator:
             "claims": [],
             "final_response": None,
             "steps_completed": [],
-            "current_node": "START",
             "errors": []
         }
 

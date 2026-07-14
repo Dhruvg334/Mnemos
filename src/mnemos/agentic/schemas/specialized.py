@@ -7,9 +7,9 @@ class AssetTimelineEvent(BaseModel):
     timestamp: datetime
     event_type: str
     description: str
-    source_id: Optional[str] = None
-    severity: Optional[str] = None
-    provenance: Optional[EvidenceSource] = None
+    source_id: str | None = None
+    severity: str | None = None
+    provenance: EvidenceSource | None = None
 
 class AssetPassport(BaseModel):
     asset_id: str
@@ -51,7 +51,7 @@ class LessonsLearnedSummary(BaseModel):
     recurring_failure_modes: List[str]
     similar_incident_ids: List[str]
     preventive_recommendations: List[GroundedClaim]
-    effectiveness_score: Optional[float]
+    effectiveness_score: float | None
     recommended_actions: List[RecommendedAction] = Field(default_factory=list)
 
 class FinalReport(BaseModel):

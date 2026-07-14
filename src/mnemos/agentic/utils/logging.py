@@ -24,7 +24,7 @@ class StructuredLogger:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
-    def _get_extra(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _get_extra(self, extra: Dict[str, Any] | None = None) -> Dict[str, Any]:
         full_extra = {"trace_id": trace_id_var.get()}
         if extra:
             full_extra.update(extra)
@@ -39,7 +39,7 @@ class StructuredLogger:
     def warning(self, msg: str, **kwargs):
         self.logger.warning(msg, extra=self._get_extra(kwargs))
 
-def setup_trace(trace_id: Optional[str] = None) -> str:
+def setup_trace(trace_id: str | None = None) -> str:
     """Initializes a new trace context."""
     tid = trace_id or f"mnm_{uuid.uuid4().hex[:12]}"
     trace_id_var.set(tid)

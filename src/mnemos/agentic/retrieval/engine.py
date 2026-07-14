@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +34,7 @@ class HybridRetrievalEngine:
         self,
         db: AsyncSession,
         graph_client: Neo4jGraphClient,
-        reranker: Optional[CrossEncoderReranker] = None,
+        reranker: CrossEncoderReranker | None = None,
     ):
         self.db = db
         self.graph_client = graph_client
@@ -87,7 +87,7 @@ class HybridRetrievalEngine:
         logger.info(f"Retrieval complete for {query_id}. Gathered {len(bundle.raw_vector_data)} candidates.")
         return bundle
 
-    async def _resolve_identities(self, plan: RetrievalPlan, site_id: Optional[str]) -> List[ResolvedEntity]:
+    async def _resolve_identities(self, plan: RetrievalPlan, site_id: str | None) -> List[ResolvedEntity]:
         resolved_entities = []
         for entity_mention in plan.target_entities:
             if entity_mention.startswith("ast_"):
@@ -127,7 +127,7 @@ class HybridRetrievalEngine:
             except Exception as e:
                 logger.error(f"Graph error for {entity.entity_id}: {e}")
 
-    async def _execute_vector_search(self, bundle: EvidenceBundle, query: str, site_id: Optional[str]):
+    async def _execute_vector_search(self, bundle: EvidenceBundle, query: str, site_id: str | None):
         try:
             embedding = await self.vector_retriever.get_embeddings(query)
             results = await self.vector_retriever.search(embedding, top_k=10, filters={"site_id": site_id})
@@ -136,7 +136,7 @@ class HybridRetrievalEngine:
         except Exception as e:
             logger.error(f"Vector search failed: {e}")
 
-    async def _execute_lexical_search(self, bundle: EvidenceBundle, query: str, site_id: Optional[str]):
+    async def _execute_lexical_search(self, bundle: EvidenceBundle, query: str, site_id: str | None):
         results = await self.lexical_retriever.search(query, site_id=site_id)
         for res in results:
             bundle.raw_vector_data.append({
@@ -145,7 +145,7 @@ class HybridRetrievalEngine:
                 "score": 1.0
             })
 
-    async def _execute_structured_queries(self, bundle: EvidenceBundle, site_id: Optional[str]):
+    async def _execute_structured_queries(self, bundle: EvidenceBundle, site_id: str | None):
         for entity in bundle.resolved_entities:
             # Parallelize History and Expert Memory (Knowledge Cards)
             history_task = self.structured_retriever.get_maintenance_history(entity.entity_id)

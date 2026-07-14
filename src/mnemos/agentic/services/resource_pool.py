@@ -12,8 +12,8 @@ class ResourcePool:
     Manages long-lived connections for the AI Layer.
     Optimizes memory usage and reduces latency via connection pooling.
     """
-    _neo4j_driver: Optional[AsyncGraphDatabase] = None
-    _http_client: Optional[httpx.AsyncClient] = None
+    _neo4j_driver: AsyncGraphDatabase | None = None
+    _http_client: httpx.AsyncClient | None = None
 
     @classmethod
     def get_neo4j_driver(cls) -> AsyncGraphDatabase:

@@ -7,8 +7,8 @@ class RetrievalQuery(BaseModel):
     text: str
     filters: Dict[str, Any] = {}
     top_k: int = 5
-    site_id: Optional[str] = None
-    org_id: Optional[str] = None
+    site_id: str | None = None
+    org_id: str | None = None
 
 
 class RetrievalResult(BaseModel):

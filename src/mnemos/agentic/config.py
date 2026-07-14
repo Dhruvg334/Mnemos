@@ -5,9 +5,9 @@ from mnemos.core.config import settings
 class LLMConfig(BaseModel):
     model_name: str = Field(default="gpt-4-turbo-preview")
     temperature: float = Field(default=0.0)
-    max_tokens: Optional[int] = Field(default=None)
-    api_key: Optional[str] = Field(default=None)
-    base_url: Optional[str] = Field(default=None)
+    max_tokens: int | None = Field(default=None)
+    api_key: str | None = Field(default=None)
+    base_url: str | None = Field(default=None)
 
 class AgenticSettings(BaseModel):
     """

@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from ragas import evaluate
 from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
 from datasets import Dataset
@@ -8,9 +8,9 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from mnemos.agentic.evaluation.interfaces import RAGEvaluator, EvaluationResult
 from mnemos.agentic.evaluation.models import EvalSample, SampleResult, MetricResult
 from mnemos.agentic.config import agent_settings
-from mnemos.agentic.utils.logging import setup_agent_logger
+from mnemos.agentic.utils.logging import StructuredLogger
 
-logger = setup_agent_logger("ragas_evaluator")
+logger = StructuredLogger("ragas_evaluator")
 
 class RagasEvaluatorImpl(RAGEvaluator):
     """
@@ -18,7 +18,7 @@ class RagasEvaluatorImpl(RAGEvaluator):
     Uses the project's primary LLM and Embedding configurations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Configure the critic LLM for RAGAS evaluation
         self.critic_llm = ChatOpenAI(
             model=agent_settings.primary_llm.model_name,
@@ -42,8 +42,7 @@ class RagasEvaluatorImpl(RAGEvaluator):
         """
         Runs RAGAS metrics on a single sample result.
         """
-        # RAGAS evaluate is blocking, so we wrap it in a thread if necessary
-        # Prepare data in RAGAS format
+        # RAGAS evaluate is blocking, so we run it in an executor
         data = {
             "question": [sample.query],
             "answer": [result.answer],
@@ -53,27 +52,30 @@ class RagasEvaluatorImpl(RAGEvaluator):
 
         dataset = Dataset.from_dict(data)
 
-        # Execute RAGAS
-        loop = asyncio.get_event_loop()
-        score_results = await loop.run_in_executor(
-            None,
-            lambda: evaluate(
-                dataset,
-                metrics=self.metrics,
-                llm=self.critic_llm,
-                embeddings=self.embeddings
+        try:
+            loop = asyncio.get_event_loop()
+            score_results = await loop.run_in_executor(
+                None,
+                lambda: evaluate(
+                    dataset,
+                    metrics=self.metrics,
+                    llm=self.critic_llm,
+                    embeddings=self.embeddings
+                )
             )
-        )
 
-        metric_results = []
-        for name, score in score_results.items():
-            metric_results.append(MetricResult(
-                name=name,
-                score=float(score),
-                reasoning=f"Calculated via RAGAS using {agent_settings.primary_llm.model_name} as critic."
-            ))
+            metric_results: List[MetricResult] = []
+            for name, score in score_results.items():
+                metric_results.append(MetricResult(
+                    name=name,
+                    score=float(score),
+                    reasoning=f"Calculated via RAGAS using {agent_settings.primary_llm.model_name} as critic."
+                ))
 
-        return metric_results
+            return metric_results
+        except Exception as e:
+            logger.error(f"RAGAS evaluation failed: {str(e)}", exc_info=True)
+            return []
 
     async def evaluate(self, input_data: Any, output_data: Any, context: Dict[str, Any]) -> List[EvaluationResult]:
         return []

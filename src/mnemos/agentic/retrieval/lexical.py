@@ -12,7 +12,7 @@ class LexicalRetriever:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def search(self, keywords: str, site_id: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search(self, keywords: str, site_id: str | None = None, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Executes a Full-Text Search (FTS) against document evidence regions.
         """

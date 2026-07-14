@@ -12,8 +12,8 @@ class ToolDefinition(BaseModel):
 class MCPResource(BaseModel):
     uri: str
     name: str
-    description: Optional[str] = None
-    mime_type: Optional[str] = None
+    description: str | None = None
+    mime_type: str | None = None
 
 
 class BaseMCPClient(ABC):

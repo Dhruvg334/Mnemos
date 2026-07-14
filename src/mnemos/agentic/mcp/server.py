@@ -17,11 +17,11 @@ logger = setup_agent_logger("mcp_server")
 
 class ResolveAssetInput(BaseModel):
     mention: str = Field(..., description="The asset tag or name (e.g., 'P-101') found in text.")
-    site_id: Optional[str] = Field(None, description="Site filter.")
+    site_id: str | None = Field(None, description="Site filter.")
 
 class SearchInput(BaseModel):
     query: str = Field(..., description="Semantic or keyword search query.")
-    site_id: Optional[str] = Field(None, description="Site filter.")
+    site_id: str | None = Field(None, description="Site filter.")
     limit: int = Field(10, ge=1, le=50)
 
 class GraphSearchInput(BaseModel):
@@ -66,7 +66,7 @@ class MnemosMCPServer:
         """Retrieves chronological failure and maintenance events."""
         return await self.engine.structured_retriever.get_maintenance_history(asset_id)
 
-    async def retrieve_document(self, document_id: str, version: Optional[int] = None) -> Dict[str, Any]:
+    async def retrieve_document(self, document_id: str, version: int | None = None) -> Dict[str, Any]:
         """Retrieves a specific document version with full provenance."""
         # Verification of status (e.g., Approved vs Draft) happens here
         return {"document_id": document_id, "version": version or 1, "status": "APPROVED"}

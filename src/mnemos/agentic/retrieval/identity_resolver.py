@@ -51,7 +51,7 @@ class AssetIdentityResolver:
 
         return variants
 
-    async def resolve(self, mention: str, site_id: Optional[str] = None) -> List[ResolvedEntity]:
+    async def resolve(self, mention: str, site_id: str | None = None) -> List[ResolvedEntity]:
         """
         Resolves a string mention to a list of candidate assets.
         """

@@ -27,7 +27,7 @@ class GraphRAGLayer:
         self,
         db: AsyncSession,
         graph_client: Neo4jGraphClient,
-        reranker: Optional[CrossEncoderReranker] = None
+        reranker: CrossEncoderReranker | None = None
     ):
         self.db = db
         self.graph_client = graph_client

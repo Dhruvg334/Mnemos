@@ -22,7 +22,7 @@ class VectorRetriever:
         self,
         query_embedding: List[float],
         top_k: int = 10,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Dict[str, Any] | None = None
     ) -> List[VectorSearchResult]:
         """
         Executes a vector similarity search.

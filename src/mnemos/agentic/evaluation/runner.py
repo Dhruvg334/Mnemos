@@ -37,7 +37,7 @@ class BenchmarkRunner:
         self,
         dataset: EvalDataset,
         pipeline_type: EvalPipelineType = EvalPipelineType.MNEMOS_GRAPH_RAG,
-        benchmark_name: Optional[str] = None
+        benchmark_name: str | None = None
     ) -> BenchmarkReport:
         logger.info(f"Initiating benchmark: {benchmark_name or dataset.name}")
 
