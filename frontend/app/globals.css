@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: theme("colors.paper.alt");
+  color: theme("colors.ink.DEFAULT");
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+::selection {
+  background: theme("colors.signal.blue-pale");
+  color: theme("colors.signal.blue-deep");
+}
+
+:focus-visible {
+  outline: 2px solid theme("colors.signal.blue");
+  outline-offset: 2px;
+}
+
+/* scrollbar, hidden but scrollable — matches original rail/main feel */
+.scrollhide::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scrollhide {
+  scrollbar-width: none;
+}
+
+/* confidence meter ticks */
+.tick {
+  width: 5px;
+  height: 10px;
+  border-radius: 1px;
+  background: theme("colors.line.strong");
+}
+.tick.on {
+  background: theme("colors.signal.blue");
+}
+
+/* health bar */
+.healthbar {
+  height: 5px;
+  border-radius: 3px;
+  background: theme("colors.line.DEFAULT");
+  overflow: hidden;
+}
+.healthbar > i {
+  display: block;
+  height: 100%;
+  background: theme("colors.ink.DEFAULT");
+  border-radius: 3px;
+}
+.healthbar.low > i {
+  background: theme("colors.signal.red");
+}
+
+/* timeline rail */
+.tl-item {
+  position: relative;
+  padding-left: 20px;
+  padding-bottom: 20px;
+  border-left: 1.5px solid theme("colors.line.DEFAULT");
+  margin-left: 4px;
+}
+.tl-item:last-child {
+  border-color: transparent;
+  padding-bottom: 0;
+}
+.tl-dot {
+  position: absolute;
+  left: -5px;
+  top: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: theme("colors.ink.faint");
+  border: 2px solid theme("colors.paper.DEFAULT");
+}
+.tl-item.type-failure .tl-dot {
+  background: theme("colors.signal.red");
+}
+.tl-item.type-work_order .tl-dot {
+  background: theme("colors.signal.blue");
+}
+.tl-item.type-inspection .tl-dot {
+  background: theme("colors.signal.amber");
+}
