@@ -1,20 +1,16 @@
-import Link from "next/link";
-
 export default function Brand({ compact = false }) {
   return (
-    <Link href="/" className="inline-flex items-center gap-2.5" aria-label="Mnemos home">
-      <span className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-rail">
-        <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7" aria-hidden="true">
-          <rect width="24" height="24" rx="5" fill="#101114" />
-          <path d="M6 17V7l6 6 6-6v10" stroke="#2f6fe0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rail text-white shadow-pop">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M3 12.5V5l6 6 6-6v7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3 5.5 9 11l6-5.5" stroke="#2f6fe0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </span>
-      {!compact && (
-        <span className="leading-tight">
-          <span className="block text-[15px] font-semibold text-ink">Mnemos</span>
-          <span className="block text-[10px] uppercase tracking-[0.14em] text-ink-faint">Asset intelligence</span>
-        </span>
-      )}
-    </Link>
+      </div>
+      <div>
+        <div className="text-[14px] font-semibold tracking-[-0.02em] text-ink">Mnemos</div>
+        {!compact ? <div className="text-[11.5px] text-ink-faint">Industrial knowledge intelligence</div> : null}
+      </div>
+    </div>
   );
 }

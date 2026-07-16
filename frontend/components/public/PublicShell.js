@@ -3,9 +3,9 @@ import PublicFooter from "./PublicFooter";
 
 export default function PublicShell({ children }) {
   return (
-    <div className="min-h-screen bg-paper text-ink">
+    <div className="min-h-screen bg-paper-alt">
       <PublicHeader />
-      <main>{children}</main>
+      {children}
       <PublicFooter />
     </div>
   );
