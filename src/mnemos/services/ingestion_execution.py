@@ -91,28 +91,41 @@ async def execute_ingestion(
     )
 
     try:
-        # 1. Run the external extraction (Mock or Real Gateway)
-        # Note: In a pure production graphRAG setup, we replace the gateway with our pipeline.
-        # But per requirements "do not duplicate ingestion logic", we use the pipeline
-        # which incorporates the pgvector/neo4j mapping organically.
-        result_stats = await run_production_ingestion_pipeline(db, document)
+        # Original external gateway extraction
+        result = await gateway.ingest_document(request)
         
-        run.status = "succeeded"
-        run.chunks_created = result_stats["chunks_created"]
-        run.entities_created = result_stats["entities_created"]
-        run.relationships_created = result_stats["relationships_created"]
-        run.warnings = []
-        run.pipeline_version = "graphrag-v1"
+        # New AI Layer execution (vector/graph persistence)
+        if result.status == "succeeded":
+            result_stats = await run_production_ingestion_pipeline(db, document)
+            # You can optionally use result_stats to override chunks_created, etc.
+        
+        run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
+        run.status = result.status
+        run.chunks_created = result.chunks_created
+        run.entities_created = result.entities_created
+        run.relationships_created = result.relationships_created
+        run.warnings = result.warnings
+        run.pipeline_version = result.pipeline_version
+        run.error_code = result.error_code
+        run.error_message = result.error_message
         run.completed_at = datetime.now(UTC)
 
         await add_ingestion_event(
             db,
             ingestion_run_id=run.id,
-            stage="completed",
+            stage="completed" if result.status != "failed" else "failed",
             progress_percent=100,
             message="Document ingestion completed"
+            if result.status != "failed"
+            else "Document ingestion failed",
         )
-        document.status = "ready"
+        document.status = (
+            "ready"
+            if result.status == "succeeded"
+            else "partially_ready"
+            if result.status == "partially_succeeded"
+            else "failed"
+        )
         return run
     except Exception as exc:
         run.status = "failed"
