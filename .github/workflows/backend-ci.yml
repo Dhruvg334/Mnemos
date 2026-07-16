@@ -21,6 +21,20 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check src tests scripts
       - run: python -m compileall -q src scripts
+      - name: Verify runtime imports and packaged prompts
+        run: |
+          python - <<'PY'
+          import jinja2
+          import tenacity
+          from mnemos.agentic.prompts.manager import PromptManager
+          from mnemos.main import app
+
+          manager = PromptManager()
+          templates = manager.list_templates()
+          assert templates, "No prompt templates were packaged"
+          assert app is not None
+          print(f"runtime imports passed; {len(templates)} prompt templates found")
+          PY
       - run: pytest -q
 
   migration:

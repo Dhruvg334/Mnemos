@@ -1,32 +1,36 @@
-import os
+from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 
 class PromptManager:
-    """
-    Manages loading and formatting of prompts using Jinja2 templates.
-    Centralizes all LLM instructions.
-    """
-    def __init__(self, template_dir: str = "prompts/templates"):
-        # In a real app, template_dir would be an absolute path
-        # For now, we assume it's relative to this module or provided
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        self.template_path = os.path.join(base_path, "templates")
+    """Load and render version-controlled agent prompt templates."""
 
-        if not os.path.exists(self.template_path):
-            os.makedirs(self.template_path)
+    def __init__(self) -> None:
+        self.template_path = Path(__file__).resolve().parent / "templates"
+        if not self.template_path.is_dir():
+            raise RuntimeError(
+                f"Prompt template directory is missing: {self.template_path}"
+            )
 
         self.env = Environment(
-            loader=FileSystemLoader(self.template_path),
-            autoescape=select_autoescape()
+            loader=FileSystemLoader(str(self.template_path)),
+            autoescape=select_autoescape(
+                enabled_extensions=("html", "xml"),
+                default_for_string=False,
+                default=False,
+            ),
+            undefined=StrictUndefined,
+            trim_blocks=True,
+            lstrip_blocks=True,
         )
 
     def get_prompt(self, template_name: str, **kwargs: Any) -> str:
-        """Load and format a template."""
+        if not template_name or "/" in template_name or "\\" in template_name:
+            raise ValueError("Invalid prompt template name")
         template = self.env.get_template(f"{template_name}.j2")
         return template.render(**kwargs)
 
     def list_templates(self) -> list[str]:
-        return self.env.list_templates()
+        return sorted(self.env.list_templates())
