@@ -18,6 +18,7 @@ from mnemos.api.v1 import (
 )
 from mnemos.core.config import settings
 from mnemos.core.db import close_database
+from mnemos.core.neo4j import init_neo4j, close_neo4j
 from mnemos.core.errors import (
     AppError,
     app_error_handler,
@@ -73,7 +74,13 @@ app.include_router(ingestion.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
 
 
+@app.on_event("startup")
+async def startup_resources() -> None:
+    await init_neo4j()
+
+
 @app.on_event("shutdown")
 async def shutdown_resources() -> None:
+    await close_neo4j()
     await close_rate_limit_client()
     await close_database()

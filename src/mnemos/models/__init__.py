@@ -29,6 +29,11 @@ from mnemos.models.entities import (
     UploadSession,
     User,
 )
+from mnemos.models.vector import (
+    ChunkEmbedding,
+    DocumentChunk,
+    GraphNodeMapping,
+)
 
 __all__ = [
     "Asset",
@@ -60,4 +65,7 @@ __all__ = [
     "RefreshToken",
     "Site",
     "User",
+    "ChunkEmbedding",
+    "DocumentChunk",
+    "GraphNodeMapping",
 ]

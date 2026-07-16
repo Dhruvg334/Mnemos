@@ -67,6 +67,12 @@ class Settings(BaseSettings):
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ]
 
+    # Neo4j Graph Database
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "password"
+    neo4j_max_connection_pool_size: int = 50
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("cors_origins", "allowed_upload_mime_types", mode="before")

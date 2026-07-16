@@ -29,4 +29,22 @@ async def readiness_checks() -> dict[str, str]:
     except Exception:
         checks["object_storage"] = "unhealthy"
 
+    checks["neo4j"] = await graph_health_check()
+    checks["pgvector"] = await vector_health_check()
+
     return checks
+
+
+async def vector_health_check() -> str:
+    try:
+        async with SessionLocal() as db:
+            # Query the chunk_embeddings table directly
+            await db.execute(text("SELECT 1 FROM chunk_embeddings LIMIT 1"))
+        return "healthy"
+    except Exception:
+        return "unhealthy"
+
+
+async def graph_health_check() -> str:
+    from mnemos.core.neo4j import check_neo4j_health
+    return await check_neo4j_health()
