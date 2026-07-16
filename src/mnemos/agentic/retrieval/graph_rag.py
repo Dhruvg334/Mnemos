@@ -1,3 +1,4 @@
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,7 @@ logger = StructuredLogger("graph_rag")
 class GraphRAGLayer:
     """
     Advanced GraphRAG implementation providing deep provenance and cross-modal grounding.
-    Optimized for high-fidelity industrial intelligence.
+    Implements Graph-Vector Fusion where graph traversal provides retrieval guidance.
     """
 
     def __init__(
@@ -33,6 +34,7 @@ class GraphRAGLayer:
     async def ground_evidence(self, region_ids: list[str], node_map: dict[str, str] = None) -> list[EvidenceSource]:
         """
         Batched grounding of evidence regions with full version-aware provenance.
+        Ensures only the latest document version is retrieved (superseded check).
         """
         if not region_ids:
             return []
@@ -40,11 +42,14 @@ class GraphRAGLayer:
         node_map = node_map or {}
 
         # Batch fetch all required regions and their latest document versions
+        # This join on Document.version == DocumentVersion.version automatically
+        # filters out superseded document revisions.
         stmt = (
             select(EvidenceRegion, Document, DocumentVersion)
             .join(Document, EvidenceRegion.document_id == Document.id)
-            .join(DocumentVersion, (DocumentVersion.document_id == Document.id) & (DocumentVersion.version == Document.version))
+            .join(DocumentVersion, (DocumentVersion.document_id == Document.id) & (DocumentVersion.version == DocumentVersion.version))
             .where(EvidenceRegion.id.in_(list(set(region_ids))))
+            .where(Document.version == DocumentVersion.version)
         )
 
         result = await self.db.execute(stmt)
@@ -78,16 +83,20 @@ class GraphRAGLayer:
 
     async def process_bundle(self, bundle: EvidenceBundle, query: str) -> list[EvidenceSource]:
         """
-        The core GraphRAG pipeline:
-        Grounding -> Merging -> Reranking -> Filtering.
+        Graph-Vector Fusion Pipeline:
+        1. Graph Traversal -> Candidate Evidence IDs
+        2. Vector Retrieval -> Candidate Chunk IDs
+        3. Merge and Deduplicate Candidates
+        4. Ground Candidates to Evidence Chunks
+        5. Cross-Encoder Rerank (Final ranking uses chunks)
         """
-        logger.info(f"Starting GraphRAG grounding for query: {query[:50]}...")
+        logger.info(f"Starting Graph-Vector Fusion for query: {query[:50]}...")
 
-        # 1. Collect all evidence IDs for batched grounding
+        # 1. Collect all candidate evidence IDs for batched grounding
         region_ids: set[str] = set()
         node_map: dict[str, str] = {} # region_id -> node_id
 
-        # From Graph Context
+        # From Graph Guidance (Traversal results)
         for _asset_id, data in bundle.raw_graph_data.items():
             for node in data.get("nodes", []):
                 rid = node.get("properties", {}).get("evidence_region_id")
@@ -100,32 +109,34 @@ class GraphRAGLayer:
                     region_ids.add(rid)
                     node_map[rid] = fail["id"]
 
-        # From Vector/Lexical results (if they contain evidence_region_ids)
+        # 2. Merge with Vector Retrieval candidates
         for res in bundle.raw_vector_data:
-            rid = res.get("metadata", {}).get("evidence_region_id")
+            # We accept both chunk_id (from vector) and evidence_region_id (from lexical/metadata)
+            # This is the point where graph-guided candidates and vector candidates are fused
+            rid = res.get("metadata", {}).get("evidence_region_id") or res.get("chunk_id")
             if rid:
                 region_ids.add(rid)
 
-        # 2. Ground everything in parallel with DB
+        # 3. Ground everything in parallel (ID -> Chunk mapping)
         grounded_sources = await self.ground_evidence(list(region_ids), node_map)
 
         if not grounded_sources:
-            logger.warning("No grounded evidence found during GraphRAG process.")
+            logger.warning("No grounded evidence found during fusion.")
             return []
 
-        # 3. Cross-Encoder Reranking (Latency optimized)
+        # 4. Final ranking must use evidence chunks via Cross-Encoder reranking
+        # This replaces vector/graph scores with actual grounded relevance
         texts = [s.text_excerpt for s in grounded_sources]
         rerank_results = await self.reranker.rerank(query, texts)
 
-        # 4. Final filter and sort
+        # 5. Extract reranked sources
         final_sources = []
         for res in rerank_results:
             source = grounded_sources[res.index]
             source.relevance_score = res.score
-
-            # High-fidelity threshold for industrial safety
+            # Confidence filtering
             if res.score >= 0.4:
                 final_sources.append(source)
 
-        logger.info(f"GraphRAG complete. Produced {len(final_sources)} verified evidence sources.")
+        logger.info(f"Fusion complete. Produced {len(final_sources)} reranked evidence sources.")
         return final_sources

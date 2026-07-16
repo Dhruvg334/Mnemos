@@ -1,19 +1,13 @@
-import asyncio
-import json
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.langgraph.workflow import create_agent_workflow
-from mnemos.agentic.schemas.base import (
-    AgentResponse,
-)
+from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
-from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
+from mnemos.models import AgentRun, Citation, Query, QueryClaim
 from mnemos.services.query_execution import add_query_event
 
 logger = StructuredLogger("orchestrator")
@@ -26,14 +20,14 @@ class MnemosAIOrchestrator:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.workflow = create_agent_workflow()
+        self.workflow = create_agent_workflow(db)
 
     async def run_query(self, query_id: str, run_id: str) -> AgentResponse:
         """
         Executes the AI workflow for a specific query.
         Updates progress in real-time and persists final grounded results.
+        Fixes duplicate execution by capturing state from astream.
         """
-        # Set up tracing for this execution path
         trace_id = setup_trace(f"query_{query_id}_{uuid.uuid4().hex[:8]}")
 
         query = await self.db.get(Query, query_id)
@@ -69,16 +63,26 @@ class MnemosAIOrchestrator:
         logger.info(f"Starting analysis for: '{query.question[:50]}...'")
 
         try:
-            # Execute workflow and stream node completions as progress events
-            async for event in self.workflow.astream(initial_state, config={"configurable": {"thread_id": trace_id}}):
-                for node_name, _state_update in event.items():
+            # Execute workflow using astream and capture the final state
+            # This avoids the double-execution of using astream followed by ainvoke
+            final_state = initial_state
+            async for event in self.workflow.astream(
+                initial_state,
+                config={"configurable": {"thread_id": trace_id}}
+            ):
+                for node_name, state_update in event.items():
+                    # Update our local tracking of the state
+                    # LangGraph astream yields chunks of the state that were updated
+                    if isinstance(state_update, dict):
+                        final_state.update(state_update)
+
                     await self._log_step_progress(query_id, node_name)
 
-            # Retrieve final unified state
-            final_state = await self.workflow.ainvoke(initial_state)
             response: AgentResponse = final_state.get("final_response")
 
             if not response:
+                if final_state.get("errors"):
+                    raise RuntimeError(f"Workflow failed with errors: {final_state['errors']}")
                 raise RuntimeError("Workflow terminated without a final response.")
 
             # Persist result with citations and provenance
@@ -162,28 +166,3 @@ class MnemosAIOrchestrator:
         run.completed_at = datetime.now(UTC)
         await add_query_event(self.db, query_id=query.id, stage="failed", progress_percent=100, message=f"Analysis failed: {error_msg}")
         await self.db.commit()
-
-    async def stream_status(self, query_id: str) -> AsyncGenerator[str, None]:
-        """Provides a real-time progress stream for the UI."""
-        last_id = 0
-        while True:
-            stmt = select(QueryEvent).where(QueryEvent.query_id == query_id, QueryEvent.id > last_id).order_by(QueryEvent.id)
-            res = await self.db.execute(stmt)
-            events = res.scalars().all()
-
-            for ev in events:
-                yield json.dumps({
-                    "stage": ev.stage,
-                    "progress": ev.progress_percent,
-                    "message": ev.message,
-                    "timestamp": ev.created_at.isoformat()
-                })
-                last_id = ev.id
-
-            query = await self.db.get(Query, query_id)
-            if query and query.status in ["succeeded", "failed", "cancelled"]:
-                if query.status == "succeeded":
-                    # Final event payload
-                    yield json.dumps({"status": "completed", "answer": query.answer, "confidence": query.confidence_score})
-                break
-            await asyncio.sleep(0.5) # Fast polling for responsiveness

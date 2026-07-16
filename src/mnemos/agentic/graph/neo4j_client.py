@@ -28,18 +28,19 @@ class Neo4jGraphClient(BaseGraphClient):
             records = await result.data()
             return records
 
-    async def get_asset_context(self, asset_id: str, depth: int = 2) -> GraphQueryResult:
+    async def get_asset_context(self, asset_id: str, depth: int = 2, max_nodes: int = 100) -> GraphQueryResult:
         cypher = """
         MATCH (a:Asset {id: $asset_id})
         CALL apoc.path.subgraphAll(a, {
             maxDepth: $depth,
+            limit: $max_nodes,
             relationshipFilter: 'CONTAINS>|HAS_COMPONENT>|PART_OF>|CONNECTED_TO'
         })
         YIELDS nodes, relationships
         RETURN [n in nodes | {id: n.id, label: labels(n)[0], properties: properties(n)}] as nodes,
                [r in relationships | {source_id: id(startNode(r)), target_id: id(endNode(r)), type: type(r), properties: properties(r)}] as rels
         """
-        records = await self.query(cypher, {"asset_id": asset_id, "depth": depth})
+        records = await self.query(cypher, {"asset_id": asset_id, "depth": depth, "max_nodes": max_nodes})
         if not records:
             return GraphQueryResult(nodes=[], relationships=[])
 
