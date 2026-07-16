@@ -40,3 +40,7 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(logging.INFO)
+
+
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)

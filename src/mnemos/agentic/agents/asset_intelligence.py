@@ -1,6 +1,6 @@
 from typing import Any
 
-from mnemos.agentic.deps import get_prompt_manager
+from mnemos.agentic.providers import get_prompt_manager
 from mnemos.agentic.schemas.base import EvidenceSource
 from mnemos.agentic.schemas.specialized import AssetPassport
 from mnemos.agentic.schemas.state import AgentState

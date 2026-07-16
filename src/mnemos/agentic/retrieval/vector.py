@@ -5,7 +5,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.deps import get_llm_service
+from mnemos.agentic.providers import get_llm_service
 from mnemos.agentic.services.llm import LLMService
 from mnemos.core.errors import AppError
 from mnemos.models.vector import ChunkEmbedding, DocumentChunk

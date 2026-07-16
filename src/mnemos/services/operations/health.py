@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
+from mnemos.core.config import settings
 from mnemos.core.db import SessionLocal
 from mnemos.core.rate_limit import _client
 from mnemos.integrations.storage import S3Storage
@@ -17,19 +18,25 @@ async def readiness_checks() -> dict[str, str]:
     except Exception:
         checks["database"] = "unhealthy"
 
-    try:
-        await _client().ping()
-        checks["redis"] = "healthy"
-    except Exception:
-        checks["redis"] = "unhealthy"
+    if settings.external_health_checks_enabled:
+        try:
+            await _client().ping()
+            checks["redis"] = "healthy"
+        except Exception:
+            checks["redis"] = "unhealthy"
 
-    try:
-        await S3Storage().ensure_bucket()
-        checks["object_storage"] = "healthy"
-    except Exception:
-        checks["object_storage"] = "unhealthy"
+        try:
+            await S3Storage().ensure_bucket()
+            checks["object_storage"] = "healthy"
+        except Exception:
+            checks["object_storage"] = "unhealthy"
 
-    checks["neo4j"] = await graph_health_check()
+        checks["neo4j"] = await graph_health_check()
+    else:
+        checks["redis"] = "disabled"
+        checks["object_storage"] = "disabled"
+        checks["neo4j"] = "disabled"
+
     checks["pgvector"] = await vector_health_check()
 
     return checks

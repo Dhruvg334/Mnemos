@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     ingestion_max_retry_attempts: int = 2
     security_headers_enabled: bool = True
     max_request_body_bytes: int = 2_000_000
+    external_health_checks_enabled: bool = True
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [

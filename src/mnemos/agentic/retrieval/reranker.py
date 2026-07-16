@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from mnemos.agentic.deps import get_llm_service
+from mnemos.agentic.providers import get_llm_service
 
 
 class RerankResult(BaseModel):
