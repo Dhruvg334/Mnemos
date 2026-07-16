@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Mnemos — North Process Plant",
+  title: { default: "Mnemos — Industrial Knowledge Intelligence", template: "%s · Mnemos" },
   description: "Evidence-grounded asset intelligence for industrial reliability teams.",
   icons: {
     icon:
