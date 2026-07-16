@@ -1,71 +1,29 @@
 import Link from "next/link";
 import DocLayout from "@/components/public/DocLayout";
-import { ArchitectureDiagram, FlowTable, SequenceDiagram } from "@/components/public/Diagrams";
+import { InfrastructureDiagram, AgentWorkflowDiagram, IngestionWorkflowDiagram } from "@/components/public/Diagrams";
 
-const rows = [
-  {
-    layer: "Product layer",
-    responsibility: "Public site, documentation, authenticated dashboard, and role-aware operational experiences.",
-    output: "Navigation, workflows, and action surfaces that expose evidence without exposing raw implementation internals.",
-  },
-  {
-    layer: "Control plane",
-    responsibility: "API orchestration, authentication, tenancy, audit, RCA, compliance, and expert-knowledge lifecycle management.",
-    output: "Structured application records and governed workflow state.",
-  },
-  {
-    layer: "Reasoning plane",
-    responsibility: "Query classification, retrieval planning, evidence gathering, reranking, contradiction handling, and answer composition.",
-    output: "Claims, citations, missing evidence, and confidence-backed answers.",
-  },
-  {
-    layer: "Knowledge substrate",
-    responsibility: "Persistent evidence, embeddings, graph structure, and object storage for raw source material.",
-    output: "A durable operational memory with provenance.",
-  },
-];
-
-export const metadata = {
-  title: "Documentation",
-};
-
-export default function DocumentationPage() {
-  return (
-    <DocLayout
-      eyebrow="Documentation"
-      title="The complete product design behind Mnemos."
-      summary="This section documents the product architecture, ingestion pipeline, hybrid retrieval engine, governance model, and operational deployment design. It is written to explain how Mnemos works as a system, not just how the UI looks."
-    >
-      <div className="grid gap-6">
-        <section className="rounded-[28px] border border-line bg-paper p-6">
-          <h2 className="text-[24px] font-semibold tracking-[-0.03em] text-ink">System overview</h2>
-          <p className="mt-3 text-[14px] leading-7 text-ink-soft">
-            Mnemos is organized as a product stack with clear ownership boundaries. The frontend presents a restrained, operational interface. The backend owns authorization, workflow state, and auditability. The agentic layer performs retrieval and reasoning but does not become the source of truth for business records.
-          </p>
-        </section>
-
-        <ArchitectureDiagram />
-        <SequenceDiagram />
-        <FlowTable rows={rows} />
-
-        <section className="rounded-[28px] border border-line bg-paper p-6">
-          <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-ink">Documentation map</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {[
-              ["/documentation/architecture", "System architecture", "Core system boundaries, major services, and component relationships."],
-              ["/documentation/ingestion", "Ingestion and evidence", "How source material becomes structured evidence with provenance."],
-              ["/documentation/retrieval", "Query and retrieval engine", "How Mnemos chooses retrieval strategies and grounds answers."],
-              ["/documentation/governance", "Governance and review", "Approval flows, auditability, and role-aware workflow control."],
-              ["/documentation/deployment", "Deployment and operations", "Infrastructure, CI, runtime contracts, and production concerns."],
-            ].map(([href, title, body]) => (
-              <Link key={href} href={href} className="rounded-2xl border border-line bg-paper-alt p-4 transition hover:bg-paper">
-                <div className="text-[15px] font-semibold text-ink">{title}</div>
-                <div className="mt-2 text-[13px] leading-6 text-ink-soft">{body}</div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </div>
-    </DocLayout>
-  );
+export const metadata={title:"Documentation"};
+export default function Page(){
+ const sections=[
+  ["/documentation/architecture","System architecture","Boundaries, ownership, contracts, and service responsibilities."],
+  ["/documentation/agentic","Agentic orchestration","Intent classification, retrieval planning, evidence composition, and safe outputs."],
+  ["/documentation/ingestion","Ingestion and evidence","OCR, chunking, embeddings, graph extraction, and provenance."],
+  ["/documentation/retrieval","Retrieval engine","Vector search, graph traversal, reranking, evidence mapping, and abstention."],
+  ["/documentation/infrastructure","Infrastructure topology","Backend, agent service, pgvector, Neo4j, Redis, and object storage."],
+  ["/documentation/governance","Governance","RCA, compliance, expert knowledge, review, approval, and audit."],
+  ["/documentation/workflows","End-to-end workflows","Document-to-answer and draft-to-approval lifecycles."],
+  ["/documentation/deployment","Deployment and operations","CI, migrations, health, secrets, rate limits, and production validation."],
+ ];
+ return <DocLayout eyebrow="Technical documentation" title="How Mnemos turns fragmented plant knowledge into governed operational memory." summary="This documentation is the technical centre of the product. It explains system boundaries, agent orchestration, retrieval mechanics, infrastructure, evidence provenance, security, governance, and operational workflows.">
+  <div className="grid gap-7">
+   <InfrastructureDiagram/>
+   <AgentWorkflowDiagram/>
+   <IngestionWorkflowDiagram/>
+   <section className="border-y border-line py-6">
+    <div className="grid gap-0 md:grid-cols-2">
+     {sections.map(([href,title,body],i)=><Link key={href} href={href} className={`interactive-row p-5 ${i%2===0?"md:border-r":""} ${i<sections.length-2?"border-b":""}`}><div className="font-mono text-[10px] text-signal-blue">0{i+1}</div><div className="mt-2 text-[15px] font-semibold text-ink">{title}</div><div className="mt-2 text-[13px] leading-6 text-ink-soft">{body}</div></Link>)}
+    </div>
+   </section>
+  </div>
+ </DocLayout>
 }

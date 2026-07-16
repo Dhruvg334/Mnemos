@@ -1,134 +1,72 @@
 import Link from "next/link";
 import PublicShell from "@/components/public/PublicShell";
-import { ArchitectureDiagram, SequenceDiagram } from "@/components/public/Diagrams";
-import { FadeIn, FloatCard } from "@/components/public/Motion";
-
-const pillars = [
-  {
-    title: "Evidence-grounded answers",
-    body: "Mnemos does not stop at semantic search. Every operational answer is backed by claims, contradictions, missing evidence, and document-linked citations.",
-  },
-  {
-    title: "Asset-centred intelligence",
-    body: "The product organizes knowledge around real plant assets, not abstract chat sessions. That keeps investigation, compliance, and maintenance context aligned.",
-  },
-  {
-    title: "Governed operational memory",
-    body: "Expert notes, reviews, RCA conclusions, and requirement checks are versioned and reviewable instead of disappearing into ad hoc conversations.",
-  },
-];
-
-const stats = [
-  { value: "56", label: "Backend endpoints already structured across auth, assets, documents, RCA, compliance, expert knowledge, and audit." },
-  { value: "3", label: "Knowledge layers connected in one system: vector evidence, graph relationships, and governed business records." },
-  { value: "1", label: "Single product surface for reliability, operations, compliance, and engineering review." },
-];
+import HeroMemoryField from "@/components/public/HeroMemoryField";
+import { FadeIn } from "@/components/public/Motion";
 
 export default function HomePage() {
   return (
     <PublicShell>
       <main>
-        <section className="mx-auto max-w-7xl px-5 pb-8 pt-12 sm:px-6 lg:px-8 lg:pt-16">
-          <div className="grid gap-8 lg:grid-cols-[1.15fr,0.85fr] lg:items-end">
-            <FadeIn>
-              <div className="rounded-[36px] border border-line bg-paper p-8 surface-glow sm:p-10">
-                <div className="inline-flex rounded-full border border-line bg-paper-alt px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-signal-blue">
-                  Industrial knowledge intelligence
-                </div>
-                <h1 className="mt-5 max-w-4xl text-[40px] font-semibold leading-[1.02] tracking-[-0.06em] text-ink sm:text-[58px]">
-                  A governed operating memory for plants that cannot afford shallow answers.
-                </h1>
-                <p className="mt-6 max-w-2xl text-[15px] leading-8 text-ink-soft">
-                  Mnemos unifies plant documents, work orders, inspection evidence, asset history, and expert knowledge into a product designed for reliability, RCA, compliance, and operational decision support.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href="/dashboard" className="rounded-full bg-rail px-5 py-3 text-[13px] font-medium text-white transition hover:bg-rail-raised">
-                    Open dashboard
-                  </Link>
-                  <Link href="/documentation" className="rounded-full border border-line bg-paper px-5 py-3 text-[13px] font-medium text-ink transition hover:bg-paper-alt">
-                    Open documentation
-                  </Link>
-                </div>
+        <section className="mx-auto grid min-h-[calc(100vh-74px)] max-w-7xl items-center gap-10 px-5 py-14 sm:px-6 lg:grid-cols-[1.04fr,.96fr] lg:px-8">
+          <FadeIn>
+            <div className="max-w-[720px]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.23em] text-signal-blue">Industrial operating memory</div>
+              <h1 className="mt-5 text-[44px] font-semibold leading-[.98] tracking-[-0.065em] text-ink sm:text-[64px]">
+                Find the evidence behind an asset decision, before the plant forgets it.
+              </h1>
+              <p className="mt-7 max-w-[640px] text-[16px] leading-8 text-ink-soft">
+                Mnemos connects maintenance history, procedures, inspection records, failures, expert knowledge, and compliance evidence around the assets your teams operate.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <Link href="/dashboard" className="rounded-full bg-rail px-5 py-3 text-[13px] font-medium text-white transition hover:bg-rail-raised">Enter workspace</Link>
+                <Link href="/documentation" className="rounded-full border border-line bg-paper px-5 py-3 text-[13px] font-medium text-ink transition hover:bg-paper-alt">Explore how it works</Link>
               </div>
-            </FadeIn>
-
-            <FloatCard className="rounded-[36px] border border-line bg-paper p-6 surface-glow sm:p-8">
-              <div className="grid-noise rounded-[28px] border border-line bg-paper-alt p-5">
-                <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
-                  <span>Live investigation surface</span>
-                  <span className="rounded-full bg-signal-blue-pale px-2 py-1 text-signal-blue-deep">P-117</span>
-                </div>
-                <div className="mt-5 rounded-3xl border border-line bg-paper p-5">
-                  <div className="text-[13px] font-semibold text-ink">Why has P-117 repeatedly failed?</div>
-                  <div className="mt-3 text-[13px] leading-7 text-ink-soft">
-                    Recurring mechanical-seal failure is strongly associated with documented coupling offset, elevated vibration, and missing post-maintenance evidence. The system retains abstention where proof is incomplete.
-                  </div>
-                  <div className="mt-5 grid gap-3">
-                    {[
-                      "Supported: coupling offset was recorded during the second event.",
-                      "Supported: overall vibration reached 7.8 mm/s before the third recurrence.",
-                      "Missing evidence: no vibration spectrum is attached to the evidence bundle.",
-                    ].map((item) => (
-                      <div key={item} className="rounded-2xl border border-line bg-paper-alt px-4 py-3 text-[12.5px] text-ink-soft">
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-[12px] text-ink-faint">
+                <span>Asset-centred</span><span>Evidence-linked</span><span>Review-governed</span><span>Site-scoped</span>
               </div>
-            </FloatCard>
-          </div>
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.1}><HeroMemoryField /></FadeIn>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
-          <div className="grid gap-4 lg:grid-cols-3">
-            {stats.map((stat, index) => (
-              <FadeIn key={stat.value} delay={index * 0.06} className="rounded-[28px] border border-line bg-paper p-6">
-                <div className="text-[36px] font-semibold tracking-[-0.05em] text-ink">{stat.value}</div>
-                <div className="mt-3 text-[13px] leading-7 text-ink-soft">{stat.label}</div>
-              </FadeIn>
+        <section className="border-y border-line bg-paper">
+          <div className="mx-auto grid max-w-7xl gap-0 px-5 sm:px-6 lg:grid-cols-3 lg:px-8">
+            {[
+              ["01", "Recover context", "Trace a failure from an asset to events, work orders, procedures, and source evidence."],
+              ["02", "Reason with limits", "Separate supported claims, contradictions, hypotheses, and evidence gaps."],
+              ["03", "Keep decisions governed", "Move findings into RCA, compliance, and expert-review workflows without losing provenance."],
+            ].map(([n,title,text])=>(
+              <div key={n} className="interactive-row border-b border-line py-8 lg:border-b-0 lg:border-r lg:px-8 lg:first:pl-0 lg:last:border-r-0">
+                <div className="font-mono text-[11px] text-signal-blue">{n}</div>
+                <h2 className="mt-4 text-[20px] font-semibold tracking-[-0.03em] text-ink">{title}</h2>
+                <p className="mt-3 max-w-sm text-[13.5px] leading-7 text-ink-soft">{text}</p>
+              </div>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
-          <div className="mb-6 flex items-end justify-between gap-6">
+        <section className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[.8fr,1.2fr]">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-signal-blue">Product pillars</div>
-              <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.04em] text-ink">Built for teams that need evidence, not a prettier chatbot.</h2>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-signal-blue">One operational surface</div>
+              <h2 className="mt-3 text-[34px] font-semibold tracking-[-0.05em] text-ink">Not another chat window beside the real work.</h2>
+              <p className="mt-5 text-[14px] leading-7 text-ink-soft">Mnemos embeds intelligence into asset passports, investigations, documents, compliance checks, graph views, and expert knowledge review.</p>
+            </div>
+            <div className="divide-y divide-line border-y border-line">
+              {[
+                ["Asset Passport", "Operational history, evidence health, aliases, relationships, and related knowledge."],
+                ["Investigations", "Claims, hypotheses, corrective actions, missing evidence, and governed approval."],
+                ["Document Intelligence", "Parsing, OCR, section-aware chunks, provenance, and ingestion status."],
+                ["Knowledge Graph", "Bounded relationships that map entities back to source evidence."],
+              ].map(([title,text],i)=>(
+                <div key={title} className="interactive-row grid gap-3 py-5 md:grid-cols-[44px,180px,1fr]">
+                  <span className="font-mono text-[11px] text-ink-faint">0{i+1}</span>
+                  <span className="text-[14px] font-semibold text-ink">{title}</span>
+                  <span className="text-[13px] leading-6 text-ink-soft">{text}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {pillars.map((pillar, index) => (
-              <FloatCard key={pillar.title} className="rounded-[28px] border border-line bg-paper p-6" delay={index * 0.05}>
-                <div className="text-[18px] font-semibold tracking-[-0.03em] text-ink">{pillar.title}</div>
-                <p className="mt-3 text-[14px] leading-7 text-ink-soft">{pillar.body}</p>
-              </FloatCard>
-            ))}
-          </div>
-        </section>
-
-        <section className="mx-auto grid max-w-7xl gap-8 px-5 py-8 sm:px-6 lg:grid-cols-[1.05fr,0.95fr] lg:px-8">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-signal-blue">Architecture preview</div>
-            <h2 className="mt-2 text-[30px] font-semibold tracking-[-0.04em] text-ink">From upload to grounded answer.</h2>
-            <p className="mt-4 max-w-xl text-[14px] leading-7 text-ink-soft">
-              The product is structured around a strict evidence lifecycle: ingestion, normalization, retrieval, reasoning, citation, governance, and auditability. The documentation section expands every layer in detail.
-            </p>
-            <div className="mt-6 flex gap-3">
-              <Link href="/documentation/architecture" className="rounded-full border border-line bg-paper px-4 py-2.5 text-[12.5px] font-medium text-ink transition hover:bg-paper-alt">
-                Explore architecture
-              </Link>
-              <Link href="/documentation/retrieval" className="rounded-full border border-line bg-paper px-4 py-2.5 text-[12.5px] font-medium text-ink transition hover:bg-paper-alt">
-                Query engine
-              </Link>
-            </div>
-          </div>
-          <ArchitectureDiagram />
-        </section>
-
-        <section className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
-          <SequenceDiagram />
         </section>
       </main>
     </PublicShell>

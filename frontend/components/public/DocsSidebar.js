@@ -7,8 +7,11 @@ const sections = [
   { href: "/documentation", label: "Overview" },
   { href: "/documentation/architecture", label: "System architecture" },
   { href: "/documentation/ingestion", label: "Ingestion and evidence" },
+  { href: "/documentation/agentic", label: "Agentic orchestration" },
   { href: "/documentation/retrieval", label: "Query and retrieval engine" },
   { href: "/documentation/governance", label: "Governance and review" },
+  { href: "/documentation/infrastructure", label: "Infrastructure topology" },
+  { href: "/documentation/workflows", label: "End-to-end workflows" },
   { href: "/documentation/deployment", label: "Deployment and operations" },
 ];
 
