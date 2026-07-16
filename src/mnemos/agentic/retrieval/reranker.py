@@ -42,7 +42,7 @@ class CrossEncoderReranker(BaseReranker):
             src = scores or [0.0] * len(documents)
             scores = []
             for s in src:
-                scores.append(float(s) if isinstance(s, (int, float)) else 0.0)
+                scores.append(float(s) if isinstance(s, int | float) else 0.0)
 
         results = []
         for i in range(len(documents)):
