@@ -1,9 +1,5 @@
-import uuid
-from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pgvector.sqlalchemy import Vector
 
 from mnemos.agentic.deps import get_llm_service
 from mnemos.core.logging import get_logger

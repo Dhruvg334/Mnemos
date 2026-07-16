@@ -1,7 +1,8 @@
-from datetime import UTC, datetime
+from datetime import datetime
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
 
 from mnemos.core.db import Base
 from mnemos.models.entities import new_id, utcnow

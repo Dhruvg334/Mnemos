@@ -18,7 +18,6 @@ from mnemos.api.v1 import (
 )
 from mnemos.core.config import settings
 from mnemos.core.db import close_database
-from mnemos.core.neo4j import init_neo4j, close_neo4j
 from mnemos.core.errors import (
     AppError,
     app_error_handler,
@@ -32,6 +31,7 @@ from mnemos.core.middleware import (
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from mnemos.core.neo4j import close_neo4j, init_neo4j
 from mnemos.core.rate_limit import close_rate_limit_client
 
 configure_logging()

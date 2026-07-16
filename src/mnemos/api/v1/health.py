@@ -2,9 +2,9 @@ from fastapi import APIRouter
 from fastapi.responses import ORJSONResponse
 
 from mnemos.services.operations.health import (
+    graph_health_check,
     readiness_checks,
     vector_health_check,
-    graph_health_check,
 )
 
 router = APIRouter(prefix="/health", tags=["health"])

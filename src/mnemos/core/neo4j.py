@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncDriver, AsyncGraphDatabase
 from neo4j.exceptions import ServiceUnavailable, TransientError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 

@@ -96,8 +96,7 @@ async def execute_ingestion(
         
         # New AI Layer execution (vector/graph persistence)
         if result.status == "succeeded":
-            result_stats = await run_production_ingestion_pipeline(db, document)
-            # You can optionally use result_stats to override chunks_created, etc.
+            await run_production_ingestion_pipeline(db, document)
         
         run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
         run.status = result.status
