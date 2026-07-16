@@ -1,16 +1,13 @@
-import asyncio
-import json
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.langgraph.workflow import create_agent_workflow
 from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
-from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
+from mnemos.models import AgentRun, Citation, Query, QueryClaim
 from mnemos.services.query_execution import add_query_event
 
 logger = StructuredLogger("orchestrator")

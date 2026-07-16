@@ -1,5 +1,7 @@
 import os
+
 from pydantic import BaseModel, Field
+
 
 class LLMConfig(BaseModel):
     model_name: str = Field(default="gpt-4-turbo-preview")
