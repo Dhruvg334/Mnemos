@@ -141,3 +141,35 @@ a {
 .tl-item.type-inspection .tl-dot {
   background: #8a6d1f;
 }
+
+@keyframes motion-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motion-fade-up {
+  animation: motion-fade-up 520ms cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+
+.motion-float-card {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.motion-float-card:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-fade-up {
+    animation: none;
+  }
+  .motion-float-card {
+    transition: none;
+  }
+}

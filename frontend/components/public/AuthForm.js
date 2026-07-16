@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import Brand from "./Brand";
 
 function validate(mode, values) {
@@ -104,12 +103,7 @@ export default function AuthForm({ mode = "signin" }) {
       </div>
 
       <div className="flex min-h-screen items-center justify-center bg-paper-alt px-5 py-10 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.2, 0.65, 0.3, 1] }}
-          className="w-full max-w-xl rounded-[32px] border border-line bg-paper p-8 shadow-pop sm:p-10"
-        >
+        <div className="motion-fade-up w-full max-w-xl rounded-[32px] border border-line bg-paper p-8 shadow-pop sm:p-10">
           <div className="lg:hidden">
             <Brand />
           </div>
@@ -177,7 +171,7 @@ export default function AuthForm({ mode = "signin" }) {
               </>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
