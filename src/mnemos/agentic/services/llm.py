@@ -103,8 +103,9 @@ class LLMService:
                     resp.raise_for_status()
                     return resp.json().get("embedding", [])
 
-                # Fallback: simple zero vector with length from configured embedding model size guess
-                return [0.0] * 1536
+                raise ValueError(
+                    f"Unsupported embedding provider: {provider}"
+                )
             except Exception as e:
                 logger.error(f"Embedding generation failed ({provider}): {e}")
                 raise
@@ -138,5 +139,12 @@ class LLMService:
                 return scores
             except Exception as e:
                 logger.error(f"Cross-encoder rerank failed: {e}")
-                # Conservative default
-                return [0.0 for _ in documents]
+                # Degraded mode: preserve the original candidate ordering
+                # instead of deleting all evidence with zero scores.
+                if not documents:
+                    return []
+                step = 1.0 / max(len(documents), 1)
+                return [
+                    max(0.0, 1.0 - (index * step))
+                    for index, _ in enumerate(documents)
+                ]

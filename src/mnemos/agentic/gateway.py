@@ -1,4 +1,5 @@
 import logging
+import time
 
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
 from mnemos.agentic.schemas.base import ClaimSupportStatus
@@ -14,78 +15,143 @@ from mnemos.schemas.agent import (
 
 logger = logging.getLogger(__name__)
 
+
 class LangGraphAgentGateway:
     """
-    Implementation of the AgentGateway protocol using LangGraph.
-    This allows the AI Layer to be plugged into the existing
-    query_execution.py by only changing the factory.
+    In-process LangGraph adapter.
+
+    The adapter performs read-only retrieval and reasoning. The backend query
+    execution service remains the only authority that persists query state,
+    claims, citations, run status, and public progress events.
     """
+
     name: str = "langgraph_ai_layer"
 
-    async def execute_query(self, request: AgentQueryRequest) -> AgentQueryResult:
-        """
-        Entry point called by the background execution service.
-        Maps the system's AgentQueryRequest to the internal AI Layer state.
-        """
+    async def execute_query(
+        self,
+        request: AgentQueryRequest,
+    ) -> AgentQueryResult:
+        started = time.perf_counter()
+
         async with SessionLocal() as db:
             orchestrator = MnemosAIOrchestrator(db)
 
             try:
-                # Run the internal orchestration
-                agent_response = await orchestrator.run_query(
-                    query_id=request.query_id,
-                    run_id=request.run_id
+                response = await orchestrator.run_query(request)
+
+                citations: list[AgentCitation] = []
+                claims: list[AgentClaim] = []
+
+                for claim_index, grounded_claim in enumerate(response.claims):
+                    citation_ids: list[str] = []
+
+                    for source_index, source in enumerate(
+                        grounded_claim.sources
+                    ):
+                        citation_id = (
+                            f"cit_{claim_index}_{source_index}"
+                        )
+                        citation_ids.append(citation_id)
+                        citations.append(
+                            AgentCitation(
+                                id=citation_id,
+                                document_id=(
+                                    source.provenance.document_id
+                                ),
+                                document_title=(
+                                    source.provenance.source_filename
+                                ),
+                                document_version=(
+                                    source.provenance.document_version
+                                ),
+                                chunk_id=source.provenance.chunk_id,
+                                text_excerpt=source.text_excerpt,
+                                page_or_sheet=(
+                                    source.provenance.page_number
+                                ),
+                                locator=source.provenance.locator,
+                                evidence_region_id=(
+                                    source.provenance.evidence_region_id
+                                ),
+                                retrieval_sources=[
+                                    "vector",
+                                    "graph",
+                                ],
+                                access_allowed=True,
+                            )
+                        )
+
+                    claims.append(
+                        AgentClaim(
+                            id=grounded_claim.claim_id,
+                            text=grounded_claim.text,
+                            support_status=self._map_status(
+                                grounded_claim.status
+                            ),
+                            citation_ids=citation_ids,
+                        )
+                    )
+
+                latency_ms = int(
+                    (time.perf_counter() - started) * 1000
                 )
 
-                # Map back to the system's shared AgentQueryResult schema
                 return AgentQueryResult(
                     run_id=request.run_id,
                     status="succeeded",
-                    answer=agent_response.answer,
+                    answer=response.answer,
                     confidence=AgentConfidence(
-                        label="high" if agent_response.confidence_score > 0.8 else "medium",
-                        score=agent_response.confidence_score
+                        label=self._confidence_label(
+                            response.confidence_score
+                        ),
+                        score=response.confidence_score,
                     ),
-                    claims=[
-                        AgentClaim(
-                            id=c.claim_id,
-                            text=c.text,
-                            support_status=self._map_status(c.status)
-                        ) for c in agent_response.claims
+                    claims=claims,
+                    citations=citations,
+                    missing_evidence=response.missing_evidence,
+                    conflicts=[
+                        contradiction.model_dump(mode="json")
+                        for contradiction in response.contradictions
                     ],
-                    citations=[
-                        AgentCitation(
-                            id=f"cit_{i}",
-                            document_id=s.provenance.document_id,
-                            document_title=s.provenance.source_filename,
-                            document_version=s.provenance.document_version,
-                            text_excerpt=s.text_excerpt,
-                            page_or_sheet=s.provenance.page_number,
-                            locator=s.provenance.locator,
-                            evidence_region_id=s.provenance.evidence_region_id
-                        ) for i, c in enumerate(agent_response.claims) for s in c.sources
-                    ],
-                    missing_evidence=agent_response.missing_evidence,
                     run_metadata=AgentRunMetadata(
-                        pipeline_version="v1.0-langgraph"
-                    )
+                        pipeline_version="v1.1-langgraph",
+                        latency_ms=latency_ms,
+                    ),
                 )
-
-            except Exception as e:
-                logger.error(f"AI Gateway Execution Failed: {str(e)}", exc_info=True)
+            except Exception:
+                logger.exception(
+                    "LangGraph agent execution failed",
+                    extra={
+                        "query_id": request.query_id,
+                        "run_id": request.run_id,
+                    },
+                )
                 return AgentQueryResult(
                     run_id=request.run_id,
                     status="failed",
-                    error_code="AI_ORCHESTRATION_ERROR",
-                    error_message=str(e)
+                    error_code="AI_ORCHESTRATION_FAILED",
+                    error_message=(
+                        "The analysis could not be completed."
+                    ),
                 )
 
-    def _map_status(self, status: ClaimSupportStatus) -> str:
+    @staticmethod
+    def _confidence_label(score: float) -> str:
+        if score >= 0.8:
+            return "high"
+        if score >= 0.5:
+            return "medium"
+        return "low"
+
+    @staticmethod
+    def _map_status(status: ClaimSupportStatus) -> str:
         mapping = {
             ClaimSupportStatus.SUPPORTED: "supported",
-            ClaimSupportStatus.PARTIALLY_SUPPORTED: "partially_supported",
+            ClaimSupportStatus.PARTIALLY_SUPPORTED: (
+                "partially_supported"
+            ),
             ClaimSupportStatus.REFUTED: "conflicting",
             ClaimSupportStatus.UNCERTAIN: "not_evaluated",
-            ClaimSupportStatus.NO_EVIDENCE: "unsupported"
+            ClaimSupportStatus.NO_EVIDENCE: "unsupported",
         }
         return mapping.get(status, "not_evaluated")
