@@ -8,6 +8,7 @@ from mnemos.agentic.langgraph.nodes import (
     EvidenceRetrievalNode,
     EvidenceVerificationNode,
     GeneralAgentNode,
+    ExpertKnowledgeAgentNode,
     LessonsLearnedAgentNode,
     QueryRouterNode,
     RCAAgentNode,
@@ -33,6 +34,8 @@ def route_to_specialized_agent(state: AgentState) -> str:
         return "compliance_agent"
     elif intent == QueryIntent.LESSONS_LEARNED:
         return "lessons_learned_agent"
+    elif intent == QueryIntent.GENERAL:
+        return "expert_knowledge_agent"
     else:
         return "general_agent"
 
@@ -56,6 +59,7 @@ def create_agent_workflow(db: AsyncSession):
     rca_agent = RCAAgentNode(db)
     compliance_agent = ComplianceAgentNode(db)
     ll_agent = LessonsLearnedAgentNode(db)
+    expert_agent = ExpertKnowledgeAgentNode(db)
     general_agent = GeneralAgentNode(db)
 
     # 3. Report Synthesis
@@ -71,6 +75,7 @@ def create_agent_workflow(db: AsyncSession):
     workflow.add_node("rca_agent", rca_agent)
     workflow.add_node("compliance_agent", compliance_agent)
     workflow.add_node("lessons_learned_agent", ll_agent)
+    workflow.add_node("expert_knowledge_agent", expert_agent)
     workflow.add_node("general_agent", general_agent)
     workflow.add_node("response_composer", composer)
 
@@ -90,6 +95,7 @@ def create_agent_workflow(db: AsyncSession):
             "rca_agent": "rca_agent",
             "compliance_agent": "compliance_agent",
             "lessons_learned_agent": "lessons_learned_agent",
+            "expert_knowledge_agent": "expert_knowledge_agent",
             "general_agent": "general_agent"
         }
     )
@@ -99,6 +105,7 @@ def create_agent_workflow(db: AsyncSession):
     workflow.add_edge("rca_agent", "response_composer")
     workflow.add_edge("compliance_agent", "response_composer")
     workflow.add_edge("lessons_learned_agent", "response_composer")
+    workflow.add_edge("expert_knowledge_agent", "response_composer")
     workflow.add_edge("general_agent", "response_composer")
 
     workflow.add_edge("response_composer", END)

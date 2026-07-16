@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from mnemos.agentic.deps import get_llm_service
+
 
 class RerankResult(BaseModel):
     index: int
@@ -20,7 +22,8 @@ class CrossEncoderReranker(BaseReranker):
     """
     def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
         self.model_name = model_name
-        # In production: self.model = CrossEncoder(model_name)
+        # Prefer using configured cross-encoder endpoint via LLMService
+        self.llm = get_llm_service()
 
     async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
         """
@@ -30,16 +33,19 @@ class CrossEncoderReranker(BaseReranker):
         if not documents:
             return []
 
-        # Mocking the scoring logic for the architecture
-        # In production, this would call the local cross-encoder model
-        results = []
-        for i, doc in enumerate(documents):
-            # Simulated score calculation
-            score = 0.5 # Default
-            if any(word in doc.lower() for word in query.lower().split()):
-                score += 0.3
-            results.append(RerankResult(index=i, score=min(score, 1.0)))
+        # Try dedicated cross-encoder endpoint first
+        scores = await self.llm.rerank_with_cross_encoder(query, documents)
 
-        # Sort by score descending
+        # Normalize length
+        if len(scores) != len(documents):
+            # Fallback: uniform scores
+            src = scores or [0.0] * len(documents)
+            scores = []
+            for s in src:
+                scores.append(float(s) if isinstance(s, (int, float)) else 0.0)
+
+        results = []
+        for i in range(len(documents)):
+            results.append(RerankResult(index=i, score=float(scores[i] if i < len(scores) else 0.0)))
         results.sort(key=lambda x: x.score, reverse=True)
         return results

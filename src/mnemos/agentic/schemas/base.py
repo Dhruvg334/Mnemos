@@ -29,18 +29,28 @@ class VerificationStatus(StrEnum):
     STALE = "stale"
 
 
+class BoundingBox(BaseModel):
+    page: int
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
 class ProvenanceChain(BaseModel):
     """
     Detailed traceability from a result back to the original physical source.
-    Maps: Graph Node -> Evidence Region -> Chunk -> Page -> Revision -> Original Document
+    Maps: Graph Node/Edge -> Evidence Region -> Chunk -> Page -> Revision -> Original Document
     """
     node_id: str | None = None
+    relationship_id: str | None = None
     evidence_region_id: str
     chunk_id: str | None = None
     document_id: str
     document_version: int
     page_number: str | None = None
     locator: str | None = None
+    bounding_box: BoundingBox | None = None
     sha256: str
     source_filename: str
     storage_key: str
@@ -69,6 +79,17 @@ class GroundedClaim(BaseModel):
     status: ClaimSupportStatus
     sources: list[EvidenceSource] = Field(default_factory=list)
     reasoning: str | None = None
+
+
+class GroundedRelationship(BaseModel):
+    """
+    A graph relationship that has been verified against physical evidence.
+    """
+    source_id: str
+    target_id: str
+    relationship_type: str
+    evidence: EvidenceSource
+    confidence: float
 
 
 class RecommendedAction(BaseModel):
@@ -128,6 +149,7 @@ class EvidenceBundle(BaseModel):
     intent: QueryIntent
     resolved_entities: list[ResolvedEntity] = Field(default_factory=list)
     verified_evidence: list[EvidenceSource] = Field(default_factory=list)
+    grounded_relationships: list[GroundedRelationship] = Field(default_factory=list)
     raw_graph_data: dict[str, Any] = Field(default_factory=dict)
     raw_vector_data: list[dict[str, Any]] = Field(default_factory=list)
     contradictions: list[Contradiction] = Field(default_factory=list)

@@ -79,6 +79,10 @@ class MnemosMCPServer:
         self.guardrails.check_sop_version(proc, latest_version=2)
         return proc
 
+    async def requirement_lookup(self, query: str, site_id: str | None = None) -> list[dict[str, Any]]:
+        """Retrieves compliance requirements and standards."""
+        return await self.engine.lexical_retriever.search(f"REQUIREMENT {query}", site_id, limit=5)
+
     def list_tools(self) -> list[dict[str, Any]]:
         return [
             {"name": "resolve_asset", "description": "Resolves asset tags to canonical IDs.", "input_schema": ResolveAssetInput.model_json_schema()},
@@ -88,5 +92,6 @@ class MnemosMCPServer:
             {"name": "timeline", "description": "Fetches asset operational history.", "input_schema": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}},
             {"name": "retrieve_document", "description": "Gets grounded document provenance.", "input_schema": {"type": "object", "properties": {"document_id": {"type": "string"}}, "required": ["document_id"]}},
             {"name": "find_similar_failures", "description": "Finds failure patterns.", "input_schema": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}},
-            {"name": "current_procedure", "description": "Gets latest approved maintenance procedure.", "input_schema": ProcedureInput.model_json_schema()}
+            {"name": "current_procedure", "description": "Gets latest approved maintenance procedure.", "input_schema": ProcedureInput.model_json_schema()},
+            {"name": "requirement_lookup", "description": "Looks up compliance standards.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "site_id": {"type": "string"}}, "required": ["query"]}}
         ]

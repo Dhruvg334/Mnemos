@@ -18,6 +18,8 @@ from mnemos.agentic.schemas.specialized import (
     AssetPassport,
     FinalReport,
     RCACaseReport,
+    ComplianceAuditPackage,
+    LessonsLearnedSummary,
 )
 from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.guardrails import GuardrailViolation, MnemosGuardrails
@@ -58,20 +60,31 @@ class BaseNode:
     async def execute(self, state: AgentState) -> AgentState:
         raise NotImplementedError
 
+class QueryClassification(BaseModel):
+    intent: QueryIntent
+    entities: list[str]
+    confidence: float
+    time_range: str | None = None
+    site_context: str | None = None
+
 class QueryRouterNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
-        query = state["query"].lower()
-        intent = QueryIntent.GENERAL
-        if any(w in query for w in ["rca", "root cause", "failure", "incident"]):
-            intent = QueryIntent.RCA
-        elif any(w in query for w in ["compliance", "regulation", "audit", "standard"]):
-            intent = QueryIntent.COMPLIANCE
-        elif any(w in query for w in ["asset", "tag", "specs", "drawing"]):
-            intent = QueryIntent.ASSET_INFO
-        elif any(w in query for w in ["lesson", "recurrence", "learned"]):
-            intent = QueryIntent.LESSONS_LEARNED
-
-        state["intent"] = intent
+        prompt = f"Analyze this industrial query: '{state['query']}'. Extract the primary intent, any entities/assets mentioned, your confidence (0.0 to 1.0), implied time range, and any site context."
+        
+        classification = await self.llm.call_structured(prompt, QueryClassification)
+        
+        state["intent"] = classification.intent
+        # Pre-populate entities if found, EntityResolverNode will expand them
+        if not state.get("resolved_entities"):
+             state["resolved_entities"] = []
+             
+        # Add a placeholder for now, EntityResolverNode handles full resolution
+        # But we pass the extracted strings to it via context or a new field
+        state["context"]["extracted_entities"] = classification.entities
+        state["context"]["query_time_range"] = classification.time_range
+        if classification.site_context and not state["context"].get("site_id"):
+            state["context"]["site_id"] = classification.site_context
+            
         return state
 
 class EntityResolverNode(BaseNode):
@@ -91,18 +104,44 @@ class EntityResolverNode(BaseNode):
 class RetrievalPlannerNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         intent = state["intent"]
-        strategies = [RetrievalStrategy.VECTOR_SEARCH, RetrievalStrategy.LEXICAL_SEARCH]
 
-        if intent in [QueryIntent.ASSET_INFO, QueryIntent.RCA, QueryIntent.LESSONS_LEARNED]:
-            strategies.extend([RetrievalStrategy.GRAPH_TRAVERSAL, RetrievalStrategy.SQL_QUERY])
+        # Base strategy sets per intent (ordered for execution preference)
+        if intent == QueryIntent.ASSET_INFO:
+            strategies = [
+                RetrievalStrategy.METADATA_FILTER,
+                RetrievalStrategy.GRAPH_TRAVERSAL,
+                RetrievalStrategy.VECTOR_SEARCH,
+                RetrievalStrategy.RERANKING,
+            ]
+        elif intent == QueryIntent.RCA:
+            # Timeline / historical SQL queries are important for RCA
+            strategies = [
+                RetrievalStrategy.SQL_QUERY,
+                RetrievalStrategy.GRAPH_TRAVERSAL,
+                RetrievalStrategy.VECTOR_SEARCH,
+            ]
+        elif intent == QueryIntent.COMPLIANCE:
+            strategies = [
+                RetrievalStrategy.METADATA_FILTER,
+                RetrievalStrategy.SQL_QUERY,
+                RetrievalStrategy.LEXICAL_SEARCH,
+            ]
+        else:
+            # GENERAL and LESSONS_LEARNED map here
+            strategies = [
+                RetrievalStrategy.VECTOR_SEARCH,
+                RetrievalStrategy.LEXICAL_SEARCH,
+                RetrievalStrategy.GRAPH_TRAVERSAL,
+                RetrievalStrategy.RERANKING,
+            ]
 
-        if intent == QueryIntent.COMPLIANCE:
-            strategies.extend([RetrievalStrategy.METADATA_FILTER, RetrievalStrategy.SQL_QUERY])
+        # Entity expansion: if resolved entities exist, prefer graph traversal
+        target_entities = [e.entity_id for e in state.get("resolved_entities", [])]
 
         state["retrieval_plan"] = RetrievalPlan(
             intent=intent,
-            strategies=list(set(strategies)),
-            target_entities=[e.entity_id for e in state["resolved_entities"]],
+            strategies=strategies,
+            target_entities=target_entities,
             reasoning=f"Optimized strategy for {intent}"
         )
         return state
@@ -139,7 +178,11 @@ class AssetAgentNode(BaseNode):
         if not evidence:
             return state
 
-        prompt = self.prompt_manager.get_prompt("asset_intelligence", query=state["query"], evidence=evidence)
+        prompt = self.prompt_manager.get_prompt(
+            "asset_intelligence",
+            query=state["query"],
+            evidence=evidence,
+        )
         passport = await self.llm.call_structured(prompt, AssetPassport)
         state["context"]["asset_passport"] = passport.model_dump()
         return state
@@ -150,7 +193,11 @@ class RCAAgentNode(BaseNode):
         if not evidence:
             return state
 
-        prompt = self.prompt_manager.get_prompt("rca_analysis", query=state["query"], evidence=evidence)
+        prompt = self.prompt_manager.get_prompt(
+            "rca_analysis",
+            query=state["query"],
+            evidence=evidence,
+        )
         report = await self.llm.call_structured(prompt, RCACaseReport)
 
         # Safety check: Verify claims in RCA against evidence
@@ -158,6 +205,66 @@ class RCAAgentNode(BaseNode):
 
         state["context"]["rca_report"] = report.model_dump()
         state["claims"].extend(report.hypotheses)
+        return state
+
+class ComplianceAgentNode(BaseNode):
+    async def execute(self, state: AgentState) -> AgentState:
+        evidence = state["evidence_bundle"].verified_evidence
+        if not evidence:
+            return state
+
+        prompt = self.prompt_manager.get_prompt(
+            "compliance_analysis",
+            query=state["query"],
+            evidence=evidence,
+        )
+        report = await self.llm.call_structured(prompt, ComplianceAuditPackage)
+        state["context"]["compliance_package"] = report.model_dump()
+        return state
+
+class LessonsLearnedAgentNode(BaseNode):
+    async def execute(self, state: AgentState) -> AgentState:
+        evidence = state["evidence_bundle"].verified_evidence
+        if not evidence:
+            return state
+
+        prompt = self.prompt_manager.get_prompt(
+            "lessons_learned_analysis",
+            query=state["query"],
+            evidence=evidence,
+        )
+        report = await self.llm.call_structured(prompt, LessonsLearnedSummary)
+        state["context"]["lessons_learned"] = report.model_dump()
+        return state
+
+class GeneralAgentNode(BaseNode):
+    async def execute(self, state: AgentState) -> AgentState:
+        evidence = state["evidence_bundle"].verified_evidence
+        if not evidence:
+            return state
+
+        prompt = self.prompt_manager.get_prompt(
+            "general_analysis",
+            query=state["query"],
+            evidence=evidence,
+        )
+        report = await self.llm.call_structured(prompt, dict)
+        state["context"]["general_analysis"] = report
+        return state
+
+class ExpertKnowledgeAgentNode(BaseNode):
+    async def execute(self, state: AgentState) -> AgentState:
+        evidence = state["evidence_bundle"].verified_evidence
+        if not evidence:
+            return state
+
+        prompt = self.prompt_manager.get_prompt(
+            "expert_knowledge_analysis",
+            query=state["query"],
+            evidence=evidence,
+        )
+        report = await self.llm.call_structured(prompt, dict)
+        state["context"]["expert_knowledge"] = report
         return state
 
 class ResponseComposerNode(BaseNode):

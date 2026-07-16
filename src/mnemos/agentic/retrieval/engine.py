@@ -128,7 +128,18 @@ class HybridRetrievalEngine:
     async def _execute_vector_search(self, bundle: EvidenceBundle, query: str, site_id: str | None):
         try:
             embedding = await self.vector_retriever.get_embeddings(query)
-            results = await self.vector_retriever.search(embedding, top_k=10, filters={"site_id": site_id})
+            
+            filters = {}
+            if site_id:
+                filters["site_id"] = site_id
+            if bundle.context.get("tenant_id"):
+                filters["tenant_id"] = bundle.context.get("tenant_id")
+            if bundle.resolved_entities:
+                # We can filter by the most confident asset if one exists
+                # Or pass multiple if supported. Let's just pass the top entity
+                filters["asset_id"] = bundle.resolved_entities[0].entity_id
+                
+            results = await self.vector_retriever.search(embedding, top_k=10, filters=filters)
             for res in results:
                 bundle.raw_vector_data.append(res.model_dump())
         except Exception as e:
