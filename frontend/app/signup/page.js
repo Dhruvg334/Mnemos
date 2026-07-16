@@ -1,9 +1,3 @@
 import AuthForm from "@/components/public/AuthForm";
-
-export const metadata = {
-  title: "Create account",
-};
-
-export default function SignUpPage() {
-  return <AuthForm mode="signup" />;
-}
+export const metadata = { title: "Access" };
+export default function SignUpPage() { return <AuthForm initialMode="signup" />; }
