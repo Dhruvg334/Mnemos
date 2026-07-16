@@ -271,3 +271,7 @@ The synthetic demonstration corpus includes recurring P-117 seal failures, dupli
 ## Current status
 
 The backend foundation, agentic architecture, public frontend, dashboard prototype, and technical documentation are present. The active work now is frontend–backend integration, real ingestion validation, provider configuration, full-system evaluation, and final deployment hardening.
+
+### Authentication integration
+
+Mnemos uses the Next.js application as a browser authentication boundary. The browser submits credentials to same-origin route handlers, and the route handlers communicate with FastAPI. Access and refresh tokens remain in HttpOnly cookies. Backend registration creates a new organisation, primary site, and organisation-admin membership in an inactive state, then activates the user after one-time email verification.

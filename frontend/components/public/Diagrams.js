@@ -51,12 +51,12 @@ function RoutedArrow({ d, dashed = false }) {
 
 function Frame({ children, label, legend = [] }) {
   return (
-    <figure className="max-w-full overflow-hidden border-y border-line bg-paper py-5">
+    <figure className="mx-3 overflow-hidden border-y border-line bg-paper px-4 py-5 sm:mx-5 sm:px-6 lg:mx-7 lg:px-8">
       <figcaption className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">{label}</span>
         <span className="text-[11.5px] text-ink-faint">Arrows show the direction of data or control flow.</span>
       </figcaption>
-      <div className="diagram-canvas rounded-2xl border border-line bg-paper-alt p-3">{children}</div>
+      <div className="diagram-canvas rounded-2xl border border-line bg-paper-alt p-4 sm:p-5">{children}</div>
       {legend.length ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {legend.map(([title, text], index) => (

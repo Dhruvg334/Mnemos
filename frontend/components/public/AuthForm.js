@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Brand from "./Brand";
 
 function validate(mode, values) {
@@ -10,47 +11,97 @@ function validate(mode, values) {
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) errors.email = "Enter a valid work email.";
 
   if (!values.password.trim()) errors.password = "Password is required.";
-  else if (values.password.length < 8) errors.password = "Use at least 8 characters.";
+  else if (values.password.length < (mode === "signup" ? 12 : 1)) errors.password = mode === "signup" ? "Use at least 12 characters." : "Password is required.";
 
   if (mode === "signup") {
     if (!values.name.trim()) errors.name = "Full name is required.";
     if (!values.organization.trim()) errors.organization = "Organization is required.";
     if (!values.confirmPassword.trim()) errors.confirmPassword = "Confirm your password.";
     else if (values.confirmPassword !== values.password) errors.confirmPassword = "Passwords do not match.";
+    if (values.password && !/[a-z]/.test(values.password)) errors.password = "Include a lowercase letter.";
+    else if (values.password && !/[A-Z]/.test(values.password)) errors.password = "Include an uppercase letter.";
+    else if (values.password && !/\d/.test(values.password)) errors.password = "Include a number.";
+    else if (values.password && !/[^A-Za-z0-9]/.test(values.password)) errors.password = "Include a symbol.";
   }
   return errors;
 }
 
+function normalizeError(payload, fallback) {
+  const fieldErrors = {};
+  const fields = payload?.error?.details?.fields || [];
+  for (const field of fields) {
+    if (field.field) fieldErrors[field.field] = field.message;
+  }
+  return {
+    fieldErrors,
+    message: payload?.error?.message || fallback,
+  };
+}
+
 export default function AuthForm({ initialMode = "signin" }) {
+  const router = useRouter();
   const [mode, setMode] = useState(initialMode);
   const [values, setValues] = useState({ name: "", organization: "", email: "", password: "", confirmPassword: "" });
   const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const isSignup = mode === "signup";
-
-  const statusText = useMemo(() => {
-    if (!submitted) return null;
-    return isSignup
-      ? "Validation passed. Backend email verification will be connected during authentication integration."
-      : "Validation passed. Backend session creation will be connected during authentication integration.";
-  }, [submitted, isSignup]);
 
   function switchMode(nextMode) {
     setMode(nextMode);
     setErrors({});
-    setSubmitted(false);
+    setStatus(null);
   }
 
   function update(name, value) {
     setValues((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: undefined }));
+    setStatus(null);
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const nextErrors = validate(mode, values);
     setErrors(nextErrors);
-    setSubmitted(Object.keys(nextErrors).length === 0);
+    setStatus(null);
+    if (Object.keys(nextErrors).length) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(isSignup ? "/api/auth/register" : "/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          isSignup
+            ? {
+                full_name: values.name,
+                organisation_name: values.organization,
+                email: values.email,
+                password: values.password,
+              }
+            : { email: values.email, password: values.password },
+        ),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const parsed = normalizeError(payload, "Authentication could not be completed.");
+        setErrors(parsed.fieldErrors);
+        setStatus({ tone: "error", message: parsed.message });
+        return;
+      }
+      if (isSignup) {
+        setStatus({ tone: "success", message: "Account created. Check your email to verify the workspace before signing in." });
+        setMode("signin");
+        setValues((current) => ({ ...current, password: "", confirmPassword: "" }));
+      } else {
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch {
+      setStatus({ tone: "error", message: "The authentication service is unavailable. Check that the backend is running." });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const fieldClass = (name) => `mt-1.5 w-full rounded-xl border bg-paper px-3.5 py-2.5 text-[13px] text-ink outline-none transition placeholder:text-ink-faint ${errors[name] ? "border-signal-red bg-signal-red-pale/40" : "border-line focus:border-signal-blue"}`;
@@ -63,14 +114,13 @@ export default function AuthForm({ initialMode = "signin" }) {
           <Link href="/" className="text-[12px] text-ink-faint transition hover:text-ink">Back home</Link>
         </div>
 
-        <div className="mt-6 flex rounded-xl border border-line bg-paper-alt p-1">
-          {[
-            ["signin", "Sign in"],
-            ["signup", "Create account"],
-          ].map(([value, label]) => (
+        <div className="mt-6 flex rounded-xl border border-line bg-paper-alt p-1" role="tablist" aria-label="Authentication mode">
+          {[["signin", "Sign in"], ["signup", "Create account"]].map(([value, label]) => (
             <button
               key={value}
               type="button"
+              role="tab"
+              aria-selected={mode === value}
               onClick={() => switchMode(value)}
               className={`flex-1 rounded-lg px-4 py-2 text-[12.5px] font-medium transition ${mode === value ? "bg-paper text-ink shadow-sm" : "text-ink-faint hover:text-ink"}`}
             >
@@ -80,50 +130,51 @@ export default function AuthForm({ initialMode = "signin" }) {
         </div>
 
         <div className="mt-5">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-signal-blue">{isSignup ? "Workspace access" : "Secure access"}</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-signal-blue">{isSignup ? "Verified workspace access" : "Secure access"}</div>
           <h1 className="mt-2 text-[25px] font-semibold tracking-[-0.04em] text-ink">{isSignup ? "Create your Mnemos workspace" : "Welcome back"}</h1>
           <p className="mt-2 text-[13px] leading-6 text-ink-soft">
-            {isSignup ? "Create a site-scoped workspace for governed industrial knowledge." : "Access your approved plants, assets, investigations, and evidence."}
+            {isSignup ? "Create an organization-scoped account. Access activates after email verification." : "Access your approved plants, assets, investigations, and evidence."}
           </p>
         </div>
 
         <form className="mt-5 grid gap-3" onSubmit={handleSubmit} noValidate>
           {isSignup ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Full name" error={errors.name}>
-                <input className={fieldClass("name")} value={values.name} onChange={(e) => update("name", e.target.value)} placeholder="Dhruv Gupta" />
+              <Field label="Full name" error={errors.name || errors.full_name}>
+                <input autoComplete="name" className={fieldClass("name")} value={values.name} onChange={(e) => update("name", e.target.value)} placeholder="Dhruv Gupta" />
               </Field>
-              <Field label="Organization" error={errors.organization}>
-                <input className={fieldClass("organization")} value={values.organization} onChange={(e) => update("organization", e.target.value)} placeholder="North Process Plant" />
+              <Field label="Organization" error={errors.organization || errors.organisation_name}>
+                <input autoComplete="organization" className={fieldClass("organization")} value={values.organization} onChange={(e) => update("organization", e.target.value)} placeholder="North Process Plant" />
               </Field>
             </div>
           ) : null}
 
           <Field label="Work email" error={errors.email}>
-            <input type="email" className={fieldClass("email")} value={values.email} onChange={(e) => update("email", e.target.value)} placeholder="dhruv@plantops.com" />
+            <input autoComplete="email" type="email" className={fieldClass("email")} value={values.email} onChange={(e) => update("email", e.target.value)} placeholder="dhruv@plantops.com" />
           </Field>
 
           <div className={`grid gap-3 ${isSignup ? "sm:grid-cols-2" : ""}`}>
             <Field label="Password" error={errors.password}>
-              <input type="password" className={fieldClass("password")} value={values.password} onChange={(e) => update("password", e.target.value)} placeholder="••••••••" />
+              <input autoComplete={isSignup ? "new-password" : "current-password"} type="password" className={fieldClass("password")} value={values.password} onChange={(e) => update("password", e.target.value)} placeholder="••••••••••••" />
             </Field>
             {isSignup ? (
               <Field label="Confirm password" error={errors.confirmPassword}>
-                <input type="password" className={fieldClass("confirmPassword")} value={values.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} placeholder="••••••••" />
+                <input autoComplete="new-password" type="password" className={fieldClass("confirmPassword")} value={values.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} placeholder="••••••••••••" />
               </Field>
             ) : null}
           </div>
 
-          <button type="submit" className="mt-1 rounded-full bg-rail px-5 py-2.5 text-[12.5px] font-medium text-white transition hover:bg-rail-raised">
-            {isSignup ? "Create workspace" : "Sign in"}
-          </button>
-          <button type="button" className="rounded-full border border-line bg-paper px-5 py-2.5 text-[12.5px] font-medium text-ink transition hover:bg-paper-alt">
-            Continue with email link
+          <button disabled={submitting} type="submit" className="mt-1 rounded-full bg-rail px-5 py-2.5 text-[12.5px] font-medium text-white transition hover:bg-rail-raised disabled:cursor-not-allowed disabled:opacity-60">
+            {submitting ? "Please wait…" : isSignup ? "Create workspace" : "Sign in"}
           </button>
         </form>
 
-        {statusText ? <div className="mt-3 rounded-xl border border-signal-blue-line bg-signal-blue-pale px-3.5 py-2.5 text-[12px] leading-5 text-signal-blue-deep">{statusText}</div> : null}
-        <div className="mt-4 text-center text-[11.5px] text-ink-faint">Email verification, refresh-token handling, and account recovery connect in the auth integration phase.</div>
+        {status ? (
+          <div className={`mt-3 rounded-xl border px-3.5 py-2.5 text-[12px] leading-5 ${status.tone === "error" ? "border-signal-red-line bg-signal-red-pale text-signal-red" : "border-signal-blue-line bg-signal-blue-pale text-signal-blue-deep"}`} role="status">
+            {status.message}
+          </div>
+        ) : null}
+        <div className="mt-4 text-center text-[11.5px] text-ink-faint">Tokens are stored in HttpOnly cookies through the Next.js authentication boundary.</div>
       </div>
     </div>
   );

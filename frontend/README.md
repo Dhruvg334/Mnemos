@@ -160,3 +160,15 @@ The repository currently remains on the existing Next.js 14 line for compatibili
 6. Integrate asynchronous query execution, citations, cancellation, and retry.
 7. Connect RCA, compliance, expert-knowledge, and audit workflows.
 8. Add component, integration, accessibility, and end-to-end tests.
+
+## Authentication boundary
+
+The frontend now uses Next.js route handlers as a browser-facing authentication boundary. Access and refresh tokens are stored in HttpOnly, SameSite=Lax cookies rather than browser storage. Configure:
+
+```env
+MNEMOS_API_URL=http://localhost:8000/api/v1
+AUTH_REQUIRED=false
+AUTH_REFRESH_COOKIE_SECONDS=604800
+```
+
+Set `AUTH_REQUIRED=true` when the backend is available and dashboard access should require an authenticated session. New registrations create an inactive organization administrator account, send a one-time verification link, and activate the account only after verification. `EMAIL_DELIVERY_MODE=log` is suitable for local development; SMTP settings are required for real email delivery.
