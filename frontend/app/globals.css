@@ -223,3 +223,27 @@ a {
   .motion-enter, .motion-drift, .motion-flow, .motion-pulse { animation: none !important; }
   .motion-lift, .interactive-row { transition: none !important; }
 }
+
+.diagram-canvas {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.diagram-canvas svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .diagram-canvas {
+    overflow-x: auto;
+  }
+
+  .diagram-canvas svg {
+    width: 760px;
+    max-width: none;
+  }
+}

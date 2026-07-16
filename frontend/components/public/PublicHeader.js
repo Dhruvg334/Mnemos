@@ -6,8 +6,8 @@ import Brand from "./Brand";
 
 const LINKS = [
   { href: "/documentation", label: "Documentation" },
-  { href: "/about", label: "About" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/about", label: "About" },
 ];
 
 export default function PublicHeader() {
@@ -16,11 +16,11 @@ export default function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="shrink-0">
+        <Link href="/" className="shrink-0" aria-label="Go to Mnemos home">
           <Brand compact />
         </Link>
 
-        <nav className="hidden items-center gap-1 rounded-full border border-line bg-paper-sunk/80 p-1 md:flex">
+        <nav className="hidden items-center gap-1 rounded-full border border-line bg-paper-sunk/80 p-1 md:flex" aria-label="Primary navigation">
           {LINKS.map((link) => {
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
