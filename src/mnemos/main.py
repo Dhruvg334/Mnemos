@@ -31,6 +31,7 @@ from mnemos.core.middleware import (
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
+from mnemos.core.neo4j import close_neo4j, init_neo4j
 from mnemos.core.rate_limit import close_rate_limit_client
 
 configure_logging()
@@ -73,7 +74,13 @@ app.include_router(ingestion.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
 
 
+@app.on_event("startup")
+async def startup_resources() -> None:
+    await init_neo4j()
+
+
 @app.on_event("shutdown")
 async def shutdown_resources() -> None:
+    await close_neo4j()
     await close_rate_limit_client()
     await close_database()

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mnemos.integrations.ingestion import get_ingestion_gateway
 from mnemos.models import Document, IngestionEvent, IngestionRun
 from mnemos.schemas.ingestion import IngestionDocumentMetadata, IngestionRequest
+from mnemos.services.ingestion_pipeline import run_production_ingestion_pipeline
 
 
 def _hash_payload(payload: dict) -> str:
@@ -90,7 +91,13 @@ async def execute_ingestion(
     )
 
     try:
+        # Original external gateway extraction
         result = await gateway.ingest_document(request)
+        
+        # New AI Layer execution (vector/graph persistence)
+        if result.status == "succeeded":
+            await run_production_ingestion_pipeline(db, document)
+        
         run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
         run.status = result.status
         run.chunks_created = result.chunks_created
