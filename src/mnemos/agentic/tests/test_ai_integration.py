@@ -104,7 +104,19 @@ async def test_orchestrator_initialization(mock_db, mock_query, mock_run):
         mock_workflow.compile.return_value = mock_compiled
         mock_create.return_value = mock_workflow
 
-        result = await orchestrator.run_query("qry_test_001", "run_test_001")
+        from mnemos.schemas.agent import AgentQueryRequest, AgentScope
+
+        request = AgentQueryRequest(
+            run_id="run_test_001",
+            query_id="qry_test_001",
+            organisation_id="org_mnemos",
+            site_id="site_alpha",
+            user_id="usr_001",
+            query_type="general",
+            question="What is the pressure limit for P-101?",
+            scope=AgentScope(),
+        )
+        result = await orchestrator.run_query(request)
 
         assert result.answer == "Test answer from orchestrator"
 

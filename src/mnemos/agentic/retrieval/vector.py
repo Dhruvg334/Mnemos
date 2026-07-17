@@ -10,7 +10,13 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from pydantic import BaseModel
+from sqlalchemy import and_, select
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from mnemos.agentic.services.llm import LLMService
+from mnemos.core.errors import AppError
+from mnemos.models.vector import ChunkEmbedding, DocumentChunk
 
 try:
     import openai
@@ -44,10 +50,16 @@ class VectorRetriever:
     - Date range filtering
     - Asset ID scoping
     - Document ID scoping
+    - pgvector-based production search
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        llm_service: LLMService | None = None,
+    ):
         self.db = db
+        self.llm = llm_service
         self.provider = os.getenv("MNEMOS_AI_PROVIDER", "huggingface").lower()
         self.hf_model = os.getenv(
             "MNEMOS_HF_EMBEDDING_MODEL",
@@ -75,6 +87,16 @@ class VectorRetriever:
         """Generate an embedding vector for *text* using the configured provider."""
         if not text:
             return []
+
+        if self.llm is not None:
+            embedding = await self.llm.get_embeddings(text)
+            if not embedding:
+                raise AppError(
+                    "EMBEDDING_GENERATION_FAILED",
+                    "An embedding could not be generated.",
+                    502,
+                )
+            return embedding
 
         if self.provider == "huggingface":
             if SentenceTransformer is None:
@@ -142,91 +164,74 @@ class VectorRetriever:
         top_k: int = 10,
         filters: dict[str, Any] | None = None,
     ) -> list[VectorSearchResult]:
-        """Search by embedding similarity with optional filters."""
         if not query_embedding:
             return []
 
+        top_k = max(1, min(top_k, 100))
         filters = filters or {}
-        candidates = await self._fetch_candidates(filters)
 
-        scored: list[VectorSearchResult] = []
-        for c in candidates:
-            meta = c.get("metadata") or {}
-            emb = self._extract_embedding(meta)
-            if emb is None:
-                continue
-
-            score = self._cosine(query_embedding, emb)
-            scored.append(
-                VectorSearchResult(
-                    content=c.get("text_excerpt", ""),
-                    metadata=meta,
-                    score=float(score),
-                    document_id=c.get("document_id"),
-                    chunk_id=meta.get("chunk_id"),
-                )
+        conditions = []
+        if tenant_id := filters.get("tenant_id"):
+            conditions.append(DocumentChunk.tenant_id == tenant_id)
+        if site_id := filters.get("site_id"):
+            conditions.append(DocumentChunk.site_id == site_id)
+        if asset_id := filters.get("asset_id"):
+            conditions.append(DocumentChunk.asset_id == asset_id)
+        if revision_id := filters.get("revision_id"):
+            conditions.append(
+                DocumentChunk.revision_id == revision_id
             )
 
-        scored.sort(key=lambda x: x.score, reverse=True)
-        return scored[:top_k]
+        metadata_filter = filters.get("metadata")
+        if metadata_filter:
+            conditions.append(
+                DocumentChunk.metadata_json.contains(metadata_filter)
+            )
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    async def _fetch_candidates(
-        self, filters: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        """Load candidate evidence regions from the DB, applying filters."""
-        from sqlalchemy import select
-
-        from mnemos.models.entities import Document, EvidenceRegion
-
-        site_id = filters.get("site_id")
-        date_from = filters.get("date_from")
-        date_to = filters.get("date_to")
-
-        # Build query using ORM for portability
-        stmt = (
-            select(EvidenceRegion, Document)
-            .join(Document, EvidenceRegion.document_id == Document.id)
+        distance = ChunkEmbedding.embedding.cosine_distance(
+            query_embedding
+        )
+        statement = (
+            select(
+                DocumentChunk.id.label("chunk_id"),
+                DocumentChunk.content,
+                DocumentChunk.metadata_json.label("metadata"),
+                DocumentChunk.document_id,
+                (1 - distance).label("score"),
+            )
+            .join(
+                ChunkEmbedding,
+                ChunkEmbedding.chunk_id == DocumentChunk.id,
+            )
+            .where(and_(*conditions) if conditions else True)
+            .order_by(distance)
+            .limit(top_k)
         )
 
-        if site_id:
-            stmt = stmt.where(Document.site_id == site_id)
-        if date_from:
-            stmt = stmt.where(Document.created_at >= date_from)
-        if date_to:
-            stmt = stmt.where(Document.created_at <= date_to)
-
-        stmt = stmt.limit(1000)
-
         try:
-            result = await self.db.execute(stmt)
-            rows = result.all()
-        except Exception:
-            return []
+            rows = (await self.db.execute(statement)).mappings().all()
+        except (OperationalError, DBAPIError) as exc:
+            raise AppError(
+                "VECTOR_STORE_UNAVAILABLE",
+                "Semantic retrieval is temporarily unavailable.",
+                503,
+                retryable=True,
+            ) from exc
+        except ValueError as exc:
+            raise AppError(
+                "EMBEDDING_DIMENSION_MISMATCH",
+                "The embedding configuration is incompatible "
+                "with the vector index.",
+                500,
+            ) from exc
 
-        candidates: list[dict[str, Any]] = []
-        for er, doc in rows:
-            candidates.append(
-                {
-                    "id": er.id,
-                    "text_excerpt": er.text_excerpt,
-                    "metadata": er.metadata_json or {},
-                    "document_id": doc.id,
-                }
+        return [
+            VectorSearchResult(
+                content=row["content"],
+                metadata=row["metadata"] or {},
+                score=float(row["score"]),
+                document_id=row["document_id"],
+                chunk_id=row["chunk_id"],
             )
-        return candidates
-
-    @staticmethod
-    def _extract_embedding(meta: dict[str, Any]) -> list[float] | None:
-        emb = meta.get("embedding") or meta.get("chunk_embedding") or meta.get("vector")
-        if isinstance(emb, str):
-            try:
-                emb = _json.loads(emb)
-            except Exception:
-                return None
-        if isinstance(emb, list) and emb:
-            return emb
-        return None
+            for row in rows
+        ]

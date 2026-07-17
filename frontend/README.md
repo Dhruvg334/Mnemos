@@ -1,58 +1,174 @@
-# Mnemos — asset intelligence platform
+# Mnemos frontend
 
-A Node.js (Next.js 14, App Router) + Tailwind CSS rebuild of the Mnemos
-front-end prototype: plant-wide reliability KPIs, an asset explorer, an
-evidence-grounded asset passport with a docked copilot panel, an RCA
-investigation workspace, a compliance matrix, a knowledge graph, a document
-library, and expert-knowledge review cards — all backed by the North Process
-Plant demo dataset (P-117 recurring seal-leak scenario).
+The Mnemos frontend is a Next.js 14 App Router application for the public product experience, technical documentation, authentication entry, and the operational industrial-intelligence dashboard.
 
-## Stack
+## What is included
 
-- **Next.js 14** (App Router, React 18) — the Node.js server/build layer
-- **Tailwind CSS** — utility-first styling, with a small custom design-token
-  palette (`tailwind.config.js`) instead of generic defaults
-- Plain JavaScript, no TypeScript, no external UI kit — every screen is a
-  hand-built component
+### Public experience
 
-## Run it
+- centered product landing page
+- About page covering the product direction, design rationale, benefits, and team responsibilities
+- unified Sign in / Create account panel with client-side field validation
+- public navigation and footer
+- redesigned Mnemos memory-lattice identity
+
+### Technical documentation
+
+The documentation is structured for both rapid evaluator review and deeper engineering inspection:
+
+```text
+/documentation
+/documentation/architecture
+/documentation/workflows
+/documentation/agentic
+/documentation/ingestion
+/documentation/retrieval
+/documentation/infrastructure
+/documentation/governance
+/documentation/deployment
+```
+
+It includes responsive SVG diagrams for:
+
+- production topology
+- agentic query execution
+- document ingestion and provenance
+- governed knowledge lifecycle
+
+### Operational dashboard
+
+The current dashboard includes:
+
+- plant overview
+- asset explorer
+- asset passport
+- RCA investigation workspace
+- compliance matrix
+- knowledge graph
+- document library
+- expert-knowledge review
+- evidence drawer and citation navigation
+
+The dashboard currently uses `lib/data.js` as a transitional demo adapter. The next integration phase replaces this data screen by screen with backend API calls.
+
+## Technology
+
+- Next.js 14 App Router
+- React 18
+- Tailwind CSS
+- dependency-free CSS motion with `prefers-reduced-motion` support
+- inline responsive SVG diagrams
+- plain JavaScript
+
+No external UI kit or runtime animation library is required.
+
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-For a production build:
+For production validation:
 
 ```bash
 npm run build
 npm start
 ```
 
-## Project layout
+## Route map
 
+| Route | Purpose |
+|---|---|
+| `/` | Public product landing page |
+| `/about` | Product direction, benefits, rationale, and team |
+| `/signin` | Unified auth panel, Sign in mode |
+| `/signup` | Unified auth panel, Create account mode |
+| `/documentation` | Technical overview |
+| `/documentation/*` | Engineering deep dives |
+| `/dashboard` | Operational product dashboard |
+
+## Structure
+
+```text
+frontend/
+├── app/
+│   ├── about/
+│   ├── dashboard/
+│   ├── documentation/
+│   ├── signin/
+│   ├── signup/
+│   ├── globals.css
+│   ├── layout.js
+│   └── page.js
+├── components/
+│   ├── public/             # brand, navigation, docs, auth, diagrams
+│   ├── views/              # dashboard screens
+│   ├── Drawer.js
+│   ├── Rail.js
+│   ├── Shell.js
+│   └── Topbar.js
+├── lib/
+│   ├── data.js             # transitional demonstration data
+│   └── helpers.js
+├── package.json
+└── tailwind.config.js
 ```
-app/                 Next.js App Router entry (layout, page, global styles)
-components/
-  Shell.js           Owns navigation + drawer state, mounts the current view
-  Rail.js            Left navigation rail
-  Topbar.js           Top bar: breadcrumb, scope pills, search, user chip
-  Drawer.js           Right-hand source-document drawer (opened from any ⌐cite chip)
-  ui.js               Shared primitives: badges, cite chips, KPI cards, tables bits
-  icons.js            Inline SVG icon set
-  views/              One file per screen (Overview, Assets, Passport, Investigation,
-                       Compliance, Graph, Documents, Expert)
-lib/
-  data.js             The full demo dataset (assets, failures, work orders, docs, RCA, graph…)
-  helpers.js          Small formatting/lookup helpers
+
+## Frontend safety review
+
+The current frontend code:
+
+- does not use `dangerouslySetInnerHTML`
+- does not use `eval` or dynamic function construction
+- does not persist tokens in `localStorage` or `sessionStorage`
+- does not inject third-party scripts
+- emits baseline browser security headers through `next.config.mjs`
+- uses internal Next.js links for navigation
+- validates auth form inputs before submission
+- uses semantic labels and visible keyboard focus states
+- respects reduced-motion preferences
+
+### Authentication integration requirement
+
+The current auth panel is not yet connected to the backend. During integration:
+
+- access tokens should remain short-lived
+- refresh tokens should be handled through a protected server or HTTP-only cookie boundary rather than long-lived browser storage
+- backend validation remains authoritative
+- server error messages should be mapped to safe field and form states
+
+### Dependency maintenance
+
+Run dependency review before deployment:
+
+```bash
+npm audit
 ```
 
-## Notes
+The repository currently remains on the existing Next.js 14 line for compatibility. Before public deployment, upgrade to an officially patched supported release and regenerate `package-lock.json` through the normal npm registry. Do not hand-edit lockfile integrity values.
 
-- This is a front-end-only prototype — `lib/data.js` stands in for the API
-  contracts the real product would call.
-- Every cited claim (`⌐doc_00x`) opens the source drawer with the exact
-  document text it was drawn from, carried through every screen as the
-  evidence-traceability motif.
+## Integration roadmap
+
+1. Add a typed API client or validated JavaScript contract layer.
+2. Connect login, refresh, logout, and current-user flows.
+3. Add protected routing and real site selection.
+4. Replace static overview and asset data.
+5. Integrate document upload and ingestion progress.
+6. Integrate asynchronous query execution, citations, cancellation, and retry.
+7. Connect RCA, compliance, expert-knowledge, and audit workflows.
+8. Add component, integration, accessibility, and end-to-end tests.
+
+## Authentication boundary
+
+The frontend now uses Next.js route handlers as a browser-facing authentication boundary. Access and refresh tokens are stored in HttpOnly, SameSite=Lax cookies rather than browser storage. Configure:
+
+```env
+MNEMOS_API_URL=http://localhost:8000/api/v1
+AUTH_REQUIRED=false
+AUTH_REFRESH_COOKIE_SECONDS=604800
+```
+
+Set `AUTH_REQUIRED=true` when the backend is available and dashboard access should require an authenticated session. New registrations create an inactive organization administrator account, send a one-time verification link, and activate the account only after verification. `EMAIL_DELIVERY_MODE=log` is suitable for local development; SMTP settings are required for real email delivery.

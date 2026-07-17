@@ -2,301 +2,276 @@
 
 # Mnemos
 
-### Industrial Knowledge Intelligence for Asset-Centric Operations
+### Asset-centric industrial knowledge intelligence
 
-**Evidence-grounded operational memory for maintenance, reliability, safety, quality, and compliance teams.**
-
-[![Status](https://img.shields.io/badge/status-in%20development-1f6feb)](#)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey)](#)
-[![Frontend](https://img.shields.io/badge/frontend-Next.js-black)](#)
-[![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](#)
-[![Graph](https://img.shields.io/badge/graph-Neo4j-4581C3)](#)
+Mnemos turns plant documents, maintenance history, operational events, compliance evidence, and expert knowledge into a governed operating memory for reliability and operations teams.
 
 </div>
 
 ---
 
-## Overview
+## Product direction
 
-Industrial knowledge is rarely absent. It is fragmented across P&IDs, OEM manuals, work orders, shift logs, inspection reports, procedures, incident records, spreadsheets, emails, and the experience of senior personnel.
+Industrial organizations usually have the information needed to investigate failures and demonstrate compliance, but that information is fragmented across manuals, procedures, work orders, inspection reports, shift logs, spreadsheets, incident records, and experienced personnel.
 
-**Mnemos** converts these disconnected sources into a living, time-aware operational memory centred on industrial assets. It connects assets, events, symptoms, failures, procedures, inspections, requirements, corrective actions, and expert knowledge—then exposes that context through evidence-grounded retrieval and governed workflows.
+Mnemos organizes that information around the **asset and its operational history**. It combines document intelligence, vector retrieval, graph relationships, governed workflows, and evidence-linked answers without trying to replace the CMMS, EAM, QMS, or historian systems that already own transactional plant data.
 
-Mnemos is not a document chatbot or a CMMS replacement. Its primary unit of intelligence is the **asset and its operational history**.
+The product is designed around five principles:
 
-## Core capabilities
+1. **Evidence before assertion** — answers expose citations, contradictions, confidence, and missing evidence.
+2. **Assets before chat sessions** — the core context is the physical asset, its events, and its records.
+3. **Governance before automation** — RCA closure, compliance review, and expert-knowledge approval remain human-controlled.
+4. **Bounded agent responsibility** — the agentic layer retrieves and reasons; the backend validates and persists application state.
+5. **Operational usability** — implementation depth is documented separately so the main workflows remain understandable to plant users.
 
-- **Heterogeneous ingestion** — native and scanned PDFs, drawings, spreadsheets, work-order exports, inspection records, emails, images, and field notes.
-- **Industrial knowledge graph** — asset, component, event, failure, procedure, evidence, requirement, and expert-knowledge relationships.
-- **Hybrid retrieval** — semantic retrieval, metadata filtering, graph traversal, structured queries, and reranking.
-- **Evidence-grounded copilot** — claim-level citations, confidence, contradictions, missing evidence, and abstention.
-- **RCA workspace** — timelines, observed facts, hypotheses, similar failures, rejected causes, diagnostics, and corrective actions.
-- **Compliance intelligence** — requirement-to-evidence mapping, validity checks, expiry tracking, contradiction detection, and audit packages.
-- **Lessons learned** — recurrence detection across failures, incidents, near misses, non-conformances, and ineffective actions.
-- **Field mode** — asset scanning, current procedures, failure history, hazards, open work, and evidence capture.
-- **Expert memory** — attributed, reviewable, versioned knowledge cards that cannot silently override approved procedures.
+## Current capabilities
 
-## System architecture
+### Product and frontend
 
-```mermaid
-flowchart TB
-    A[Documents and Drawings] --> I
-    B[CMMS / EAM / QMS] --> I
-    C[Shift Logs and Emails] --> I
-    D[Expert Notes and Voice] --> I
-    E[Historian / SCADA Snapshots] --> I
+- Public product landing page and technical documentation experience
+- Auth entry screens with client-side validation, ready for backend integration
+- Operational dashboard with overview, assets, asset passport, investigations, compliance, graph, documents, and expert knowledge
+- Evidence drawers, confidence indicators, missing-evidence states, and asset-centric navigation
+- Responsive SVG system, ingestion, agentic, and governance diagrams
 
-    I[Ingestion and Document Intelligence]
-    I --> P[OCR, Layout and Table Parsing]
-    P --> X[Entity and Relation Extraction]
-    X --> R[Asset Identity Resolution]
-    R --> V[Provenance and Validation]
+### Backend application
 
-    V --> O[(Object Storage)]
-    V --> SQL[(PostgreSQL)]
-    V --> VS[(Vector Index)]
-    V --> KG[(Industrial Knowledge Graph)]
-    V --> TS[(Time-Series Store)]
+- FastAPI application with versioned API routes
+- JWT access tokens, rotating refresh tokens, password hashing, lockout controls, and development-login gating
+- Organisation, membership, site, and role-based access checks
+- Asset, alias, relationship, timeline, and graph endpoints
+- Document upload sessions, storage handoff, ingestion runs, progress events, and retry controls
+- Asynchronous query lifecycle with idempotency, cancellation, retry, claims, citations, and run metadata
+- Governed RCA, compliance, and expert-knowledge workflows
+- Audit events, request IDs, structured errors, security headers, request-size limits, and Redis-backed rate limiting
 
-    O --> H[Hybrid Retrieval and Evidence Layer]
-    SQL --> H
-    VS --> H
-    KG --> H
-    TS --> H
+### Agentic and knowledge layer
 
-    H --> C1[Asset Copilot]
-    H --> C2[RCA Intelligence]
-    H --> C3[Compliance Intelligence]
-    H --> C4[Lessons Learned]
-    H --> C5[Expert Knowledge Workflow]
+- LangGraph-style workflow orchestration
+- Query classification and route-specific retrieval planning
+- Entity resolution with site-aware aliases and OCR-tolerant normalization
+- Vector retrieval through PostgreSQL and pgvector
+- Graph traversal and evidence-region mapping through Neo4j
+- Reranking, evidence verification, contradiction handling, and structured result contracts
+- Document ingestion pipeline for parsing, chunking, embeddings, entity extraction, and provenance
+- Evaluation scaffolding for retrieval and answer-quality metrics
 
-    C1 --> UI[Desktop and Mobile Experience]
-    C2 --> UI
-    C3 --> UI
-    C4 --> UI
-    C5 --> UI
-```
-
-## Knowledge model
+## Architecture
 
 ```mermaid
-graph LR
-    SITE[Site] -->|CONTAINS| AREA[Area]
-    AREA -->|CONTAINS| ASSET[Asset]
-    ASSET -->|HAS_COMPONENT| COMPONENT[Component]
-    ASSET -->|EXPERIENCED| FAILURE[Failure Event]
-    SYMPTOM[Symptom] -->|PRECEDED| FAILURE
-    WORK[Work Order] -->|ADDRESSES| FAILURE
-    INSPECTION[Inspection] -->|FOUND| OBSERVATION[Observation]
-    PROCEDURE[Procedure] -->|APPLIES_TO| ASSET
-    REQUIREMENT[Requirement] -->|APPLIES_TO| ASSET
-    REQUIREMENT -->|REQUIRES| EVIDENCE[Evidence]
-    CLAIM[Claim] -->|SUPPORTED_BY| EVIDENCE
-    KNOWLEDGE[Expert Knowledge Card] -->|CONCERNS| ASSET
-    ACTION[Corrective Action] -->|RESPONDS_TO| FAILURE
+flowchart LR
+    U[Next.js product UI] --> API[FastAPI application API]
+
+    API --> PG[(PostgreSQL + pgvector)]
+    API --> R[(Redis)]
+    API --> S[(S3-compatible object storage)]
+    API --> A[Agentic execution layer]
+    API --> I[Ingestion pipeline]
+
+    A --> PG
+    A --> G[(Neo4j)]
+    A --> L[LLM / embedding / reranker providers]
+
+    I --> S
+    I --> PG
+    I --> G
 ```
 
-Every material fact and relationship carries source provenance, confidence, verification status, temporal validity, and reviewer history.
+### Ownership boundary
 
-## How an answer is produced
+```text
+Frontend
+  → requests product actions from the backend
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant O as Orchestrator
-    participant R as Hybrid Retriever
-    participant G as Knowledge Graph
-    participant E as Evidence Verifier
-    participant A as Answer Composer
+Backend
+  → authenticates and authorizes
+  → owns application records and workflow state
+  → validates agent output
+  → persists claims, citations, status, and audit events
 
-    U->>O: Ask an asset or operational question
-    O->>R: Build retrieval plan
-    R->>G: Traverse relevant asset relationships
-    R->>R: Search documents and structured records
-    R-->>E: Candidate claims and evidence regions
-    E->>E: Verify support, conflicts, and freshness
-    E-->>A: Supported facts, uncertainty, missing evidence
-    A-->>U: Grounded answer with citations and next checks
+Agentic layer
+  → performs retrieval and reasoning
+  → returns a structured result
+  → does not directly own backend business-state persistence
 ```
-
-## Technology stack
-
-| Layer | Technology |
-|---|---|
-| Web application | Next.js, TypeScript |
-| API services | FastAPI, Python |
-| Agent orchestration | LangGraph or equivalent state-machine workflow |
-| Relational store | PostgreSQL |
-| Vector retrieval | pgvector initially; Qdrant at larger scale |
-| Knowledge graph | Neo4j |
-| Object storage | MinIO or S3-compatible storage |
-| Time-series | TimescaleDB |
-| Document processing | Docling, Unstructured, PaddleOCR, custom parsers |
-| Background processing | Celery, Dramatiq, or Temporal |
-| Graph visualisation | Cytoscape.js or React Flow |
-| Deployment | Docker Compose; Kubernetes-ready service boundaries |
 
 ## Repository structure
 
 ```text
-mnemos/
-├── apps/
-│   ├── web/                 # Next.js operations and field interface
-│   └── api/                 # FastAPI application
-├── services/
-│   ├── ingestion/           # Parsing, OCR, extraction, provenance
-│   ├── retrieval/           # Hybrid search and reranking
-│   ├── graph/               # Ontology, identity resolution, graph writes
-│   └── agents/              # RCA, compliance, lessons, copilot workflows
-├── packages/
-│   ├── contracts/           # Shared schemas and API contracts
-│   └── ui/                  # Shared interface components
-├── infrastructure/
-│   ├── docker/
-│   └── migrations/
-├── datasets/
-│   ├── synthetic-plant/
-│   └── evaluation/
-├── docs/
-├── tests/
-├── docker-compose.yml
-├── .env.example
-└── README.md
+Mnemos/
+├── frontend/                   # Next.js App Router product UI and documentation
+├── src/mnemos/
+│   ├── agentic/               # orchestration, retrieval, prompts, evaluation
+│   ├── api/v1/                # FastAPI route modules
+│   ├── core/                  # configuration, auth, DB, middleware, logging
+│   ├── integrations/          # agent, ingestion, and storage gateways
+│   ├── models/                # relational and vector models
+│   ├── schemas/               # request, response, and agent contracts
+│   └── services/              # application and workflow services
+├── alembic/versions/          # schema migrations, including pgvector tables
+├── tests/                     # backend unit and integration tests
+├── scripts/                   # seed and container entrypoint scripts
+├── deploy/gcp/                # Terraform for the GCP deployment path
+├── .github/workflows/         # backend CI and manual GCP deployment workflows
+├── docker-compose.yml         # local PostgreSQL, Neo4j, Redis, MinIO, API
+└── docker-compose.production.yml
 ```
 
-## Local setup
+## Local development
 
 ### Prerequisites
 
-- Git
-- Docker Desktop with Docker Compose
+- Python 3.12 recommended
 - Node.js 20+
-- Python 3.11+
-- `pnpm`
-- An LLM endpoint configured through environment variables
+- Docker Desktop with Docker Compose
+- Git
 
-### Clone and configure
+### 1. Configure the backend
 
 ```bash
-git clone https://github.com/Dhruvg334/mnemos.git
-cd mnemos
-
 cp .env.example .env
 ```
 
-Configure the required model, database, storage, and authentication values in `.env`.
+For Windows PowerShell:
 
-### Run with Docker Compose
+```powershell
+Copy-Item .env.example .env
+```
+
+The example file contains the supported database, Redis, object-storage, JWT, agent, ingestion, and provider settings. Replace development defaults before using any non-local environment.
+
+### 2. Run the backend stack
 
 ```bash
 docker compose up --build
 ```
 
-Expected local services:
+The local stack starts:
 
-```text
-Web application    http://localhost:3000
-API documentation  http://localhost:8000/docs
-Neo4j browser      http://localhost:7474
-MinIO console      http://localhost:9001
-```
-
-### Run services separately
-
-Frontend:
-
-```bash
-cd apps/web
-pnpm install
-pnpm dev
-```
-
-Backend:
-
-```bash
-cd apps/api
-python -m venv .venv
-
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-### Database migrations
-
-```bash
-cd apps/api
-alembic upgrade head
-```
-
-### Load the synthetic demonstration dataset
-
-```bash
-python scripts/seed_demo_data.py
-python scripts/ingest_demo_corpus.py
-```
-
-### Run tests
-
-```bash
-pytest
-pnpm --dir apps/web test
-```
-
-## Evaluation
-
-Mnemos is evaluated against explicit, reproducible criteria:
-
-| Area | Metric |
+| Service | Address |
 |---|---|
-| Document intelligence | entity and relation extraction precision, recall, and F1 |
-| Retrieval | answer relevance, retrieval recall, citation precision |
-| Evidence quality | claim-to-source support and contradiction detection |
-| Graph quality | identity-resolution accuracy and relationship completeness |
-| RCA | chronology quality, evidence coverage, and missing-diagnostic detection |
-| Compliance | requirement applicability and evidence-gap detection accuracy |
-| Safety | abstention quality and unsupported-claim rate |
-| Operational value | time-to-answer compared with manual document search |
+| API | `http://localhost:8000` |
+| API documentation | `http://localhost:8000/docs` |
+| PostgreSQL + pgvector | `localhost:5432` |
+| Neo4j browser | `http://localhost:7474` |
+| Redis | `localhost:6379` |
+| MinIO API | `http://localhost:9000` |
+| MinIO console | `http://localhost:9001` |
 
-## Security and governance
+Local Compose credentials are development-only and must not be reused for deployment.
 
-- Role- and site-aware access control before retrieval.
-- Tenant and site boundaries on every persisted entity.
-- Encryption in transit and at rest.
-- Immutable audit records for ingestion, retrieval, agent actions, review, and approval.
-- Human approval for RCA closure, compliance decisions, and expert-knowledge validation.
-- Private-cloud, on-premise, and local-model deployment paths.
-- No autonomous plant control or maintenance approval.
+### 3. Run the frontend
 
-## Differentiation
-
-Most knowledge systems follow:
-
-```text
-Document → Chunk → Answer
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-Mnemos follows:
+Open `http://localhost:3000`.
+
+Important routes:
 
 ```text
-Asset → Event → Evidence → Relationship → Operational Decision
+/                         public product page
+/documentation            technical overview
+/documentation/agentic    agentic orchestration
+/documentation/ingestion  ingestion and provenance
+/documentation/retrieval  hybrid retrieval design
+/documentation/infrastructure production topology
+/dashboard                operational product dashboard
+/signin                   unified authentication entry
+/signup                   unified authentication entry, account mode
+/about                    product direction and team responsibilities
 ```
 
-Its defensibility comes from the validated operational memory accumulated over time: plant-specific ontology, resolved asset identities, reviewed relationships, failure patterns, requirement-evidence mappings, and governed expert knowledge.
+## Running the backend without Docker
 
-## Status
+```bash
+python -m venv .venv
+```
 
-Mnemos is under active development for the ET AI Hackathon 2026 problem statement on Industrial Knowledge Intelligence.
+Windows PowerShell:
 
----
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+alembic upgrade head
+python scripts/seed.py
+uvicorn mnemos.main:app --reload --port 8000
+```
 
-<div align="center">
+macOS or Linux:
 
-**Mnemos — operational memory built around the asset, grounded in evidence.**
+```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+alembic upgrade head
+python scripts/seed.py
+uvicorn mnemos.main:app --reload --port 8000
+```
 
-</div>
+## Tests and CI
+
+Backend validation:
+
+```bash
+ruff check src tests scripts
+python -m compileall -q src scripts
+pytest -q
+```
+
+Frontend validation:
+
+```bash
+cd frontend
+npm run build
+```
+
+The backend CI workflow runs linting, compilation, tests, migration upgrade/downgrade validation on a pgvector-enabled PostgreSQL service, and a Docker image build. GCP deployment is manual and requires the configured GitHub environment variables and workload-identity secrets.
+
+## Security model
+
+Implemented controls include:
+
+- short-lived JWT access tokens with issuer, audience, token type, and token-version checks
+- hashed refresh-token rotation and revocation
+- password strength validation and temporary account lockout
+- role- and site-scoped authorization
+- rate limiting with production fail-closed behavior
+- strict Pydantic request models and unknown-field rejection
+- request-size limits and security response headers
+- normalized public errors without raw exception leakage
+- idempotency records for query and ingestion mutations
+- citation and evidence-region scope validation
+- production checks against weak secrets, wildcard CORS, and default storage credentials
+
+The current frontend authentication forms are presentation and validation surfaces; the next integration phase connects them to the backend token lifecycle.
+
+## Evaluation direction
+
+Mnemos is intended to be evaluated at three levels:
+
+| Area | Example measures |
+|---|---|
+| Retrieval | Recall@K, MRR, nDCG, context precision |
+| Grounding | citation validity, claim support, contradiction detection, abstention quality |
+| Product reliability | authorization isolation, workflow correctness, latency, retries, and error recovery |
+
+The synthetic demonstration corpus includes recurring P-117 seal failures, duplicate asset tags across sites, superseded procedures, contradictory records, restricted documents, expert notes, and missing-evidence cases.
+
+## Project team
+
+- **Dhruv Gupta** — backend, integration, infrastructure, deployment, and system reliability
+- **Pavit Aggarwal** — agentic orchestration, retrieval, graph intelligence, and evaluation
+- **Akshhaya** — frontend, UI/UX, and operational product experience
+
+## Current status
+
+The backend foundation, agentic architecture, public frontend, dashboard prototype, and technical documentation are present. The active work now is frontend–backend integration, real ingestion validation, provider configuration, full-system evaluation, and final deployment hardening.
+
+### Authentication integration
+
+Mnemos uses the Next.js application as a browser authentication boundary. The browser submits credentials to same-origin route handlers, and the route handlers communicate with FastAPI. Access and refresh tokens remain in HttpOnly cookies. Backend registration creates a new organisation, primary site, and organisation-admin membership in an inactive state, then activates the user after one-time email verification.

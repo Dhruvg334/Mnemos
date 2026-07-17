@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     jwt_issuer: str = "mnemos-api"
     jwt_audience: str = "mnemos-client"
     refresh_token_expire_days: int = 7
+    email_verification_expire_minutes: int = 30
+    frontend_base_url: str = "http://localhost:3000"
+    email_delivery_mode: str = "log"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str = "no-reply@mnemos.local"
+    smtp_use_tls: bool = True
     password_min_length: int = 12
     login_lock_threshold: int = 5
     login_lock_minutes: int = 15
@@ -56,6 +65,7 @@ class Settings(BaseSettings):
     ingestion_max_retry_attempts: int = 2
     security_headers_enabled: bool = True
     max_request_body_bytes: int = 2_000_000
+    external_health_checks_enabled: bool = True
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [
@@ -92,6 +102,8 @@ class Settings(BaseSettings):
                 raise ValueError("JWT_SECRET must be strong in production")
             if "*" in self.cors_origins:
                 raise ValueError("Wildcard CORS is not allowed in production")
+            if self.email_delivery_mode == "smtp" and not self.smtp_host:
+                raise ValueError("SMTP_HOST is required when EMAIL_DELIVERY_MODE=smtp")
         return self
 
 
