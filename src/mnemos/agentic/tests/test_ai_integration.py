@@ -7,7 +7,6 @@ from mnemos.agentic.gateway import LangGraphAgentGateway
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
 from mnemos.agentic.runtime import (
     AgentCapability,
-    AgentRegistry,
     AgentRole,
 )
 from mnemos.agentic.schemas.base import (
@@ -52,23 +51,52 @@ def mock_run():
     )
 
 @pytest.mark.asyncio
-async def test_orchestrator_initialization(mock_db, mock_query, mock_run):
-    """Verifies that the orchestrator loads context correctly."""
-    mock_db.get.side_effect = [mock_query, mock_run]
-
+async def test_orchestrator_auto_registers_agents(mock_db):
+    """Verifies that the orchestrator auto-registers all available agents on init."""
     orchestrator = MnemosAIOrchestrator(mock_db)
 
-    # Verify the orchestrator has the new runtime components
-    assert hasattr(orchestrator, '_registry')
-    assert hasattr(orchestrator, '_agent_functions')
-    assert isinstance(orchestrator._registry, AgentRegistry)
+    # The registry should contain agents that were successfully imported
+    registered = orchestrator._registry.list_agents()
+    registered_names = {r.name for r in registered}
 
-    # Verify agent registration works
+    # At least the agent classes that can be imported should be registered
+    # (all 11 agents are in-tree, so all should register)
+    expected_names = {
+        "query_router",
+        "retrieval_planner",
+        "evidence_retrieval",
+        "evidence_verification",
+        "retrieval_reflection",
+        "rca_agent",
+        "compliance_agent",
+        "asset_intelligence",
+        "lessons_learned_agent",
+        "expert_knowledge_agent",
+        "report_composer",
+    }
+    assert expected_names == registered_names, (
+        f"Missing agents: {expected_names - registered_names}, "
+        f"Unexpected agents: {registered_names - expected_names}"
+    )
+
+    # Each registered agent should have a callable function
+    for name in expected_names:
+        assert name in orchestrator._agent_functions
+        fn = orchestrator._agent_functions[name]
+        assert callable(fn)
+
+@pytest.mark.asyncio
+async def test_orchestrator_manual_registration_still_works(mock_db):
+    """Verifies that manual registration still works alongside auto-registration."""
+    orchestrator = MnemosAIOrchestrator(mock_db)
+
+    initial_count = len(orchestrator._agent_functions)
+
     async def stub_agent(state):
         return state
 
     orchestrator.register_agent(
-        "test_agent",
+        "custom_agent",
         stub_agent,
         role=AgentRole.ANALYSIS,
         capabilities=[AgentCapability(
@@ -77,10 +105,17 @@ async def test_orchestrator_initialization(mock_db, mock_query, mock_run):
             output_types=["test_out"],
         )],
     )
-    assert "test_agent" in orchestrator._agent_functions
-    assert orchestrator._registry.is_registered("test_agent")
+    assert "custom_agent" in orchestrator._agent_functions
+    assert orchestrator._registry.is_registered("custom_agent")
+    assert len(orchestrator._agent_functions) == initial_count + 1
 
-    # Mock the workflow to avoid real LLM calls
+@pytest.mark.asyncio
+async def test_orchestrator_run_query(mock_db, mock_query, mock_run):
+    """Verifies that the orchestrator executes the workflow end-to-end."""
+    mock_db.get.side_effect = [mock_query, mock_run]
+
+    orchestrator = MnemosAIOrchestrator(mock_db)
+
     with patch('mnemos.agentic.orchestrator.create_investigation_workflow') as mock_create:
         mock_workflow = MagicMock()
         mock_compiled = MagicMock()
@@ -104,7 +139,19 @@ async def test_orchestrator_initialization(mock_db, mock_query, mock_run):
         mock_workflow.compile.return_value = mock_compiled
         mock_create.return_value = mock_workflow
 
-        result = await orchestrator.run_query("qry_test_001", "run_test_001")
+        from mnemos.schemas.agent import AgentQueryRequest, AgentScope
+
+        request = AgentQueryRequest(
+            run_id="run_test_001",
+            query_id="qry_test_001",
+            organisation_id="org_mnemos",
+            site_id="site_alpha",
+            user_id="usr_001",
+            query_type="general",
+            question="What is the pressure limit for P-101?",
+            scope=AgentScope(),
+        )
+        result = await orchestrator.run_query(request)
 
         assert result.answer == "Test answer from orchestrator"
 
@@ -118,7 +165,6 @@ async def test_result_persistence_mapping(mock_db, mock_query, mock_run):
     """Verifies that complex AI schemas map correctly to relational tables."""
     orchestrator = MnemosAIOrchestrator(mock_db)
 
-    # Simulate a high-fidelity grounded response
     provenance = ProvenanceChain(
         evidence_region_id="reg_1",
         document_id="doc_1",
@@ -148,12 +194,10 @@ async def test_result_persistence_mapping(mock_db, mock_query, mock_run):
 
     await orchestrator._persist_final_report(mock_query, mock_run, response)
 
-    # Verify DB updates
     assert mock_query.answer == "The limit is 40 bar."
     assert mock_query.status == "succeeded"
     assert mock_run.status == "succeeded"
 
-    # Verify QueryClaim and Citation were added
     from mnemos.models import Citation, QueryClaim
     added_objects = [args[0] for args, _ in mock_db.add.call_args_list]
     assert any(isinstance(obj, QueryClaim) for obj in added_objects)
@@ -177,7 +221,6 @@ async def test_gateway_wrapping():
 
     gateway = LangGraphAgentGateway()
 
-    # Mock the orchestrator inside the gateway
     with patch('mnemos.agentic.gateway.MnemosAIOrchestrator', autospec=True) as MockOrch:
         mock_inst = MockOrch.return_value
         mock_inst.run_query = AsyncMock(return_value=AgentResponse(

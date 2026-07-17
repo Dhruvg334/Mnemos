@@ -5,6 +5,7 @@ os.environ["JWT_SECRET"] = "test-secret"
 os.environ["APP_ENV"] = "test"
 os.environ["DEV_LOGIN_ENABLED"] = "true"
 os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["EXTERNAL_HEALTH_CHECKS_ENABLED"] = "false"
 
 from collections.abc import AsyncIterator
 

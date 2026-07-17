@@ -2,9 +2,10 @@
 
 This module is responsible for:
 1. Loading investigation context from the database
-2. Building the runtime workflow with registered agents
-3. Executing the workflow
-4. Persisting results back to the database
+2. Instantiating and registering all agents
+3. Building the runtime workflow with registered agents
+4. Executing the workflow
+5. Persisting results back to the database
 
 It delegates all orchestration decisions to the runtime's
 ``SupervisorAgent`` and ``create_investigation_workflow``.
@@ -34,9 +35,120 @@ from mnemos.agentic.runtime import (
 from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
 from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
+from mnemos.schemas.agent import AgentQueryRequest
 from mnemos.services.query_execution import add_query_event
 
 logger = StructuredLogger("orchestrator")
+
+# ---------------------------------------------------------------------------
+# Lazy agent imports (graceful fallback when dependencies are missing)
+# ---------------------------------------------------------------------------
+
+_QUERY_ROUTER_CLS: type | None = None
+_RETRIEVAL_PLANNER_CLS: type | None = None
+_EVIDENCE_RETRIEVAL_CLS: type | None = None
+_EVIDENCE_VERIFICATION_CLS: type | None = None
+_RETRIEVAL_REFLECTION_CLS: type | None = None
+_RCA_CLS: type | None = None
+_COMPLIANCE_CLS: type | None = None
+_ASSET_INTEL_CLS: type | None = None
+_LESSONS_LEARNED_CLS: type | None = None
+_EXPERT_KNOWLEDGE_CLS: type | None = None
+_REPORT_COMPOSER_CLS: type | None = None
+
+try:
+    from mnemos.agentic.agents.retrieval.query_router import (
+        QueryRouterAgent as _QUERY_ROUTER_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.planner import (
+        RetrievalPlannerAgent as _RETRIEVAL_PLANNER_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.evidence_retrieval import (
+        EvidenceRetrievalAgent as _EVIDENCE_RETRIEVAL_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.evidence_verification import (
+        EvidenceVerificationAgent as _EVIDENCE_VERIFICATION_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.retrieval_reflection import (
+        RetrievalReflectionAgent as _RETRIEVAL_REFLECTION_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.rca import RCAAgent as _RCA_CLS
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.compliance import (
+        ComplianceAgent as _COMPLIANCE_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.asset_intelligence import (
+        AssetIntelligenceAgent as _ASSET_INTEL_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.lessons_learned import (
+        LessonsLearnedAgent as _LESSONS_LEARNED_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.expert_knowledge import (
+        ExpertKnowledgeAgent as _EXPERT_KNOWLEDGE_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.report_composer import (
+        ReportComposerAgent as _REPORT_COMPOSER_CLS,
+    )
+except ImportError:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Agent registry table: (lazy_cls, stage_label)
+# ---------------------------------------------------------------------------
+
+_AGENT_CLASSES: list[tuple[type | None, str]] = [
+    (_QUERY_ROUTER_CLS, "query_router"),
+    (_RETRIEVAL_PLANNER_CLS, "retrieval_planner"),
+    (_EVIDENCE_RETRIEVAL_CLS, "evidence_retrieval"),
+    (_EVIDENCE_VERIFICATION_CLS, "evidence_verification"),
+    (_RETRIEVAL_REFLECTION_CLS, "retrieval_reflection"),
+    (_RCA_CLS, "rca_agent"),
+    (_COMPLIANCE_CLS, "compliance_agent"),
+    (_ASSET_INTEL_CLS, "asset_intelligence"),
+    (_LESSONS_LEARNED_CLS, "lessons_learned_agent"),
+    (_EXPERT_KNOWLEDGE_CLS, "expert_knowledge_agent"),
+    (_REPORT_COMPOSER_CLS, "report_composer"),
+]
 
 
 class MnemosAIOrchestrator:
@@ -45,16 +157,55 @@ class MnemosAIOrchestrator:
     Manages the execution of grounded reasoning workflows with full
     tracing and safety.  Uses the new multi-agent runtime for
     supervisor-driven, collaborative execution.
+
+    On initialisation the orchestrator eagerly instantiates every
+    available agent (retrieval + reasoning) and registers it with the
+    runtime so that ``run_query`` can dispatch work immediately.
     """
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self._agent_functions: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {}
         self._registry = AgentRegistry()
+        self._register_all_agents()
 
     # ------------------------------------------------------------------
     # Agent registration
     # ------------------------------------------------------------------
+
+    def _register_all_agents(self) -> None:
+        """Instantiate every known agent class and register it.
+
+        Each agent is created with the current DB session and its
+        ``as_function`` adapter is wired into the runtime registry.
+        Failures are logged and skipped — the pipeline degrades
+        gracefully when optional agents are unavailable.
+        """
+        for agent_cls, stage_label in _AGENT_CLASSES:
+            if agent_cls is None:
+                logger.warning(
+                    f"Agent [{stage_label}]: class not available "
+                    "(import may have failed). Skipping."
+                )
+                continue
+            try:
+                agent = agent_cls(self.db)
+            except Exception as exc:
+                logger.error(
+                    f"Agent [{stage_label}]: failed to instantiate "
+                    f"{agent_cls.__name__}: {exc}"
+                )
+                continue
+
+            self.register_agent(
+                agent.name,
+                agent.as_function,
+                role=agent.role,
+                capabilities=agent._capabilities(),
+                max_retries=agent.max_retries,
+                timeout_seconds=agent.timeout_seconds,
+            )
+            logger.info(f"Agent [{agent.name}] registered successfully.")
 
     def register_agent(
         self,
@@ -86,40 +237,53 @@ class MnemosAIOrchestrator:
     # Execution
     # ------------------------------------------------------------------
 
-    async def run_query(self, query_id: str, run_id: str) -> AgentResponse:
+    async def run_query(self, request: AgentQueryRequest) -> AgentResponse:
         """Execute the multi-agent investigation for a specific query.
 
-        Updates progress in real-time and persists final grounded results.
+        Accepts an ``AgentQueryRequest``, builds the runtime state,
+        executes the workflow, and persists the final grounded results
+        back to the database.
         """
-        trace_id = setup_trace(f"query_{query_id}_{uuid.uuid4().hex[:8]}")
+        trace_id = setup_trace(
+            f"query_{request.query_id}_{uuid.uuid4().hex[:8]}"
+        )
 
-        query = await self.db.get(Query, query_id)
-        run = await self.db.get(AgentRun, run_id)
+        query = await self.db.get(Query, request.query_id)
+        run = await self.db.get(AgentRun, request.run_id)
 
         if not query or not run:
-            logger.error(f"Execution context missing. Query: {query_id}, Run: {run_id}")
+            logger.error(
+                f"Execution context missing. "
+                f"Query: {request.query_id}, Run: {request.run_id}"
+            )
             raise ValueError("Invalid execution context.")
 
-        # Build initial state
         initial_state = create_initial_state(
-            investigation_id=query_id,
-            query=query.question,
+            investigation_id=request.query_id,
+            query=request.question,
             context={
-                "query_id": query_id,
-                "run_id": run_id,
-                "site_id": query.site_id,
-                "org_id": query.organisation_id,
-                "user_id": query.user_id,
+                "query_id": request.query_id,
+                "run_id": request.run_id,
+                "site_id": request.site_id,
+                "org_id": request.organisation_id,
+                "user_id": request.user_id,
                 "trace_id": trace_id,
-                "mode": query.mode,
+                "mode": request.query_type,
+                "asset_ids": list(request.scope.asset_ids),
+                "document_ids": list(request.scope.document_ids),
+                "allowed_document_types": list(
+                    request.scope.allowed_document_types
+                ),
+                "access_classifications": list(
+                    request.scope.access_classifications
+                ),
             },
             trace_id=trace_id,
         )
 
-        logger.info(f"Starting investigation for: '{query.question[:50]}...'")
+        logger.info(f"Starting investigation for: '{request.question[:50]}...'")
 
         try:
-            # Build the workflow with registered agents
             workflow = create_investigation_workflow(
                 agent_registry=self._registry,
                 agent_functions=self._agent_functions,
@@ -127,7 +291,6 @@ class MnemosAIOrchestrator:
 
             compiled = workflow.compile()
 
-            # Execute using astream to capture progress
             final_state = dict(initial_state)
             async for event in compiled.astream(
                 initial_state,
@@ -136,19 +299,22 @@ class MnemosAIOrchestrator:
                 for node_name, state_update in event.items():
                     if isinstance(state_update, dict):
                         final_state.update(state_update)
-                    await self._log_step_progress(query_id, node_name)
+                    await self._log_step_progress(
+                        request.query_id, node_name
+                    )
 
-            # Extract response
             response = self._extract_response(final_state)
 
             if not response:
                 if final_state.get("errors"):
                     raise RuntimeError(
-                        f"Workflow failed with errors: {final_state['errors']}"
+                        f"Workflow failed with errors: "
+                        f"{final_state['errors']}"
                     )
-                raise RuntimeError("Workflow terminated without a final response.")
+                raise RuntimeError(
+                    "Workflow terminated without a final response."
+                )
 
-            # Persist result
             await self._persist_final_report(query, run, response)
             return response
 
@@ -161,12 +327,10 @@ class MnemosAIOrchestrator:
     # Response extraction
     # ------------------------------------------------------------------
 
-    def _extract_response(self, state: dict[str, Any]) -> AgentResponse | None:
-        """Extract the final response from the investigation state.
-
-        Looks for a ``final_response`` in the state, or constructs one
-        from agent outputs if not explicitly set.
-        """
+    def _extract_response(
+        self, state: dict[str, Any]
+    ) -> AgentResponse | None:
+        """Extract the final response from the investigation state."""
         final = state.get("final_response")
         if final is not None:
             if isinstance(final, AgentResponse):
@@ -174,7 +338,6 @@ class MnemosAIOrchestrator:
             if isinstance(final, dict):
                 return AgentResponse(**final)
 
-        # Construct from agent outputs
         agent_outputs = state.get("agent_outputs", {})
         evidence = state.get("evidence", [])
         claims = state.get("claims", [])
@@ -182,18 +345,18 @@ class MnemosAIOrchestrator:
         if not agent_outputs and not evidence and not claims:
             return None
 
-        # Find the composition agent's output
         composition_output = agent_outputs.get("composition_agent", {})
         if composition_output:
             return AgentResponse(
                 answer=composition_output.get("answer", ""),
                 confidence_score=composition_output.get("confidence", 0.0),
                 claims=claims if isinstance(claims, list) else [],
-                missing_evidence=composition_output.get("missing_evidence", []),
+                missing_evidence=composition_output.get(
+                    "missing_evidence", []
+                ),
                 metadata={"trace_id": state.get("trace_id")},
             )
 
-        # Fallback: aggregate all agent outputs
         parts = []
         total_confidence = 0.0
         count = 0
@@ -218,7 +381,9 @@ class MnemosAIOrchestrator:
     # Progress
     # ------------------------------------------------------------------
 
-    async def _log_step_progress(self, query_id: str, node_name: str) -> None:
+    async def _log_step_progress(
+        self, query_id: str, node_name: str
+    ) -> None:
         progress_map = {
             "supervisor": (10, "Supervisor planning next action"),
             "gather": (50, "Executing agents"),
@@ -229,26 +394,30 @@ class MnemosAIOrchestrator:
         if node_name in progress_map:
             percent, msg = progress_map[node_name]
             await add_query_event(
-                self.db, query_id=query_id,
-                stage=node_name, progress_percent=percent, message=msg,
-        )
+                self.db,
+                query_id=query_id,
+                stage=node_name,
+                progress_percent=percent,
+                message=msg,
+            )
         await self.db.commit()
 
     # ------------------------------------------------------------------
     # Real-time streaming
     # ------------------------------------------------------------------
 
-    async def stream_status(self, query_id: str) -> AsyncGenerator[str, None]:
-        """Provides a real-time progress stream for the UI.
-
-        Polls ``QueryEvent`` rows and yields JSON-encoded progress
-        payloads until the query reaches a terminal state.
-        """
+    async def stream_status(
+        self, query_id: str
+    ) -> AsyncGenerator[str, None]:
+        """Provides a real-time progress stream for the UI."""
         last_id = 0
         while True:
             stmt = (
                 select(QueryEvent)
-                .where(QueryEvent.query_id == query_id, QueryEvent.id > last_id)
+                .where(
+                    QueryEvent.query_id == query_id,
+                    QueryEvent.id > last_id,
+                )
                 .order_by(QueryEvent.id)
             )
             res = await self.db.execute(stmt)
@@ -264,7 +433,11 @@ class MnemosAIOrchestrator:
                 last_id = ev.id
 
             query = await self.db.get(Query, query_id)
-            if query and query.status in ("succeeded", "failed", "cancelled"):
+            if query and query.status in (
+                "succeeded",
+                "failed",
+                "cancelled",
+            ):
                 if query.status == "succeeded":
                     yield json.dumps({
                         "status": "completed",
@@ -279,14 +452,19 @@ class MnemosAIOrchestrator:
     # ------------------------------------------------------------------
 
     async def _persist_final_report(
-        self, query: Query, run: AgentRun, response: AgentResponse
+        self,
+        query: Query,
+        run: AgentRun,
+        response: AgentResponse,
     ) -> None:
         query.answer = response.answer
         query.confidence_score = response.confidence_score
         query.status = "succeeded"
         query.completed_at = datetime.now(UTC)
         query.missing_evidence = response.missing_evidence
-        query.conflicts = [c.model_dump() for c in response.contradictions]
+        query.conflicts = [
+            c.model_dump() for c in response.contradictions
+        ]
 
         for c_idx, grounded_claim in enumerate(response.claims):
             claim = QueryClaim(
@@ -320,22 +498,29 @@ class MnemosAIOrchestrator:
         run.completed_at = datetime.now(UTC)
 
         await add_query_event(
-            self.db, query_id=query.id,
-            stage="completed", progress_percent=100,
+            self.db,
+            query_id=query.id,
+            stage="completed",
+            progress_percent=100,
             message="Intelligence report generated.",
         )
         await self.db.commit()
 
     async def _handle_failure(
-        self, query: Query, run: AgentRun, error_msg: str
+        self,
+        query: Query,
+        run: AgentRun,
+        error_msg: str,
     ) -> None:
         query.status = "failed"
         run.status = "failed"
         run.error_message = error_msg
         run.completed_at = datetime.now(UTC)
         await add_query_event(
-            self.db, query_id=query.id,
-            stage="failed", progress_percent=100,
+            self.db,
+            query_id=query.id,
+            stage="failed",
+            progress_percent=100,
             message=f"Analysis failed: {error_msg}",
         )
         await self.db.commit()

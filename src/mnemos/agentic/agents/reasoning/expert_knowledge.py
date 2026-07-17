@@ -81,7 +81,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
             )
             if bundle is None:
                 # Create a minimal bundle from voice transcription alone
-                from mnemos.agentic.schemas.base import EvidenceBundle, EvidenceSource, ProvenanceChain, VerificationStatus
+                from mnemos.agentic.schemas.base import EvidenceBundle
                 bundle = EvidenceBundle(
                     query_id=ctx.get("query_id", "voice"),
                     intent=ctx.get("intent", "general"),
