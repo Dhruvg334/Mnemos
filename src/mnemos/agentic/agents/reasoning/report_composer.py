@@ -12,7 +12,7 @@ final response delivery.
 
 from __future__ import annotations
 
-import uuid
+from typing import Any
 
 from mnemos.agentic.agents.reasoning._base import _BaseReasoningAgent
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
@@ -27,7 +27,6 @@ from mnemos.agentic.schemas.base import (
 )
 from mnemos.agentic.schemas.specialized import FinalReport
 from mnemos.agentic.schemas.state import AgentState
-
 
 # Priority ordering used when sorting recommended actions.
 _PRIORITY_ORDER: dict[str, int] = {
@@ -201,7 +200,7 @@ class ReportComposerAgent(_BaseReasoningAgent):
 
         # Convert sets to lists for JSON serialization
         result: list[dict[str, Any]] = []
-        for doc_id, info in doc_versions.items():
+        for _doc_id, info in doc_versions.items():
             info["titles"] = list(info["titles"])
             result.append(info)
         return result

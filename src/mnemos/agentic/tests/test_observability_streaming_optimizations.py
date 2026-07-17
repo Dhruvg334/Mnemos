@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -34,7 +34,6 @@ from mnemos.agentic.runtime.types import (
     InvestigationPhase,
 )
 from mnemos.agentic.schemas.base import AuditAction
-
 
 # ======================================================================
 # Helpers
@@ -116,7 +115,6 @@ class TestObservabilityDashboard:
         dash = ObservabilityDashboard(event_log, audit)
 
         active = dash.get_active_agents()
-        names = {a["agent_name"] for a in active}
 
         # retrieval_agent last seen as INVOKED -> running
         retrieval = next(a for a in active if a["agent_name"] == "retrieval_agent")
@@ -406,8 +404,8 @@ class TestStreamingHelpers:
     @pytest.mark.asyncio
     async def test_streaming_yields_start_event(self) -> None:
         """First event yielded by run_streaming is a phase_start."""
-        from mnemos.agentic.runtime.streaming import StreamingSupervisor
         from mnemos.agentic.runtime.registry import AgentRegistry
+        from mnemos.agentic.runtime.streaming import StreamingSupervisor
 
         registry = AgentRegistry()
 
@@ -444,8 +442,8 @@ class TestStreamingHelpers:
     @pytest.mark.asyncio
     async def test_streaming_yields_complete_event(self) -> None:
         """Last event yielded by run_streaming is workflow_complete."""
-        from mnemos.agentic.runtime.streaming import StreamingSupervisor
         from mnemos.agentic.runtime.registry import AgentRegistry
+        from mnemos.agentic.runtime.streaming import StreamingSupervisor
 
         registry = AgentRegistry()
 

@@ -8,6 +8,7 @@ asyncio.get_event_loop().run_until_complete() patterns.
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
 

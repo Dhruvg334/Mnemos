@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json as _json
 import math
 import os
 from concurrent.futures import ThreadPoolExecutor
