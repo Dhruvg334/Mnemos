@@ -1,3 +1,14 @@
+"""LangGraph Agent Gateway -- bridges the application service layer
+with the AI orchestration runtime.
+
+This module implements the ``AgentGateway`` protocol used by
+``query_execution.py``.  It translates system-level request/response
+schemas into the AI layer's internal format and delegates to the
+``MnemosAIOrchestrator``.
+"""
+
+from __future__ import annotations
+
 import logging
 
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
@@ -14,44 +25,46 @@ from mnemos.schemas.agent import (
 
 logger = logging.getLogger(__name__)
 
+
 class LangGraphAgentGateway:
-    """
-    Implementation of the AgentGateway protocol using LangGraph.
+    """Implementation of the AgentGateway protocol using the multi-agent runtime.
+
     This allows the AI Layer to be plugged into the existing
-    query_execution.py by only changing the factory.
+    ``query_execution.py`` by only changing the factory.
     """
+
     name: str = "langgraph_ai_layer"
 
     async def execute_query(self, request: AgentQueryRequest) -> AgentQueryResult:
-        """
-        Entry point called by the background execution service.
-        Maps the system's AgentQueryRequest to the internal AI Layer state.
+        """Entry point called by the background execution service.
+
+        Maps the system's ``AgentQueryRequest`` to the internal AI Layer
+        state and returns the mapped ``AgentQueryResult``.
         """
         async with SessionLocal() as db:
             orchestrator = MnemosAIOrchestrator(db)
 
             try:
-                # Run the internal orchestration
                 agent_response = await orchestrator.run_query(
                     query_id=request.query_id,
-                    run_id=request.run_id
+                    run_id=request.run_id,
                 )
 
-                # Map back to the system's shared AgentQueryResult schema
                 return AgentQueryResult(
                     run_id=request.run_id,
                     status="succeeded",
                     answer=agent_response.answer,
                     confidence=AgentConfidence(
                         label="high" if agent_response.confidence_score > 0.8 else "medium",
-                        score=agent_response.confidence_score
+                        score=agent_response.confidence_score,
                     ),
                     claims=[
                         AgentClaim(
                             id=c.claim_id,
                             text=c.text,
-                            support_status=self._map_status(c.status)
-                        ) for c in agent_response.claims
+                            support_status=self._map_status(c.status),
+                        )
+                        for c in agent_response.claims
                     ],
                     citations=[
                         AgentCitation(
@@ -62,13 +75,15 @@ class LangGraphAgentGateway:
                             text_excerpt=s.text_excerpt,
                             page_or_sheet=s.provenance.page_number,
                             locator=s.provenance.locator,
-                            evidence_region_id=s.provenance.evidence_region_id
-                        ) for i, c in enumerate(agent_response.claims) for s in c.sources
+                            evidence_region_id=s.provenance.evidence_region_id,
+                        )
+                        for i, c in enumerate(agent_response.claims)
+                        for s in c.sources
                     ],
                     missing_evidence=agent_response.missing_evidence,
                     run_metadata=AgentRunMetadata(
-                        pipeline_version="v1.0-langgraph"
-                    )
+                        pipeline_version="v2.0-multi-agent-runtime"
+                    ),
                 )
 
             except Exception as e:
@@ -77,15 +92,16 @@ class LangGraphAgentGateway:
                     run_id=request.run_id,
                     status="failed",
                     error_code="AI_ORCHESTRATION_ERROR",
-                    error_message=str(e)
+                    error_message=str(e),
                 )
 
-    def _map_status(self, status: ClaimSupportStatus) -> str:
+    @staticmethod
+    def _map_status(status: ClaimSupportStatus) -> str:
         mapping = {
             ClaimSupportStatus.SUPPORTED: "supported",
             ClaimSupportStatus.PARTIALLY_SUPPORTED: "partially_supported",
             ClaimSupportStatus.REFUTED: "conflicting",
             ClaimSupportStatus.UNCERTAIN: "not_evaluated",
-            ClaimSupportStatus.NO_EVIDENCE: "unsupported"
+            ClaimSupportStatus.NO_EVIDENCE: "unsupported",
         }
         return mapping.get(status, "not_evaluated")

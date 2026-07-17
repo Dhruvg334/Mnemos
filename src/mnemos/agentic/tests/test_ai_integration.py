@@ -5,6 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.gateway import LangGraphAgentGateway
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
+from mnemos.agentic.runtime import (
+    AgentCapability,
+    AgentRegistry,
+    AgentRole,
+)
 from mnemos.agentic.schemas.base import (
     AgentResponse,
     ClaimSupportStatus,
@@ -53,31 +58,60 @@ async def test_orchestrator_initialization(mock_db, mock_query, mock_run):
 
     orchestrator = MnemosAIOrchestrator(mock_db)
 
-    # We mock ainvoke to avoid real LLM calls during this check
-    with patch.object(orchestrator.workflow, 'ainvoke', new_callable=AsyncMock) as mock_invoke:
-        mock_invoke.return_value = {
-            "final_response": AgentResponse(
-                answer="Test Answer",
-                confidence_score=0.9,
-                claims=[],
-                metadata={}
-            )
-        }
+    # Verify the orchestrator has the new runtime components
+    assert hasattr(orchestrator, '_registry')
+    assert hasattr(orchestrator, '_agent_functions')
+    assert isinstance(orchestrator._registry, AgentRegistry)
 
-        # Mock astream to simulate progress
-        with patch.object(orchestrator.workflow, 'astream', new_callable=MagicMock) as mock_stream:
-            async def mock_stream_gen(*args, **kwargs):
-                yield {"query_router": {}}
-                yield {"response_composer": {}}
-            mock_stream.return_value = mock_stream_gen()
+    # Verify agent registration works
+    async def stub_agent(state):
+        return state
 
-            await orchestrator.run_query("qry_test_001", "run_test_001")
+    orchestrator.register_agent(
+        "test_agent",
+        stub_agent,
+        role=AgentRole.ANALYSIS,
+        capabilities=[AgentCapability(
+            name="test",
+            input_types=[],
+            output_types=["test_out"],
+        )],
+    )
+    assert "test_agent" in orchestrator._agent_functions
+    assert orchestrator._registry.is_registered("test_agent")
 
-            # Verify status updates were attempted
-            assert mock_db.add.called
-            # Check if QueryEvent was added
-            added_objects = [args[0] for args, _ in mock_db.add.call_args_list]
-            assert any(isinstance(obj, QueryEvent) for obj in added_objects)
+    # Mock the workflow to avoid real LLM calls
+    with patch('mnemos.agentic.orchestrator.create_investigation_workflow') as mock_create:
+        mock_workflow = MagicMock()
+        mock_compiled = MagicMock()
+
+        async def mock_astream(*args, **kwargs):
+            yield {
+                "supervisor": {
+                    "is_complete": True,
+                    "phase": "completion",
+                    "agent_outputs": {
+                        "composition_agent": {
+                            "answer": "Test answer from orchestrator",
+                            "confidence": 0.9,
+                        }
+                    },
+                    "completed_agents": ["composition_agent"],
+                }
+            }
+
+        mock_compiled.astream = mock_astream
+        mock_workflow.compile.return_value = mock_compiled
+        mock_create.return_value = mock_workflow
+
+        result = await orchestrator.run_query("qry_test_001", "run_test_001")
+
+        assert result.answer == "Test answer from orchestrator"
+
+        # Verify status updates were attempted
+        assert mock_db.add.called
+        added_objects = [args[0] for args, _ in mock_db.add.call_args_list]
+        assert any(isinstance(obj, QueryEvent) for obj in added_objects)
 
 @pytest.mark.asyncio
 async def test_result_persistence_mapping(mock_db, mock_query, mock_run):
@@ -96,7 +130,8 @@ async def test_result_persistence_mapping(mock_db, mock_query, mock_run):
     evidence = EvidenceSource(
         text_excerpt="Pressure limit is 40 bar",
         provenance=provenance,
-        confidence_score=1.0
+        confidence_score=1.0,
+        relevance_score=0.95,
     )
     claim = GroundedClaim(
         claim_id="clm_1",
@@ -156,4 +191,4 @@ async def test_gateway_wrapping():
 
         assert result.status == "succeeded"
         assert result.answer == "Gateway Success"
-        assert result.run_metadata.pipeline_version == "v1.0-langgraph"
+        assert result.run_metadata.pipeline_version == "v2.0-multi-agent-runtime"
