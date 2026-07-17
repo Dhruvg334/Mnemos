@@ -79,6 +79,9 @@ class EvidenceRetrievalAgent(_BaseRetrievalAgent):
             context=ctx,
         )
 
+        # Apply agent-level permission filtering
+        bundle = self._filter_by_permissions(bundle, ctx)
+
         ctx["evidence_bundle"] = bundle
         state["context"] = ctx
 
@@ -108,3 +111,47 @@ class EvidenceRetrievalAgent(_BaseRetrievalAgent):
         )
 
         return state
+
+    def _filter_by_permissions(
+        self,
+        bundle: EvidenceBundle,
+        ctx: dict[str, Any],
+    ) -> EvidenceBundle:
+        """Filter evidence to only include sources within user's permitted scope.
+
+        Checks site_id and org_id from the user context against each
+        evidence source's provenance. Removes any evidence that falls
+        outside the user's authorized scope.
+        """
+        user_site = ctx.get("site_id")
+        user_org = ctx.get("org_id")
+
+        if not user_site and not user_org:
+            return bundle
+
+        original_count = len(bundle.verified_evidence)
+        filtered_evidence = []
+
+        for source in bundle.verified_evidence:
+            # Check site scope
+            if user_site:
+                source_site = source.metadata.get("site_id", "")
+                if source_site and source_site != user_site:
+                    continue
+
+            # Check org scope
+            if user_org:
+                source_org = source.metadata.get("org_id", "")
+                if source_org and source_org != user_org:
+                    continue
+
+            filtered_evidence.append(source)
+
+        if len(filtered_evidence) < original_count:
+            logger.info(
+                f"Permission filter: {original_count} -> {len(filtered_evidence)} "
+                f"evidence sources (site={user_site}, org={user_org})"
+            )
+
+        bundle.verified_evidence = filtered_evidence
+        return bundle

@@ -14,6 +14,8 @@ Tools:
 8. approval_recording - Record human approvals
 9. action_creation - Create maintenance actions
 10. report_generation - Generate structured reports
+11. get_current_procedure - Retrieve current approved procedure
+12. generate_source_preview - Generate evidence source preview link
 """
 
 from mnemos.agentic.mcp.dispatch import MCPToolDispatch
@@ -28,6 +30,10 @@ from mnemos.agentic.mcp.tools import (
     DocumentRetrievalOutput,
     EvidenceRulesInput,
     EvidenceRulesOutput,
+    GenerateSourcePreviewInput,
+    GenerateSourcePreviewOutput,
+    GetCurrentProcedureInput,
+    GetCurrentProcedureOutput,
     GraphTraversalInput,
     GraphTraversalOutput,
     ReportGenerationInput,
@@ -59,6 +65,8 @@ __all__ = [
     "ApprovalRecordingInput",
     "ActionCreationInput",
     "ReportGenerationInput",
+    "GetCurrentProcedureInput",
+    "GenerateSourcePreviewInput",
     # Output schemas
     "ResolveAssetTagOutput",
     "GraphTraversalOutput",
@@ -70,4 +78,6 @@ __all__ = [
     "ApprovalRecordingOutput",
     "ActionCreationOutput",
     "ReportGenerationOutput",
+    "GetCurrentProcedureOutput",
+    "GenerateSourcePreviewOutput",
 ]

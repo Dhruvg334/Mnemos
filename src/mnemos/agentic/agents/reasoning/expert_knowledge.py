@@ -70,6 +70,28 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
 
     async def execute(self, state: AgentState) -> AgentState:
         bundle = self._validate_evidence_exists(state)
+        ctx = state.get("context", {})
+
+        # Check for voice transcription input
+        voice_transcription = ctx.get("voice_transcription")
+        if voice_transcription and isinstance(voice_transcription, str):
+            # Process voice transcription as additional expert evidence
+            voice_evidence = self._process_voice_transcription(
+                voice_transcription, state
+            )
+            if bundle is None:
+                # Create a minimal bundle from voice transcription alone
+                from mnemos.agentic.schemas.base import EvidenceBundle, EvidenceSource, ProvenanceChain, VerificationStatus
+                bundle = EvidenceBundle(
+                    query_id=ctx.get("query_id", "voice"),
+                    intent=ctx.get("intent", "general"),
+                    verified_evidence=voice_evidence,
+                )
+                ctx["evidence_bundle"] = bundle
+                state["context"] = ctx
+            else:
+                bundle.verified_evidence.extend(voice_evidence)
+
         if bundle is None:
             return state
 
@@ -295,6 +317,99 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
             if sub.status == "draft":
                 sub.status = "submitted_for_review"
         return submissions
+
+    # ------------------------------------------------------------------
+    # Voice transcription processing
+    # ------------------------------------------------------------------
+
+    def _process_voice_transcription(
+        self,
+        transcription: str,
+        state: AgentState,
+    ) -> list[EvidenceSource]:
+        """Process a voice transcription into structured evidence.
+
+        Takes raw transcribed text from an expert's voice submission,
+        segments it into meaningful knowledge fragments, and wraps each
+        as an EvidenceSource for downstream structuring.
+        """
+        from mnemos.agentic.schemas.base import (
+            EvidenceSource,
+            ProvenanceChain,
+            VerificationStatus,
+        )
+
+        evidence_sources: list[EvidenceSource] = []
+
+        # Split transcription into sentences/segments
+        segments = self._segment_transcription(transcription)
+
+        for idx, segment in enumerate(segments):
+            if not segment.strip() or len(segment.strip()) < 10:
+                continue
+
+            provenance = ProvenanceChain(
+                document_id=f"voice_transcription_{uuid.uuid4().hex[:8]}",
+                document_version=1,
+                evidence_region_id=f"voice_region_{idx}",
+                source_filename="voice_submission",
+                source_type="voice_transcription",
+                verification_status=VerificationStatus.UNVERIFIED,
+            )
+
+            evidence_sources.append(
+                EvidenceSource(
+                    text_excerpt=segment.strip(),
+                    confidence_score=0.7,
+                    relevance_score=0.8,
+                    verification_status=VerificationStatus.UNVERIFIED,
+                    provenance=provenance,
+                    metadata={
+                        "type": "voice_transcription",
+                        "source": "expert_voice",
+                        "segment_index": idx,
+                        "total_segments": len(segments),
+                    },
+                )
+            )
+
+        self.logger.info(
+            f"Processed voice transcription: {len(segments)} segments, "
+            f"{len(evidence_sources)} evidence sources created"
+        )
+        return evidence_sources
+
+    def _segment_transcription(self, text: str) -> list[str]:
+        """Segment a voice transcription into meaningful knowledge fragments.
+
+        Splits on sentence boundaries (periods, newlines) and merges
+        very short segments. Returns non-empty segments.
+        """
+        import re
+
+        # Split on sentence-ending punctuation followed by whitespace or newline
+        raw_segments = re.split(r'(?<=[.!?])\s+|\n+', text)
+
+        # Merge very short segments with their successor
+        merged: list[str] = []
+        buffer = ""
+        for seg in raw_segments:
+            if not seg.strip():
+                continue
+            if buffer:
+                buffer = f"{buffer} {seg.strip()}"
+                if len(buffer) >= 30:
+                    merged.append(buffer)
+                    buffer = ""
+            elif len(seg.strip()) < 20:
+                buffer = seg.strip()
+            else:
+                merged.append(seg.strip())
+
+        if buffer:
+            merged.append(buffer)
+
+        return merged
 
     # ------------------------------------------------------------------
     # Claims

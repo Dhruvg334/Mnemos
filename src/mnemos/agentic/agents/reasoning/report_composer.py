@@ -125,6 +125,87 @@ class ReportComposerAgent(_BaseReasoningAgent):
             return outputs
         return self._get_previous_reasoning(state)
 
+    def _gather_approval_decisions(self, state: AgentState) -> list[dict[str, Any]]:
+        """Collect human approval decisions from the audit log.
+
+        Returns a list of dicts with gate_type, decision, reviewer,
+        comments, and timestamp for every approval event.
+        """
+        ctx = state.get("context", {})
+        decisions: list[dict[str, Any]] = []
+
+        # Check state for approval result
+        approval_result = state.get("approval_result")
+        if approval_result and isinstance(approval_result, dict):
+            decisions.append({
+                "gate_type": approval_result.get("gate_type", "unknown"),
+                "decision": approval_result.get("decision", "unknown"),
+                "reviewer": approval_result.get("reviewer", "unknown"),
+                "comments": approval_result.get("comments", ""),
+                "timestamp": str(approval_result.get("timestamp", "")),
+            })
+
+        # Check pending approval request
+        pending = state.get("pending_approval_request")
+        if pending and isinstance(pending, dict):
+            decisions.append({
+                "gate_type": pending.get("gate_type", "unknown"),
+                "decision": "pending",
+                "reviewer": pending.get("reviewer", ""),
+                "comments": pending.get("summary", ""),
+                "timestamp": "",
+            })
+
+        # Check approval_required flag
+        if state.get("approval_required") and not decisions:
+            gate_type = ctx.get("approval_gate_type", "unknown")
+            decisions.append({
+                "gate_type": gate_type,
+                "decision": "pending",
+                "reviewer": "",
+                "comments": "Approval required but not yet processed",
+                "timestamp": "",
+            })
+
+        return decisions
+
+    def _gather_document_versions(
+        self,
+        citations: list[Citation],
+    ) -> list[dict[str, Any]]:
+        """Extract document version information from citations.
+
+        Groups citations by document_id and reports the version,
+        whether it's the latest, and how many citations reference it.
+        """
+        doc_versions: dict[str, dict[str, Any]] = {}
+        for citation in citations:
+            doc_id = citation.document_id
+            if not doc_id:
+                continue
+            if doc_id not in doc_versions:
+                doc_versions[doc_id] = {
+                    "document_id": doc_id,
+                    "version": citation.document_version,
+                    "is_latest_version": getattr(
+                        citation, "is_latest_version", True
+                    ),
+                    "citation_count": 0,
+                    "titles": set(),
+                }
+            entry = doc_versions[doc_id]
+            entry["citation_count"] += 1
+            if citation.text_excerpt:
+                # Use first 80 chars as a title hint
+                entry["titles"].add(citation.text_excerpt[:80])
+
+        # Convert sets to lists for JSON serialization
+        result: list[dict[str, Any]] = []
+        for doc_id, info in doc_versions.items():
+            info["titles"] = list(info["titles"])
+            result.append(info)
+        return result
+
     # ------------------------------------------------------------------
     # Synthesis
     # ------------------------------------------------------------------
@@ -134,7 +215,7 @@ class ReportComposerAgent(_BaseReasoningAgent):
         reasoning_outputs: list[ReasoningOutput],
         state: AgentState,
     ) -> FinalReport:
-        """Synthesize all reasoning outputs into a ``FinalReport``."""
+        """Synthesize all reasoning outputs into a ``FinalReport."""
         query = state.get("query", "Investigation Report")
         title = self._build_title(query)
 
@@ -148,6 +229,12 @@ class ReportComposerAgent(_BaseReasoningAgent):
         summary = self._build_summary_from_outputs(reasoning_outputs, merged_claims)
         confidence_statement = self._build_confidence_statement(confidence)
         disclaimer = self._build_disclaimer(confidence)
+
+        # Gather approval decisions from audit log
+        approval_decisions = self._gather_approval_decisions(state)
+
+        # Gather document version information from citations
+        document_versions = self._gather_document_versions(merged_citations)
 
         sections: dict[str, object] = {}
         for output in reasoning_outputs:
@@ -171,6 +258,8 @@ class ReportComposerAgent(_BaseReasoningAgent):
             missing_evidence=missing_evidence,
             confidence_statement=confidence_statement,
             disclaimer=disclaimer,
+            approval_decisions=approval_decisions,
+            document_versions=document_versions,
         )
 
     # ------------------------------------------------------------------

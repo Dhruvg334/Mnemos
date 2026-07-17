@@ -214,12 +214,12 @@ class TestMCPToolNameEnum:
             "resolve_asset_tag", "graph_traversal", "document_retrieval",
             "timeline", "similar_failures", "revision_check",
             "evidence_rules", "approval_recording", "action_creation",
-            "report_generation",
+            "report_generation", "get_current_procedure", "generate_source_preview",
         ]
         assert sorted(names) == sorted(expected)
 
     def test_tool_count(self):
-        assert len(MCPToolName) == 10
+        assert len(MCPToolName) == 12
 
 
 # =====================================================================
@@ -667,7 +667,7 @@ class TestMCMPServer:
 
     def test_list_tools_returns_10(self):
         tools = self.server.list_tools()
-        assert len(tools) == 10
+        assert len(tools) == 12
 
     def test_tool_names_match_enum(self):
         tools = self.server.list_tools()

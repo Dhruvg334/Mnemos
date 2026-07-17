@@ -1,6 +1,6 @@
 """MCP Server for the Mnemos agentic runtime.
 
-Exposes 10 typed MCP tools to agents via the dispatch layer.
+Exposes 12 typed MCP tools to agents via the dispatch layer.
 All tools are strictly typed, guardrail-checked, and audit-logged.
 No agent may access databases directly.
 """
@@ -19,6 +19,10 @@ from mnemos.agentic.mcp.tools import (
     DocumentRetrievalOutput,
     EvidenceRulesInput,
     EvidenceRulesOutput,
+    GenerateSourcePreviewInput,
+    GenerateSourcePreviewOutput,
+    GetCurrentProcedureInput,
+    GetCurrentProcedureOutput,
     GraphTraversalInput,
     GraphTraversalOutput,
     ReportGenerationInput,
@@ -61,7 +65,7 @@ class MnemosMCPServer:
         self._register_handlers()
 
     def _register_handlers(self) -> None:
-        """Register all 10 tool handlers with the dispatch layer."""
+        """Register all 12 tool handlers with the dispatch layer."""
         self.dispatch.register_handler(MCPToolName.RESOLVE_ASSET_TAG, self._resolve_asset_tag)
         self.dispatch.register_handler(MCPToolName.GRAPH_TRAVERSAL, self._graph_traversal)
         self.dispatch.register_handler(MCPToolName.DOCUMENT_RETRIEVAL, self._document_retrieval)
@@ -72,6 +76,8 @@ class MnemosMCPServer:
         self.dispatch.register_handler(MCPToolName.APPROVAL_RECORDING, self._approval_recording)
         self.dispatch.register_handler(MCPToolName.ACTION_CREATION, self._action_creation)
         self.dispatch.register_handler(MCPToolName.REPORT_GENERATION, self._report_generation)
+        self.dispatch.register_handler(MCPToolName.GET_CURRENT_PROCEDURE, self._get_current_procedure)
+        self.dispatch.register_handler(MCPToolName.GENERATE_SOURCE_PREVIEW, self._generate_source_preview)
 
     async def call(
         self,
@@ -315,6 +321,66 @@ class MnemosMCPServer:
         )
 
     # ==================================================================
+    # Tool 11: get_current_procedure
+    # ==================================================================
+
+    async def _get_current_procedure(self, input: GetCurrentProcedureInput) -> GetCurrentProcedureOutput:
+        """Retrieve the current approved procedure for an asset.
+
+        Checks procedure status, version currency, and flags any
+        outdated procedures that need updating.
+        """
+        # In production: query procedure store via structured retriever
+        # Simulate: return empty (no procedures found)
+        return GetCurrentProcedureOutput(
+            asset_id=input.asset_id,
+            procedures=[],
+            total_found=0,
+            all_approved=True,
+            outdated_procedures=[],
+        )
+
+    # ==================================================================
+    # Tool 12: generate_source_preview
+    # ==================================================================
+
+    async def _generate_source_preview(self, input: GenerateSourcePreviewInput) -> GenerateSourcePreviewOutput:
+        """Generate a preview link for an evidence source.
+
+        Creates a time-limited URL that allows reviewers to inspect
+        the original source document, evidence region, or graph node.
+        """
+        import uuid
+        from datetime import UTC, datetime, timedelta
+
+        preview_id = uuid.uuid4().hex[:12]
+        expires = datetime.now(UTC) + timedelta(hours=24)
+
+        # Build preview URL based on source type
+        base_path = f"/evidence/preview/{input.source_type}/{input.source_id}"
+        params = []
+        if input.document_id:
+            params.append(f"doc={input.document_id}")
+        if input.page_number:
+            params.append(f"page={input.page_number}")
+        if input.highlight_text:
+            params.append(f"highlight={input.highlight_text}")
+        query_string = "&".join(params)
+        preview_url = f"{base_path}?{query_string}" if query_string else base_path
+
+        return GenerateSourcePreviewOutput(
+            preview_url=preview_url,
+            source_type=input.source_type,
+            source_id=input.source_id,
+            expires_at=expires.isoformat(),
+            metadata={
+                "preview_id": preview_id,
+                "document_id": input.document_id,
+                "page_number": input.page_number,
+            },
+        )
+
+    # ==================================================================
     # Tool listing
     # ==================================================================
 
@@ -380,5 +446,17 @@ class MnemosMCPServer:
                 "description": "Generate structured reports.",
                 "input_schema": ReportGenerationInput.model_json_schema(),
                 "output_schema": ReportGenerationOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.GET_CURRENT_PROCEDURE,
+                "description": "Retrieve the current approved procedure for an asset.",
+                "input_schema": GetCurrentProcedureInput.model_json_schema(),
+                "output_schema": GetCurrentProcedureOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.GENERATE_SOURCE_PREVIEW,
+                "description": "Generate a preview link for an evidence source.",
+                "input_schema": GenerateSourcePreviewInput.model_json_schema(),
+                "output_schema": GenerateSourcePreviewOutput.model_json_schema(),
             },
         ]

@@ -21,6 +21,8 @@ from mnemos.agentic.mcp.tools import (
     ApprovalRecordingInput,
     DocumentRetrievalInput,
     EvidenceRulesInput,
+    GenerateSourcePreviewInput,
+    GetCurrentProcedureInput,
     GraphTraversalInput,
     ReportGenerationInput,
     ResolveAssetTagInput,
@@ -55,6 +57,8 @@ _TOOL_INPUT_SCHEMAS: dict[str, type] = {
     MCPToolName.APPROVAL_RECORDING: ApprovalRecordingInput,
     MCPToolName.ACTION_CREATION: ActionCreationInput,
     MCPToolName.REPORT_GENERATION: ReportGenerationInput,
+    MCPToolName.GET_CURRENT_PROCEDURE: GetCurrentProcedureInput,
+    MCPToolName.GENERATE_SOURCE_PREVIEW: GenerateSourcePreviewInput,
 }
 
 # Tools that require approval gates for high-priority actions
@@ -76,6 +80,8 @@ _TOOL_GUARDRAILS: dict[str, list[GuardrailCheckType]] = {
     MCPToolName.APPROVAL_RECORDING: [GuardrailCheckType.PERMISSION],
     MCPToolName.ACTION_CREATION: [GuardrailCheckType.PERMISSION],
     MCPToolName.REPORT_GENERATION: [GuardrailCheckType.HALLUCINATED_CITATION, GuardrailCheckType.PERMISSION],
+    MCPToolName.GET_CURRENT_PROCEDURE: [GuardrailCheckType.PERMISSION, GuardrailCheckType.UNAPPROVED_PROCEDURE],
+    MCPToolName.GENERATE_SOURCE_PREVIEW: [GuardrailCheckType.PERMISSION],
 }
 
 

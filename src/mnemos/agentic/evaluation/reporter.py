@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from typing import Any
 
@@ -7,6 +8,16 @@ from mnemos.agentic.evaluation.models import (
     BenchmarkReport,
     ComparisonReport,
 )
+
+
+def _deterministic_id(*parts: str) -> str:
+    """Generate a deterministic ID from the given parts.
+
+    Unlike uuid4(), this produces the same ID for the same inputs,
+    enabling reproducible benchmarks and comparisons.
+    """
+    combined = "|".join(str(p) for p in parts)
+    return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
 class EvalReporter:
@@ -111,6 +122,9 @@ class EvalReporter:
                 deltas[key] = 0.0
 
         return ComparisonReport(
+            comparison_id=_deterministic_id(
+                primary.benchmark_id, secondary.benchmark_id
+            ),
             name=f"{primary.benchmark_name} vs {secondary.benchmark_name}",
             report_primary=primary,
             report_secondary=secondary,

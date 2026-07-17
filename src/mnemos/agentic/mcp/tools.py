@@ -254,3 +254,53 @@ class ReportGenerationOutput(BaseModel):
     section_count: int = 0
     requires_approval: bool = False
     approval_gate_type: str | None = None
+
+
+# =====================================================================
+# Tool 11: get_current_procedure
+# =====================================================================
+
+
+class GetCurrentProcedureInput(BaseModel):
+    """Input for retrieving the current approved procedure for an asset."""
+    asset_id: str = Field(..., description="Asset to get procedure for.")
+    procedure_type: str = Field(
+        default="all",
+        description="Procedure type filter: maintenance, safety, operations, all.",
+    )
+    site_id: str | None = Field(None, description="Optional site scope filter.")
+
+
+class GetCurrentProcedureOutput(BaseModel):
+    """Output from current procedure lookup."""
+    asset_id: str
+    procedures: list[dict[str, Any]] = Field(default_factory=list)
+    total_found: int = 0
+    all_approved: bool = True
+    outdated_procedures: list[dict[str, Any]] = Field(default_factory=list)
+
+
+# =====================================================================
+# Tool 12: generate_source_preview
+# =====================================================================
+
+
+class GenerateSourcePreviewInput(BaseModel):
+    """Input for generating a preview link for an evidence source."""
+    source_type: str = Field(
+        ...,
+        description="Source type: document, evidence_region, graph_node, knowledge_card.",
+    )
+    source_id: str = Field(..., description="Identifier of the source to preview.")
+    document_id: str | None = Field(None, description="Document ID if applicable.")
+    page_number: int | None = Field(None, description="Page number if applicable.")
+    highlight_text: str | None = Field(None, description="Text to highlight in preview.")
+
+
+class GenerateSourcePreviewOutput(BaseModel):
+    """Output from source preview generation."""
+    preview_url: str
+    source_type: str
+    source_id: str
+    expires_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)

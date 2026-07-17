@@ -74,3 +74,5 @@ class FinalReport(BaseModel):
     graph_paths: list[list[str]] = Field(default_factory=list)
     confidence_statement: str
     disclaimer: str = "This report is generated based on available evidence and requires human validation."
+    approval_decisions: list[dict[str, Any]] = Field(default_factory=list, description="Human approval decisions recorded during investigation")
+    document_versions: list[dict[str, Any]] = Field(default_factory=list, description="Document versions referenced in evidence with currency status")

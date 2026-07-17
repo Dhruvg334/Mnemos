@@ -37,8 +37,10 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.runtime.approval import HumanApprovalNode
+from mnemos.agentic.runtime.audit import AuditLogger
 from mnemos.agentic.runtime.checkpoint import CheckpointManager
 from mnemos.agentic.runtime.events import InvestigationEventLog
+from mnemos.agentic.runtime.observability import ObservabilityDashboard
 from mnemos.agentic.runtime.recovery import FailureRecoveryManager
 from mnemos.agentic.runtime.reflection import ReflectionAgent
 from mnemos.agentic.runtime.registry import AgentCapabilityRegistry, AgentRegistry
@@ -234,14 +236,16 @@ class InvestigationPipeline:
         max_iterations: int = 10,
         evidence_confidence_threshold: float = 0.7,
         auto_checkpoint: bool = True,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         self.db = db
         self.max_iterations = max_iterations
         self.evidence_confidence_threshold = evidence_confidence_threshold
         self.auto_checkpoint = auto_checkpoint
+        self.audit_logger = audit_logger or AuditLogger()
 
         self.failure_recovery = FailureRecoveryManager()
-        self.approval_node = HumanApprovalNode()
+        self.approval_node = HumanApprovalNode(audit_logger=self.audit_logger)
         self.reflection_agent = ReflectionAgent(
             evidence_completeness_threshold=evidence_confidence_threshold,
         )
@@ -1470,7 +1474,7 @@ class InvestigationPipeline:
         final_response = ctx.get("final_response")
         final_report = ctx.get("final_report")
 
-        return {
+        result: dict[str, Any] = {
             "final_response": final_response,
             "final_report": final_report,
             "investigation_id": investigation_id,
@@ -1490,6 +1494,18 @@ class InvestigationPipeline:
             "event_summary": event_log.summary(),
             "checkpoints_saved": len(state.get("checkpoints", [])),
         }
+
+        # Include observability dashboard snapshot when available
+        try:
+            dashboard = ObservabilityDashboard(
+                event_log=event_log,
+                audit_logger=self.audit_logger,
+            )
+            result["observability"] = dashboard.get_dashboard_snapshot()
+        except Exception:
+            result["observability"] = None
+
+        return result
 
 
 # ======================================================================

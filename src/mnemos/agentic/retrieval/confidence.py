@@ -30,10 +30,11 @@ class ConfidenceCalculator:
     """
 
     DEFAULT_WEIGHTS = {
-        "relevance": 0.30,
+        "relevance": 0.25,
         "source_reliability": 0.20,
-        "provenance_validation": 0.20,
-        "corroboration": 0.20,
+        "provenance_validation": 0.15,
+        "graph_edge_verification": 0.15,
+        "corroboration": 0.15,
         "recency": 0.10,
     }
 
@@ -83,7 +84,16 @@ class ConfidenceCalculator:
             reasoning="Fraction of evidence with validated provenance",
         ))
 
-        # Signal 4: Corroboration
+        # Signal 4: Graph-edge verification
+        graph_edge_score = self._graph_edge_verification_score(bundle)
+        signals.append(ConfidenceSignal(
+            signal_name="graph_edge_verification",
+            signal_value=graph_edge_score,
+            weight=self.weights["graph_edge_verification"],
+            reasoning="Verification that graph traversal edges are grounded in evidence",
+        ))
+
+        # Signal 5: Corroboration
         corroboration_score = self._corroboration_score(bundle.verified_evidence)
         signals.append(ConfidenceSignal(
             signal_name="corroboration",
@@ -92,7 +102,7 @@ class ConfidenceCalculator:
             reasoning="Degree of multi-source corroboration",
         ))
 
-        # Signal 5: Recency
+        # Signal 6: Recency
         recency_score = self._recency_score(bundle)
         signals.append(ConfidenceSignal(
             signal_name="recency",
@@ -154,6 +164,38 @@ class ConfidenceCalculator:
         doc_ids = {s.provenance.document_id for s in evidence}
         # More unique sources = higher corroboration, capped at 1.0
         return min(1.0, len(doc_ids) / max(3, len(doc_ids)))
+
+    @staticmethod
+    def _graph_edge_verification_score(bundle: EvidenceBundle) -> float:
+        """Score how well graph traversal edges are grounded in evidence.
+
+        Checks whether grounded relationships have corresponding verified
+        evidence sources. High score means graph edges are backed by
+        real evidence rather than just graph structure.
+        """
+        grounded_rels = getattr(bundle, "grounded_relationships", [])
+        if not grounded_rels:
+            # No graph relationships -- neutral score (not a penalty)
+            # but no bonus either
+            return 0.5
+
+        verified_ids = {
+            s.provenance.evidence_region_id
+            for s in bundle.verified_evidence
+        }
+
+        grounded_count = 0
+        for rel in grounded_rels:
+            # A relationship is "grounded" if it has at least one
+            # evidence source that appears in verified evidence
+            evidence_ids = getattr(rel, "evidence_ids", [])
+            if evidence_ids and any(eid in verified_ids for eid in evidence_ids):
+                grounded_count += 1
+            elif not evidence_ids:
+                # Relationship without evidence tracking -- partial credit
+                grounded_count += 0.3
+
+        return grounded_count / len(grounded_rels)
 
     @staticmethod
     def _recency_score(bundle: EvidenceBundle) -> float:

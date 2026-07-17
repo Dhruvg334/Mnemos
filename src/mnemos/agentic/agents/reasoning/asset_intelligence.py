@@ -99,6 +99,13 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
         missing = self._identify_missing_evidence(verified, state)
         next_actions = self._recommend_actions(claims, verified)
 
+        # Cross-asset comparison
+        similar_assets = self._compare_similar_assets(verified, state)
+        if similar_assets:
+            claims.extend(similar_assets["claims"])
+            missing.extend(similar_assets["missing_evidence"])
+            next_actions.extend(similar_assets["actions"])
+
         output = ReasoningOutput(
             agent_name=self.name,
             reasoning_decision=(
@@ -357,3 +364,121 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
             )
 
         return actions
+
+    # ------------------------------------------------------------------
+    # Cross-asset comparison
+    # ------------------------------------------------------------------
+
+    def _compare_similar_assets(
+        self,
+        evidence: list[EvidenceSource],
+        state: AgentState,
+    ) -> dict[str, Any]:
+        """Compare the target asset with similar assets using graph and evidence data.
+
+        Looks for evidence sourced from graph traversals that reference
+        related assets (same component type, same failure mode, same site).
+        Produces comparison claims and identifies unresolved actions.
+        """
+        ctx = state.get("context", {})
+        bundle = ctx.get("evidence_bundle")
+
+        # Collect similar asset evidence from graph traversals
+        similar_asset_evidence: list[dict[str, Any]] = []
+        if bundle is not None:
+            raw_graph = getattr(bundle, "raw_graph_data", {})
+            for entity_id, data in raw_graph.items():
+                if not isinstance(data, dict):
+                    continue
+                nodes = data.get("nodes", [])
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        continue
+                    node_type = str(node.get("type", "")).lower()
+                    node_id = str(node.get("id", ""))
+                    # Skip the primary asset itself
+                    primary_entities = {
+                        e.entity_id for e in getattr(bundle, "resolved_entities", [])
+                    }
+                    if node_id in primary_entities:
+                        continue
+                    if node_type in ("asset", "component", "failure_mode"):
+                        similar_asset_evidence.append(node)
+
+        if not similar_asset_evidence:
+            return {}
+
+        # Build comparison claims
+        claims: list[GroundedClaim] = []
+        missing_evidence: list[MissingEvidence] = []
+        actions: list[RecommendedAction] = []
+
+        # Group similar assets by type
+        asset_type_groups: dict[str, list[dict]] = {}
+        for node in similar_asset_evidence:
+            ntype = str(node.get("type", "unknown")).lower()
+            asset_type_groups.setdefault(ntype, []).append(node)
+
+        for asset_type, nodes in asset_type_groups.items():
+            claim_id = f"asset_comparison_{uuid.uuid4().hex[:8]}"
+            node_names = [str(n.get("name", n.get("id", "?"))) for n in nodes[:5]]
+            claim_text = (
+                f"{len(nodes)} similar {asset_type}(s) identified in the knowledge graph: "
+                f"{', '.join(node_names)}"
+                f"{'...' if len(nodes) > 5 else ''}"
+            )
+            claims.append(
+                GroundedClaim(
+                    claim_id=claim_id,
+                    text=claim_text,
+                    status=ClaimSupportStatus.PARTIALLY_SUPPORTED,
+                    sources=[],
+                    reasoning=(
+                        f"Cross-asset comparison found {len(nodes)} related "
+                        f"{asset_type} entities via graph traversal"
+                    ),
+                )
+            )
+
+        # Check for unresolved actions on similar assets
+        unresolved_assets = [
+            n for n in similar_asset_evidence
+            if str(n.get("status", "")).lower() in ("active", "open", "pending", "in_progress")
+        ]
+        if unresolved_assets:
+            actions.append(
+                RecommendedAction(
+                    action_id=f"act_{uuid.uuid4().hex[:8]}",
+                    type="MONITOR",
+                    description=(
+                        f"{len(unresolved_assets)} similar assets have unresolved "
+                        "actions or active issues that may be relevant"
+                    ),
+                    priority="medium",
+                    reasoning="Similar assets with unresolved issues may share root causes",
+                )
+            )
+
+        # Identify gaps: no cross-asset evidence means comparison is incomplete
+        if len(similar_asset_evidence) < 2:
+            missing_evidence.append(
+                MissingEvidence(
+                    evidence_type="cross_asset_comparison",
+                    description=(
+                        "Limited similar asset data available for comprehensive "
+                        "cross-asset comparison"
+                    ),
+                    suggested_action=(
+                        "Query failure_graph and component_graph for related assets "
+                        "with similar failure modes"
+                    ),
+                    priority="medium",
+                )
+            )
+
+        return {
+            "claims": claims,
+            "missing_evidence": missing_evidence,
+            "actions": actions,
+            "similar_asset_count": len(similar_asset_evidence),
+        }

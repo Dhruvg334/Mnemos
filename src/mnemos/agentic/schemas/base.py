@@ -505,6 +505,8 @@ class MCPToolName(StrEnum):
     APPROVAL_RECORDING = "approval_recording"
     ACTION_CREATION = "action_creation"
     REPORT_GENERATION = "report_generation"
+    GET_CURRENT_PROCEDURE = "get_current_procedure"
+    GENERATE_SOURCE_PREVIEW = "generate_source_preview"
 
 
 class MCPToolResult(BaseModel):
