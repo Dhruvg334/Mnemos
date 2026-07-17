@@ -7,6 +7,7 @@ The supervisor is the central orchestrator.  It:
 - decides whether another agent should run
 - requests replanning when evidence is insufficient
 - terminates only when sufficient evidence exists or abstention is required
+- auto-pauses when mandatory approval gates are triggered
 
 This module contains zero business logic -- only the decision-making
 framework for agent dispatch.
@@ -23,6 +24,7 @@ from mnemos.agentic.runtime.types import (
     SupervisorDecision,
     TerminationReason,
 )
+from mnemos.agentic.schemas.base import ApprovalGateType
 from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("runtime.supervisor")
@@ -30,6 +32,16 @@ logger = StructuredLogger("runtime.supervisor")
 # Maximum iterations before forced termination
 _DEFAULT_MAX_ITERATIONS = 10
 _EVIDENCE_CONFIDENCE_THRESHOLD = 0.7
+
+# Approval gate triggers: agent output patterns that mandate approval
+_APPROVAL_GATE_TRIGGERS: dict[str, ApprovalGateType] = {
+    "needs_human_review": ApprovalGateType.RCA_CLOSURE,
+    "compliance_failure": ApprovalGateType.COMPLIANCE_CLOSURE,
+    "knowledge_submission": ApprovalGateType.KNOWLEDGE_PUBLICATION,
+    "critical_action": ApprovalGateType.HIGH_PRIORITY_ACTION,
+    "audit_export": ApprovalGateType.AUDIT_EXPORT,
+    "maintenance_strategy": ApprovalGateType.MAINTENANCE_STRATEGY,
+}
 
 
 class SupervisorAgent:
@@ -39,6 +51,10 @@ class SupervisorAgent:
     The supervisor never executes agent logic itself.  It only produces
     ``SupervisorDecision`` objects that the workflow runtime consumes
     to dispatch actual agents.
+
+    When a mandatory approval gate is triggered, the supervisor
+    automatically pauses the investigation by setting approval_required
+    and storing the gate type in the state.
     """
 
     def __init__(
@@ -67,6 +83,7 @@ class SupervisorAgent:
         4. Iteration count
         5. Pending approvals
         6. Errors and failures
+        7. Approval gate triggers from agent outputs
         """
         phase = InvestigationPhase(state.get("phase", InvestigationPhase.INITIALIZATION))
         iteration = state.get("iteration", 0)
@@ -107,12 +124,24 @@ class SupervisorAgent:
                 "All dispatched agents have failed."
             )
 
+        # ---- Check for approval gate triggers from agent outputs -------
+        gate = self._detect_approval_gate(state)
+        if gate is not None:
+            gate_str = gate.value
+            ctx = dict(state.get("context", {}))
+            ctx["approval_gate_type"] = gate_str
+            state["context"] = ctx
+            state["approval_required"] = True
+            approval_required = True
+            logger.info(f"Approval gate auto-triggered: {gate_str}")
+
         # ---- Approval gate ----------------------------------------------
         if approval_required:
+            gate_str = state.get("context", {}).get("approval_gate_type", "general") if isinstance(state.get("context"), dict) else "general"
             return SupervisorDecision(
                 phase=InvestigationPhase.APPROVAL,
                 agents_to_dispatch=[],
-                reasoning="Waiting for human approval before continuing.",
+                reasoning=f"Paused for human approval [gate={gate_str}].",
                 should_continue=True,
             )
 
@@ -254,6 +283,63 @@ class SupervisorAgent:
             return avg_confidence >= self.evidence_confidence_threshold
 
         return len(evidence) > 0 or len(claims) > 0
+
+    # ------------------------------------------------------------------
+    # Approval gate detection
+    # ------------------------------------------------------------------
+
+    def _detect_approval_gate(self, state: dict[str, Any]) -> ApprovalGateType | None:
+        """Scan completed agent outputs for approval gate triggers.
+
+        Checks:
+        1. Agent reasoning_decision == "needs_human_review"
+        2. Agent output metadata contains approval trigger flags
+        3. High-priority actions recommended
+        4. Compliance failures detected
+        """
+        agent_outputs = state.get("agent_outputs", {})
+
+        for _agent_name, output in agent_outputs.items():
+            if not isinstance(output, dict):
+                continue
+
+            # Check reasoning_decision field
+            decision = output.get("reasoning_decision", "")
+            if decision == "needs_human_review":
+                return ApprovalGateType.RCA_CLOSURE
+
+            # Check metadata for gate triggers
+            metadata = output.get("metadata", {})
+            if isinstance(metadata, dict):
+                gate_trigger = metadata.get("approval_gate_trigger")
+                if gate_trigger and gate_trigger in _APPROVAL_GATE_TRIGGERS:
+                    return _APPROVAL_GATE_TRIGGERS[gate_trigger]
+
+                # Check for compliance failures
+                compliance_checks = metadata.get("compliance_checks", [])
+                if isinstance(compliance_checks, list):
+                    for check in compliance_checks:
+                        if isinstance(check, dict) and check.get("status") == "fail":
+                            return ApprovalGateType.COMPLIANCE_CLOSURE
+
+                # Check for critical actions
+                next_actions = output.get("next_actions", [])
+                if isinstance(next_actions, list):
+                    for action in next_actions:
+                        if isinstance(action, dict):
+                            if action.get("priority") == "critical":
+                                return ApprovalGateType.HIGH_PRIORITY_ACTION
+                            if action.get("type") == "PROCEDURE_UPDATE" and action.get("priority") in ("high", "critical"):
+                                return ApprovalGateType.MAINTENANCE_STRATEGY
+
+            # Check next_recommended_agents for gate hints
+            next_agents = output.get("next_recommended_agents", [])
+            if isinstance(next_agents, list):
+                for hint in next_agents:
+                    if hint in _APPROVAL_GATE_TRIGGERS:
+                        return _APPROVAL_GATE_TRIGGERS[hint]
+
+        return None
 
     # ------------------------------------------------------------------
     # Helpers

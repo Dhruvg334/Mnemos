@@ -34,6 +34,12 @@ class AgenticSettings(BaseModel):
     max_retrieval_k: int = 15
     graph_traversal_depth: int = 2
 
+    # Budget
+    max_total_candidates: int = 100
+    budget_tokens: int | None = None
+    max_multi_hop: int = 3
+    max_retrieval_retries: int = 3
+
     @classmethod
     def from_env(cls) -> "AgenticSettings":
         groq_base = "https://api.groq.com/openai/v1"

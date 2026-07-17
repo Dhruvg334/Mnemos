@@ -1,3 +1,7 @@
+"""Structured (SQL) retriever with date and permission filters."""
+
+from __future__ import annotations
+
 from typing import Any
 
 from sqlalchemy import select
@@ -7,77 +11,100 @@ from mnemos.models.entities import Asset, KnowledgeCard, RCACase, Site
 
 
 class StructuredRetriever:
+    """Relational database retriever for structured operational data.
+
+    Supports:
+    - Asset specifications lookup
+    - Maintenance history with date-range filtering
+    - Knowledge Cards (Expert Memory) with date-range filtering
+    - Site context retrieval
     """
-    Retrieves structured operational data and Expert Memory from the relational database.
-    Focuses on:
-    - Asset specifications
-    - Maintenance history
-    - Knowledge Cards (Expert Memory)
-    - Site-specific configuration
-    """
-    def __init__(self, db: AsyncSession):
+
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def get_asset_specs(self, asset_id: str) -> dict[str, Any]:
-        """Fetches technical specifications for a resolved asset."""
+        """Fetch technical specifications for a resolved asset."""
         stmt = select(Asset).where(Asset.id == asset_id)
         result = await self.db.execute(stmt)
         asset = result.scalar_one_or_none()
         if not asset:
             return {}
-
         return {
             "asset_tag": asset.asset_tag,
             "name": asset.name,
             "type": asset.asset_type,
-            "status": asset.status
+            "status": asset.status,
         }
 
-    async def get_maintenance_history(self, asset_id: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Retrieves historical RCA cases and observations for an asset."""
+    async def get_maintenance_history(
+        self,
+        asset_id: str,
+        *,
+        limit: int = 5,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Retrieve historical RCA cases for an asset with optional date range."""
         stmt = (
             select(RCACase)
             .where(RCACase.asset_id == asset_id)
-            .order_by(RCACase.created_at.desc())
-            .limit(limit)
         )
+        if date_from:
+            stmt = stmt.where(RCACase.created_at >= date_from)
+        if date_to:
+            stmt = stmt.where(RCACase.created_at <= date_to)
+
+        stmt = stmt.order_by(RCACase.created_at.desc()).limit(limit)
         result = await self.db.execute(stmt)
         cases = result.scalars().all()
 
-        history = []
-        for case in cases:
-            history.append({
+        return [
+            {
                 "case_id": case.id,
                 "title": case.title,
                 "problem_statement": case.problem_statement,
                 "status": case.status,
                 "severity": case.severity,
-                "created_at": case.created_at.isoformat()
-            })
-        return history
+                "created_at": case.created_at.isoformat(),
+            }
+            for case in cases
+        ]
 
-    async def get_knowledge_cards(self, asset_id: str) -> list[dict[str, Any]]:
-        """
-        Retrieves Expert Memory (Knowledge Cards) linked to an asset.
-        """
+    async def get_knowledge_cards(
+        self,
+        asset_id: str,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Retrieve approved Knowledge Cards for an asset with optional date range."""
         stmt = (
             select(KnowledgeCard)
             .where(KnowledgeCard.asset_id == asset_id, KnowledgeCard.status == "approved")
-            .order_by(KnowledgeCard.updated_at.desc())
         )
+        if date_from:
+            stmt = stmt.where(KnowledgeCard.created_at >= date_from)
+        if date_to:
+            stmt = stmt.where(KnowledgeCard.created_at <= date_to)
+
+        stmt = stmt.order_by(KnowledgeCard.updated_at.desc())
         result = await self.db.execute(stmt)
         cards = result.scalars().all()
 
-        return [{
-            "card_id": card.id,
-            "title": card.title,
-            "content": card.content,
-            "version": card.version,
-            "updated_at": card.updated_at.isoformat()
-        } for card in cards]
+        return [
+            {
+                "card_id": card.id,
+                "title": card.title,
+                "content": card.content,
+                "version": card.version,
+                "updated_at": card.updated_at.isoformat(),
+            }
+            for card in cards
+        ]
 
     async def get_site_context(self, site_id: str) -> dict[str, Any]:
-        """Retrieves operational context for a specific site."""
+        """Retrieve operational context for a specific site."""
         stmt = select(Site).where(Site.id == site_id)
         result = await self.db.execute(stmt)
         site = result.scalar_one_or_none()
@@ -86,5 +113,5 @@ class StructuredRetriever:
         return {
             "name": site.name,
             "code": site.code,
-            "timezone": site.timezone
+            "timezone": site.timezone,
         }

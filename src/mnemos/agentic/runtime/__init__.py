@@ -54,6 +54,7 @@ Usage::
 """
 
 from mnemos.agentic.runtime.approval import HumanApprovalNode
+from mnemos.agentic.runtime.audit import AuditLogger
 from mnemos.agentic.runtime.checkpoint import CheckpointManager
 from mnemos.agentic.runtime.events import InvestigationEventLog
 from mnemos.agentic.runtime.recovery import (
@@ -149,6 +150,8 @@ __all__ = [
     "ReflectionAgent",
     "HumanApprovalNode",
     "AgentExecutor",
+    # Audit
+    "AuditLogger",
     # Workflow
     "create_investigation_workflow",
     # Reflection

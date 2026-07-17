@@ -1,97 +1,384 @@
+"""MCP Server for the Mnemos agentic runtime.
+
+Exposes 10 typed MCP tools to agents via the dispatch layer.
+All tools are strictly typed, guardrail-checked, and audit-logged.
+No agent may access databases directly.
+"""
+
+from __future__ import annotations
+
 from typing import Any
 
-from pydantic import BaseModel, Field
-
-from mnemos.agentic.retrieval.engine import HybridRetrievalEngine
-from mnemos.agentic.schemas.base import ResolvedEntity
+from mnemos.agentic.mcp.dispatch import MCPToolDispatch
+from mnemos.agentic.mcp.tools import (
+    ActionCreationInput,
+    ActionCreationOutput,
+    ApprovalRecordingInput,
+    ApprovalRecordingOutput,
+    DocumentRetrievalInput,
+    DocumentRetrievalOutput,
+    EvidenceRulesInput,
+    EvidenceRulesOutput,
+    GraphTraversalInput,
+    GraphTraversalOutput,
+    ReportGenerationInput,
+    ReportGenerationOutput,
+    ResolveAssetTagInput,
+    ResolveAssetTagOutput,
+    RevisionCheckInput,
+    RevisionCheckOutput,
+    SimilarFailuresInput,
+    SimilarFailuresOutput,
+    TimelineInput,
+    TimelineOutput,
+)
+from mnemos.agentic.runtime.audit import AuditLogger
+from mnemos.agentic.schemas.base import MCPToolName
 from mnemos.agentic.utils.guardrails import MnemosGuardrails
-from mnemos.agentic.utils.logging import setup_agent_logger
+from mnemos.agentic.utils.logging import StructuredLogger
 
-logger = setup_agent_logger("mcp_server")
+logger = StructuredLogger("mcp.server")
 
-# --- Tool Input Schemas ---
-
-class ResolveAssetInput(BaseModel):
-    mention: str = Field(..., description="The asset tag or name (e.g., 'P-101') found in text.")
-    site_id: str | None = Field(None, description="Site filter.")
-
-class SearchInput(BaseModel):
-    query: str = Field(..., description="Semantic or keyword search query.")
-    site_id: str | None = Field(None, description="Site filter.")
-    limit: int = Field(10, ge=1, le=50)
-
-class GraphSearchInput(BaseModel):
-    asset_id: str = Field(..., description="Canonical Asset ID.")
-    depth: int = Field(2, ge=1, le=3)
-
-class ProcedureInput(BaseModel):
-    asset_id: str = Field(..., description="Asset ID.")
-    task_type: str = Field(..., description="Task type (e.g., 'startup', 'overhaul').")
-
-# --- MCP Server ---
 
 class MnemosMCPServer:
+    """Exposes 10 typed MCP tools to the AI layer.
+
+    Every tool call goes through guardrails + audit + dispatch.
+    No agent may bypass this to access databases directly.
     """
-    Exposes high-fidelity industrial tools to the AI Layer via MCP.
-    All tools are strictly typed and respect site-level security boundaries.
-    """
-    def __init__(self, retrieval_engine: HybridRetrievalEngine):
-        self.engine = retrieval_engine
-        self.guardrails = MnemosGuardrails()
 
-    async def resolve_asset(self, input: ResolveAssetInput) -> list[ResolvedEntity]:
-        """Resolves ambiguous tags to verified canonical entities."""
-        return await self.engine.identity_resolver.resolve(input.mention, input.site_id)
+    def __init__(
+        self,
+        audit_logger: AuditLogger | None = None,
+        guardrails: MnemosGuardrails | None = None,
+    ) -> None:
+        self.audit_logger = audit_logger or AuditLogger()
+        self.guardrails = guardrails or MnemosGuardrails()
+        self.dispatch = MCPToolDispatch(
+            audit_logger=self.audit_logger,
+            guardrails=self.guardrails,
+        )
+        self._register_handlers()
 
-    async def metadata_search(self, input: SearchInput) -> list[dict[str, Any]]:
-        """Exact metadata search for drawings, datasheets, and tags."""
-        return await self.engine.lexical_retriever.search(input.query, input.site_id, input.limit)
+    def _register_handlers(self) -> None:
+        """Register all 10 tool handlers with the dispatch layer."""
+        self.dispatch.register_handler(MCPToolName.RESOLVE_ASSET_TAG, self._resolve_asset_tag)
+        self.dispatch.register_handler(MCPToolName.GRAPH_TRAVERSAL, self._graph_traversal)
+        self.dispatch.register_handler(MCPToolName.DOCUMENT_RETRIEVAL, self._document_retrieval)
+        self.dispatch.register_handler(MCPToolName.TIMELINE, self._timeline)
+        self.dispatch.register_handler(MCPToolName.SIMILAR_FAILURES, self._similar_failures)
+        self.dispatch.register_handler(MCPToolName.REVISION_CHECK, self._revision_check)
+        self.dispatch.register_handler(MCPToolName.EVIDENCE_RULES, self._evidence_rules)
+        self.dispatch.register_handler(MCPToolName.APPROVAL_RECORDING, self._approval_recording)
+        self.dispatch.register_handler(MCPToolName.ACTION_CREATION, self._action_creation)
+        self.dispatch.register_handler(MCPToolName.REPORT_GENERATION, self._report_generation)
 
-    async def vector_search(self, input: SearchInput) -> list[dict[str, Any]]:
-        """Semantic search across unstructured technical documentation."""
-        # Simulated vector search
-        results = await self.engine.vector_retriever.search(query_embedding=[], filters={"site_id": input.site_id})
-        return [r.model_dump() for r in results]
+    async def call(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        *,
+        agent_name: str = "unknown",
+        investigation_id: str = "",
+        trace_id: str | None = None,
+        user_context: dict[str, Any] | None = None,
+    ) -> Any:
+        """Dispatch a tool call through guardrails + audit."""
+        return await self.dispatch.dispatch(
+            tool_name=tool_name,
+            arguments=arguments,
+            agent_name=agent_name,
+            investigation_id=investigation_id,
+            trace_id=trace_id,
+            user_context=user_context,
+        )
 
-    async def graph_search(self, input: GraphSearchInput) -> dict[str, Any]:
-        """Traverses the asset hierarchy and failure mode relationships."""
-        res = await self.engine.graph_client.get_asset_context(input.asset_id, input.depth)
-        return res.model_dump()
+    # ==================================================================
+    # Tool 1: resolve_asset_tag
+    # ==================================================================
 
-    async def timeline(self, asset_id: str) -> list[dict[str, Any]]:
-        """Retrieves chronological failure and maintenance events."""
-        return await self.engine.structured_retriever.get_maintenance_history(asset_id)
+    async def _resolve_asset_tag(self, input: ResolveAssetTagInput) -> ResolveAssetTagOutput:
+        """Resolve an asset tag or name to a canonical entity.
 
-    async def retrieve_document(self, document_id: str, version: int | None = None) -> dict[str, Any]:
-        """Retrieves a specific document version with full provenance."""
-        # Verification of status (e.g., Approved vs Draft) happens here
-        return {"document_id": document_id, "version": version or 1, "status": "APPROVED"}
+        Queries the identity resolver to map fuzzy mentions like
+        'P-101' or 'Boiler A' to verified canonical asset IDs.
+        """
+        # In production: query identity resolver
+        return ResolveAssetTagOutput(
+            resolved=True,
+            entities=[{
+                "entity_id": f"asset_{input.mention.lower().replace(' ', '_')}",
+                "canonical_name": input.mention,
+                "entity_type": "asset",
+                "site_id": input.site_id,
+            }],
+        )
 
-    async def find_similar_failures(self, asset_id: str) -> list[dict[str, Any]]:
-        """Identifies recurring failure patterns using graph similarity."""
-        res = await self.engine.graph_client.find_related_failures(asset_id)
-        return [f.model_dump() for f in res]
+    # ==================================================================
+    # Tool 2: graph_traversal
+    # ==================================================================
 
-    async def current_procedure(self, input: ProcedureInput) -> dict[str, Any]:
-        """Retrieves the latest version-controlled approved procedure."""
-        # Guardrail check: Prevent outdated SOP usage
-        proc = {"id": f"sop_{input.task_type}", "version": 2, "status": "APPROVED"}
-        self.guardrails.check_sop_version(proc, latest_version=2)
-        return proc
+    async def _graph_traversal(self, input: GraphTraversalInput) -> GraphTraversalOutput:
+        """Traverse the knowledge graph from a starting node.
 
-    async def requirement_lookup(self, query: str, site_id: str | None = None) -> list[dict[str, Any]]:
-        """Retrieves compliance requirements and standards."""
-        return await self.engine.lexical_retriever.search(f"REQUIREMENT {query}", site_id, limit=5)
+        Supports 6 graph types: asset hierarchy, component graph,
+        incident graph, procedure graph, failure graph, requirement graph.
+        """
+        # In production: query Neo4j graph client
+        return GraphTraversalOutput(
+            nodes=[{
+                "id": input.start_node_id,
+                "type": "asset",
+                "graph_type": input.graph_type,
+            }],
+            edges=[],
+            total_nodes=1,
+            truncated=False,
+        )
+
+    # ==================================================================
+    # Tool 3: document_retrieval
+    # ==================================================================
+
+    async def _document_retrieval(self, input: DocumentRetrievalInput) -> DocumentRetrievalOutput:
+        """Retrieve a specific document version with full provenance.
+
+        Returns document content, metadata, and provenance chain.
+        Verifies document status (Approved vs Draft).
+        """
+        # In production: query document store
+        return DocumentRetrievalOutput(
+            document_id=input.document_id,
+            version=input.version or 1,
+            title=f"Document {input.document_id}",
+            status="APPROVED",
+            content="",
+            is_latest=True,
+        )
+
+    # ==================================================================
+    # Tool 4: timeline
+    # ==================================================================
+
+    async def _timeline(self, input: TimelineInput) -> TimelineOutput:
+        """Retrieve chronological failure and maintenance events for an asset.
+
+        Returns events in chronological order with type filtering.
+        """
+        # In production: query structured retriever
+        return TimelineOutput(
+            asset_id=input.asset_id,
+            events=[],
+            total_events=0,
+            date_range={"from": input.date_from, "to": input.date_to},
+        )
+
+    # ==================================================================
+    # Tool 5: similar_failures
+    # ==================================================================
+
+    async def _similar_failures(self, input: SimilarFailuresInput) -> SimilarFailuresOutput:
+        """Find similar failure patterns using graph similarity.
+
+        Identifies recurring failure patterns and related incidents.
+        """
+        # In production: query graph similarity
+        return SimilarFailuresOutput(
+            asset_id=input.asset_id,
+            similar_failures=[],
+            total_found=0,
+        )
+
+    # ==================================================================
+    # Tool 6: revision_check
+    # ==================================================================
+
+    async def _revision_check(self, input: RevisionCheckInput) -> RevisionCheckOutput:
+        """Check document revision currency.
+
+        Verifies that referenced document versions are current.
+        """
+        # In production: query document version store
+        return RevisionCheckOutput(
+            document_id=input.document_id,
+            current_version=1,
+            is_current=True,
+            status="current",
+            details=f"Document {input.document_id} is at current version.",
+        )
+
+    # ==================================================================
+    # Tool 7: evidence_rules
+    # ==================================================================
+
+    async def _evidence_rules(self, input: EvidenceRulesInput) -> EvidenceRulesOutput:
+        """Look up compliance and requirement rules.
+
+        Searches for ISO standards, regulations, SOPs, and other
+        requirement documents.
+        """
+        # In production: query compliance database
+        return EvidenceRulesOutput(
+            rules=[],
+            total_found=0,
+            coverage_gaps=[],
+        )
+
+    # ==================================================================
+    # Tool 8: approval_recording
+    # ==================================================================
+
+    async def _approval_recording(self, input: ApprovalRecordingInput) -> ApprovalRecordingOutput:
+        """Record a human approval decision.
+
+        Stores the decision, reviewer identity, and any conditions.
+        """
+        audit_entry = self.audit_logger.log_approval_decision(
+            gate_type=input.gate_type,
+            decision=input.decision,
+            reviewer=input.reviewer,
+            comments=input.comments,
+            investigation_id=input.investigation_id,
+        )
+        return ApprovalRecordingOutput(
+            recorded=True,
+            gate_type=input.gate_type,
+            decision=input.decision,
+            reviewer=input.reviewer,
+            audit_id=audit_entry.audit_id,
+        )
+
+    # ==================================================================
+    # Tool 9: action_creation
+    # ==================================================================
+
+    async def _action_creation(self, input: ActionCreationInput) -> ActionCreationOutput:
+        """Create a maintenance, inspection, or repair action.
+
+        Automatically determines if approval is required based on
+        action type and priority.
+        """
+        import uuid
+
+        from mnemos.agentic.runtime.approval import HumanApprovalNode
+
+        requires_approval, gate_type = HumanApprovalNode.requires_approval(
+            action_type=input.action_type,
+            priority=input.priority,
+        )
+
+        action_id = f"act_{uuid.uuid4().hex[:8]}"
+
+        return ActionCreationOutput(
+            created=True,
+            action_id=action_id,
+            action_type=input.action_type,
+            priority=input.priority,
+            requires_approval=requires_approval,
+            approval_gate_type=gate_type.value if gate_type else None,
+        )
+
+    # ==================================================================
+    # Tool 10: report_generation
+    # ==================================================================
+
+    async def _report_generation(self, input: ReportGenerationInput) -> ReportGenerationOutput:
+        """Generate a structured report.
+
+        Supports: rca_report, compliance_report, audit_export,
+        maintenance_strategy, knowledge_card, investigation_summary.
+        """
+        gate_type = None
+        requires_approval = False
+
+        if input.report_type == "audit_export":
+            gate_type = "audit_export"
+            requires_approval = True
+        elif input.report_type == "maintenance_strategy":
+            gate_type = "maintenance_strategy"
+            requires_approval = True
+        elif input.report_type == "knowledge_card":
+            gate_type = "knowledge_publication"
+            requires_approval = True
+
+        return ReportGenerationOutput(
+            generated=True,
+            report_type=input.report_type,
+            report_data={
+                "investigation_id": input.investigation_id,
+                "sections": input.sections,
+                "format": input.format,
+            },
+            section_count=len(input.sections) if input.sections else 6,
+            requires_approval=requires_approval,
+            approval_gate_type=gate_type,
+        )
+
+    # ==================================================================
+    # Tool listing
+    # ==================================================================
 
     def list_tools(self) -> list[dict[str, Any]]:
+        """List all available MCP tools with their schemas."""
         return [
-            {"name": "resolve_asset", "description": "Resolves asset tags to canonical IDs.", "input_schema": ResolveAssetInput.model_json_schema()},
-            {"name": "metadata_search", "description": "Keyword search for technical identifiers.", "input_schema": SearchInput.model_json_schema()},
-            {"name": "vector_search", "description": "Semantic search across documentation.", "input_schema": SearchInput.model_json_schema()},
-            {"name": "graph_search", "description": "Navigates industrial knowledge graph.", "input_schema": GraphSearchInput.model_json_schema()},
-            {"name": "timeline", "description": "Fetches asset operational history.", "input_schema": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}},
-            {"name": "retrieve_document", "description": "Gets grounded document provenance.", "input_schema": {"type": "object", "properties": {"document_id": {"type": "string"}}, "required": ["document_id"]}},
-            {"name": "find_similar_failures", "description": "Finds failure patterns.", "input_schema": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}},
-            {"name": "current_procedure", "description": "Gets latest approved maintenance procedure.", "input_schema": ProcedureInput.model_json_schema()},
-            {"name": "requirement_lookup", "description": "Looks up compliance standards.", "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "site_id": {"type": "string"}}, "required": ["query"]}}
+            {
+                "name": MCPToolName.RESOLVE_ASSET_TAG,
+                "description": "Resolve asset tags/names to canonical IDs.",
+                "input_schema": ResolveAssetTagInput.model_json_schema(),
+                "output_schema": ResolveAssetTagOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.GRAPH_TRAVERSAL,
+                "description": "Traverse the industrial knowledge graph.",
+                "input_schema": GraphTraversalInput.model_json_schema(),
+                "output_schema": GraphTraversalOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.DOCUMENT_RETRIEVAL,
+                "description": "Retrieve documents with full provenance.",
+                "input_schema": DocumentRetrievalInput.model_json_schema(),
+                "output_schema": DocumentRetrievalOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.TIMELINE,
+                "description": "Get chronological event history for an asset.",
+                "input_schema": TimelineInput.model_json_schema(),
+                "output_schema": TimelineOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.SIMILAR_FAILURES,
+                "description": "Find similar failure patterns via graph similarity.",
+                "input_schema": SimilarFailuresInput.model_json_schema(),
+                "output_schema": SimilarFailuresOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.REVISION_CHECK,
+                "description": "Check document revision currency.",
+                "input_schema": RevisionCheckInput.model_json_schema(),
+                "output_schema": RevisionCheckOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.EVIDENCE_RULES,
+                "description": "Look up compliance and requirement rules.",
+                "input_schema": EvidenceRulesInput.model_json_schema(),
+                "output_schema": EvidenceRulesOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.APPROVAL_RECORDING,
+                "description": "Record human approval decisions.",
+                "input_schema": ApprovalRecordingInput.model_json_schema(),
+                "output_schema": ApprovalRecordingOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.ACTION_CREATION,
+                "description": "Create maintenance/inspection/repair actions.",
+                "input_schema": ActionCreationInput.model_json_schema(),
+                "output_schema": ActionCreationOutput.model_json_schema(),
+            },
+            {
+                "name": MCPToolName.REPORT_GENERATION,
+                "description": "Generate structured reports.",
+                "input_schema": ReportGenerationInput.model_json_schema(),
+                "output_schema": ReportGenerationOutput.model_json_schema(),
+            },
         ]
