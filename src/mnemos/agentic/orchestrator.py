@@ -2,9 +2,10 @@
 
 This module is responsible for:
 1. Loading investigation context from the database
-2. Building the runtime workflow with registered agents
-3. Executing the workflow
-4. Persisting results back to the database
+2. Instantiating and registering all agents
+3. Building the runtime workflow with registered agents
+4. Executing the workflow
+5. Persisting results back to the database
 
 It delegates all orchestration decisions to the runtime's
 ``SupervisorAgent`` and ``create_investigation_workflow``.
@@ -39,6 +40,116 @@ from mnemos.services.query_execution import add_query_event
 
 logger = StructuredLogger("orchestrator")
 
+# ---------------------------------------------------------------------------
+# Lazy agent imports (graceful fallback when dependencies are missing)
+# ---------------------------------------------------------------------------
+
+_QUERY_ROUTER_CLS: type | None = None
+_RETRIEVAL_PLANNER_CLS: type | None = None
+_EVIDENCE_RETRIEVAL_CLS: type | None = None
+_EVIDENCE_VERIFICATION_CLS: type | None = None
+_RETRIEVAL_REFLECTION_CLS: type | None = None
+_RCA_CLS: type | None = None
+_COMPLIANCE_CLS: type | None = None
+_ASSET_INTEL_CLS: type | None = None
+_LESSONS_LEARNED_CLS: type | None = None
+_EXPERT_KNOWLEDGE_CLS: type | None = None
+_REPORT_COMPOSER_CLS: type | None = None
+
+try:
+    from mnemos.agentic.agents.retrieval.query_router import (
+        QueryRouterAgent as _QUERY_ROUTER_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.planner import (
+        RetrievalPlannerAgent as _RETRIEVAL_PLANNER_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.evidence_retrieval import (
+        EvidenceRetrievalAgent as _EVIDENCE_RETRIEVAL_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.evidence_verification import (
+        EvidenceVerificationAgent as _EVIDENCE_VERIFICATION_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.retrieval.retrieval_reflection import (
+        RetrievalReflectionAgent as _RETRIEVAL_REFLECTION_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.rca import RCAAgent as _RCA_CLS
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.compliance import (
+        ComplianceAgent as _COMPLIANCE_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.asset_intelligence import (
+        AssetIntelligenceAgent as _ASSET_INTEL_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.lessons_learned import (
+        LessonsLearnedAgent as _LESSONS_LEARNED_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.expert_knowledge import (
+        ExpertKnowledgeAgent as _EXPERT_KNOWLEDGE_CLS,
+    )
+except ImportError:
+    pass
+
+try:
+    from mnemos.agentic.agents.reasoning.report_composer import (
+        ReportComposerAgent as _REPORT_COMPOSER_CLS,
+    )
+except ImportError:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Agent registry table: (lazy_cls, stage_label)
+# ---------------------------------------------------------------------------
+
+_AGENT_CLASSES: list[tuple[type | None, str]] = [
+    (_QUERY_ROUTER_CLS, "query_router"),
+    (_RETRIEVAL_PLANNER_CLS, "retrieval_planner"),
+    (_EVIDENCE_RETRIEVAL_CLS, "evidence_retrieval"),
+    (_EVIDENCE_VERIFICATION_CLS, "evidence_verification"),
+    (_RETRIEVAL_REFLECTION_CLS, "retrieval_reflection"),
+    (_RCA_CLS, "rca_agent"),
+    (_COMPLIANCE_CLS, "compliance_agent"),
+    (_ASSET_INTEL_CLS, "asset_intelligence"),
+    (_LESSONS_LEARNED_CLS, "lessons_learned_agent"),
+    (_EXPERT_KNOWLEDGE_CLS, "expert_knowledge_agent"),
+    (_REPORT_COMPOSER_CLS, "report_composer"),
+]
+
 
 class MnemosAIOrchestrator:
     """High-performance AI orchestrator for industrial operations.
@@ -46,16 +157,55 @@ class MnemosAIOrchestrator:
     Manages the execution of grounded reasoning workflows with full
     tracing and safety.  Uses the new multi-agent runtime for
     supervisor-driven, collaborative execution.
+
+    On initialisation the orchestrator eagerly instantiates every
+    available agent (retrieval + reasoning) and registers it with the
+    runtime so that ``run_query`` can dispatch work immediately.
     """
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self._agent_functions: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {}
         self._registry = AgentRegistry()
+        self._register_all_agents()
 
     # ------------------------------------------------------------------
     # Agent registration
     # ------------------------------------------------------------------
+
+    def _register_all_agents(self) -> None:
+        """Instantiate every known agent class and register it.
+
+        Each agent is created with the current DB session and its
+        ``as_function`` adapter is wired into the runtime registry.
+        Failures are logged and skipped — the pipeline degrades
+        gracefully when optional agents are unavailable.
+        """
+        for agent_cls, stage_label in _AGENT_CLASSES:
+            if agent_cls is None:
+                logger.warning(
+                    f"Agent [{stage_label}]: class not available "
+                    "(import may have failed). Skipping."
+                )
+                continue
+            try:
+                agent = agent_cls(self.db)
+            except Exception as exc:
+                logger.error(
+                    f"Agent [{stage_label}]: failed to instantiate "
+                    f"{agent_cls.__name__}: {exc}"
+                )
+                continue
+
+            self.register_agent(
+                agent.name,
+                agent.as_function,
+                role=agent.role,
+                capabilities=agent._capabilities(),
+                max_retries=agent.max_retries,
+                timeout_seconds=agent.timeout_seconds,
+            )
+            logger.info(f"Agent [{agent.name}] registered successfully.")
 
     def register_agent(
         self,
