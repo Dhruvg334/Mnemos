@@ -1,64 +1,158 @@
-from mnemos.agentic.evaluation.models import BenchmarkReport, ComparisonReport
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+from mnemos.agentic.evaluation.models import (
+    BenchmarkReport,
+    ComparisonReport,
+)
 
 
-class EvaluationReporter:
+class EvalReporter:
+    """Generate human-readable and machine-parsable reports from benchmark data.
+
+    All public methods are pure functions that accept model instances and
+    return formatted strings without side effects.
     """
-    Generates structured human-readable and machine-parsable reports
-    from benchmark results.
-    """
+
+    # ------------------------------------------------------------------
+    # JSON serialisation
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def generate_json_report(report: BenchmarkReport) -> str:
-        """Serializes the benchmark report to a JSON string."""
+    def to_json(report: BenchmarkReport | ComparisonReport) -> str:
+        """Serialise a report to a JSON string with 2-space indentation."""
         return report.model_dump_json(indent=2)
 
     @staticmethod
-    def compare_benchmarks(report_mnemos: BenchmarkReport, report_baseline: BenchmarkReport) -> ComparisonReport:
-        """
-        Compares the Mnemos GraphRAG performance against a baseline.
-        Calculates deltas for all common metrics.
-        """
-        deltas = {}
+    def to_dict(report: BenchmarkReport | ComparisonReport) -> dict[str, Any]:
+        """Convert a report to a plain dictionary."""
+        return report.model_dump(mode="json")
 
-        m1 = report_mnemos.summary_metrics
-        m2 = report_baseline.summary_metrics
+    # ------------------------------------------------------------------
+    # Markdown generation — single benchmark
+    # ------------------------------------------------------------------
 
-        # Calculate percentage lift for shared metrics
-        all_metrics = set(m1.keys()).union(set(m2.keys()))
-        for metric in all_metrics:
-            if metric in m1 and metric in m2:
-                if m2[metric] != 0:
-                    deltas[metric] = ((m1[metric] - m2[metric]) / m2[metric]) * 100
-                else:
-                    deltas[metric] = 0.0
+    @staticmethod
+    def to_markdown(report: BenchmarkReport) -> str:
+        """Produce a full Markdown report for a single benchmark run."""
+        lines: list[str] = []
+        lines.append(f"# Benchmark Report: {report.benchmark_name}\n")
+        lines.append(f"- **Benchmark ID**: `{report.benchmark_id}`")
+        lines.append(f"- **Pipeline Type**: `{report.pipeline_type.value}`")
+        lines.append(f"- **Dataset**: {report.dataset_name}")
+        lines.append(f"- **Timestamp**: {report.timestamp.isoformat()}")
+        lines.append(f"- **Total Duration**: {report.total_duration_ms:.1f} ms")
+        lines.append(f"- **Avg Latency**: {report.avg_latency_ms:.1f} ms")
+        lines.append(
+            f"- **Samples**: {report.success_count} succeeded, "
+            f"{report.failure_count} failed"
+        )
+        lines.append("")
+
+        # Summary metrics table
+        lines.append("## Summary Metrics\n")
+        lines.append("| Metric | Value |")
+        lines.append("| --- | --- |")
+        for name, value in sorted(report.summary_metrics.items()):
+            lines.append(f"| {name} | {value:.4f} |")
+        lines.append("")
+
+        # Per-sample detail
+        lines.append("## Sample Results\n")
+        for sr in report.sample_results:
+            status_icon = "PASS" if sr.error is None else "FAIL"
+            lines.append(f"### Sample {sr.sample_index + 1} [{status_icon}]\n")
+            lines.append(f"- **Query**: {sr.query}")
+            lines.append(f"- **Latency**: {sr.latency_ms:.1f} ms")
+            if sr.error:
+                lines.append(f"- **Error**: {sr.error}")
+            lines.append(f"- **Phase**: {sr.phase or 'N/A'}")
+            lines.append(f"- **Claims**: {sr.claim_count} total, {sr.grounded_claim_count} grounded")
+            lines.append(f"- **Hallucination**: {'detected' if sr.hallucination_detected else 'none'}")
+            lines.append("")
+
+            if sr.metrics:
+                lines.append("| Metric | Score | Reasoning |")
+                lines.append("| --- | --- | --- |")
+                for m in sr.metrics:
+                    reasoning = (m.reasoning or "").replace("|", "\\|")
+                    lines.append(f"| {m.name} | {m.score:.4f} | {reasoning} |")
+                lines.append("")
+
+        return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+    # Markdown generation — comparison
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def compare(
+        primary: BenchmarkReport,
+        secondary: BenchmarkReport,
+    ) -> ComparisonReport:
+        """Build a ``ComparisonReport`` computing percentage lift/drop.
+
+        *primary* is the system under test and *secondary* is the baseline.
+        A positive delta means primary outperformed secondary.
+        """
+        deltas: dict[str, float] = {}
+        all_keys = set(primary.summary_metrics.keys()) | set(secondary.summary_metrics.keys())
+
+        for key in all_keys:
+            val_p = primary.summary_metrics.get(key, 0.0)
+            val_s = secondary.summary_metrics.get(key, 0.0)
+            if val_s != 0.0:
+                deltas[key] = ((val_p - val_s) / abs(val_s)) * 100.0
+            elif val_p != 0.0:
+                deltas[key] = 100.0
+            else:
+                deltas[key] = 0.0
 
         return ComparisonReport(
-            name=f"Comparison: {report_mnemos.benchmark_name} vs {report_baseline.benchmark_name}",
-            report_mnemos=report_mnemos,
-            report_baseline=report_baseline,
-            deltas=deltas
+            name=f"{primary.benchmark_name} vs {secondary.benchmark_name}",
+            report_primary=primary,
+            report_secondary=secondary,
+            deltas=deltas,
+            timestamp=datetime.now(UTC),
         )
 
     @staticmethod
-    def summarize_to_markdown(report: BenchmarkReport) -> str:
-        """Generates a Markdown summary of the benchmark."""
-        md = f"# Benchmark Report: {report.benchmark_name}\n\n"
-        md += f"- **Pipeline Type**: {report.pipeline_type}\n"
-        md += f"- **Timestamp**: {report.timestamp}\n"
-        md += f"- **Dataset**: {report.dataset_name}\n\n"
+    def comparison_to_markdown(comparison: ComparisonReport) -> str:
+        """Produce a Markdown report for a comparison between two benchmarks."""
+        lines: list[str] = []
+        lines.append(f"# Comparison Report: {comparison.name}\n")
+        lines.append(f"- **Comparison ID**: `{comparison.comparison_id}`")
+        lines.append(f"- **Timestamp**: {comparison.timestamp.isoformat()}")
+        lines.append(
+            f"- **Primary**: {comparison.report_primary.benchmark_name} "
+            f"(`{comparison.report_primary.pipeline_type.value}`)"
+        )
+        lines.append(
+            f"- **Secondary**: {comparison.report_secondary.benchmark_name} "
+            f"(`{comparison.report_secondary.pipeline_type.value}`)"
+        )
+        lines.append("")
 
-        md += "## Summary Metrics\n\n"
-        md += "| Metric | Score |\n"
-        md += "| --- | --- |\n"
-        for name, score in report.summary_metrics.items():
-            md += f"| {name} | {score:.4f} |\n"
+        lines.append("## Metric Deltas (Primary vs Secondary)\n")
+        lines.append("| Metric | Primary | Secondary | Delta (%) |")
+        lines.append("| --- | --- | --- | --- |")
 
-        md += "\n## Sample Results (First 5)\n\n"
-        for i, res in enumerate(report.sample_results[:5]):
-            md += f"### Sample {i+1}\n"
-            md += f"- **Query**: {res.sample.query}\n"
-            md += f"- **Latency**: {res.latency_ms:.2f}ms\n"
-            md += f"- **Grounded Rate**: {res.grounded_answer_rate:.2f}\n"
-            md += f"- **Hallucination Detected**: {res.hallucination_detected}\n\n"
+        for key in sorted(comparison.deltas.keys()):
+            val_p = comparison.report_primary.summary_metrics.get(key, 0.0)
+            val_s = comparison.report_secondary.summary_metrics.get(key, 0.0)
+            delta = comparison.deltas[key]
+            direction = "+" if delta >= 0 else ""
+            lines.append(
+                f"| {key} | {val_p:.4f} | {val_s:.4f} | {direction}{delta:.2f}% |"
+            )
 
-        return md
+        lines.append("")
+
+        # Aggregate lift
+        if comparison.deltas:
+            avg_delta = sum(comparison.deltas.values()) / len(comparison.deltas)
+            lines.append(f"**Average lift across all metrics: {avg_delta:+.2f}%**\n")
+
+        return "\n".join(lines)

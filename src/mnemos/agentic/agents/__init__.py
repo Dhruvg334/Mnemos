@@ -5,6 +5,7 @@ from mnemos.agentic.agents.reasoning import (
     ExpertKnowledgeAgent,
     LessonsLearnedAgent,
     RCAAgent,
+    ReportComposerAgent,
 )
 from mnemos.agentic.agents.retrieval import (
     EvidenceRetrievalAgent,
@@ -22,6 +23,7 @@ __all__ = [
     "ExpertKnowledgeAgent",
     "LessonsLearnedAgent",
     "RCAAgent",
+    "ReportComposerAgent",
     "QueryRouterAgent",
     "RetrievalPlannerAgent",
     "EvidenceRetrievalAgent",

@@ -1,128 +1,157 @@
+from __future__ import annotations
+
+import asyncio
 import time
 import uuid
-from datetime import datetime
+from collections.abc import Callable, Coroutine
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from mnemos.agentic.evaluation.industrial_eval import IndustrialEvaluator
+from mnemos.agentic.evaluation.evaluator import InvestigationEvaluator
+from mnemos.agentic.evaluation.metrics import MetricAggregator
 from mnemos.agentic.evaluation.models import (
     BenchmarkReport,
     EvalDataset,
     EvalPipelineType,
     EvalSample,
+    MetricResult,
     SampleResult,
 )
-from mnemos.agentic.evaluation.ragas_impl import RagasEvaluatorImpl
-from mnemos.agentic.orchestrator import MnemosAIOrchestrator
-from mnemos.agentic.schemas.base import ClaimSupportStatus
 from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("eval_runner")
 
-class BenchmarkRunner:
-    """
-    Production-grade benchmark runner.
-    Executes real queries through the AI Layer and calculates industrial lift.
+WorkflowFn = Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+
+
+class EvalRunner:
+    """Execute an ``EvalDataset`` through a workflow function and evaluate results.
+
+    Parameters
+    ----------
+    workflow_fn:
+        An async callable ``(query, context) -> InvestigationState`` that
+        runs the full investigation pipeline and returns the final state dict.
+    pipeline_type:
+        Identifier for the pipeline variant being benchmarked.
+    evaluator:
+        Optional pre-configured ``InvestigationEvaluator``.  A new instance is
+        created when omitted.
+    timeout_seconds:
+        Maximum wall-clock time allowed per sample.  Samples that exceed this
+        limit are recorded as failures.
+    max_concurrency:
+        Upper bound on the number of concurrent workflow invocations.
     """
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self.orchestrator = MnemosAIOrchestrator(db)
-        self.ragas_evaluator = RagasEvaluatorImpl()
-        self.industrial_evaluator = IndustrialEvaluator()
+    def __init__(
+        self,
+        workflow_fn: WorkflowFn,
+        pipeline_type: EvalPipelineType = EvalPipelineType.MNEMOS_GRAPH_RAG,
+        evaluator: InvestigationEvaluator | None = None,
+        timeout_seconds: float = 300.0,
+        max_concurrency: int = 10,
+    ) -> None:
+        self.workflow_fn = workflow_fn
+        self.pipeline_type = pipeline_type
+        self.evaluator = evaluator or InvestigationEvaluator()
+        self.timeout_seconds = timeout_seconds
+        self.max_concurrency = max_concurrency
 
     async def run_benchmark(
         self,
         dataset: EvalDataset,
-        pipeline_type: EvalPipelineType = EvalPipelineType.MNEMOS_GRAPH_RAG,
-        benchmark_name: str | None = None
+        benchmark_name: str | None = None,
     ) -> BenchmarkReport:
-        logger.info(f"Initiating benchmark: {benchmark_name or dataset.name}")
+        """Run every sample in *dataset* through the workflow and evaluate.
 
-        sample_results: list[SampleResult] = []
-        for sample in dataset.samples:
-            try:
-                result = await self._run_sample(sample, pipeline_type)
-                sample_results.append(result)
-            except Exception as e:
-                logger.error(f"Sample evaluation failed for '{sample.query[:30]}': {e}")
+        Returns a ``BenchmarkReport`` containing per-sample results and
+        summary statistics.
+        """
+        run_start = time.perf_counter()
+        sem = asyncio.Semaphore(self.max_concurrency)
 
-        summary = self._calculate_summary(sample_results)
+        async def _guarded(idx: int, sample: EvalSample) -> SampleResult:
+            async with sem:
+                return await self._run_one(idx, sample)
 
-        return BenchmarkReport(
-            benchmark_id=str(uuid.uuid4()),
-            benchmark_name=benchmark_name or f"{dataset.name}_{datetime.now().strftime('%Y%m%d')}",
-            pipeline_type=pipeline_type,
+        tasks = [
+            _guarded(idx, sample) for idx, sample in enumerate(dataset.samples)
+        ]
+        sample_results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        total_duration_ms = (time.perf_counter() - run_start) * 1000
+
+        all_metrics: list[MetricResult] = []
+        for sr in sample_results:
+            all_metrics.extend(sr.metrics)
+
+        summary = MetricAggregator.compute_summary(all_metrics)
+
+        avg_latency = (
+            sum(sr.latency_ms for sr in sample_results) / len(sample_results)
+            if sample_results
+            else 0.0
+        )
+        success_count = sum(1 for sr in sample_results if sr.error is None)
+        failure_count = len(sample_results) - success_count
+
+        summary["avg_latency_ms"] = avg_latency
+        summary["total_samples"] = float(len(sample_results))
+        summary["success_count"] = float(success_count)
+        summary["failure_count"] = float(failure_count)
+
+        report = BenchmarkReport(
+            benchmark_id=uuid.uuid4().hex[:16],
+            benchmark_name=benchmark_name or f"{dataset.name}_{self.pipeline_type.value}",
+            pipeline_type=self.pipeline_type,
             dataset_name=dataset.name,
             summary_metrics=summary,
-            sample_results=sample_results
+            sample_results=list(sample_results),
+            total_duration_ms=total_duration_ms,
+            avg_latency_ms=avg_latency,
+            success_count=success_count,
+            failure_count=failure_count,
         )
 
-    async def _run_sample(self, sample: EvalSample, pipeline_type: EvalPipelineType) -> SampleResult:
-        start_time = time.perf_counter()
-
-        # 1. Execute real AI Layer Orchestration
-        # In a real setup, we would trigger the orchestrator's run_query
-        # For the runner, we need the raw state, so we call the workflow directly
-        initial_state = {
-            "query": sample.query,
-            "context": {"site_id": sample.metadata.get("site_id"), "is_eval": True},
-            "intent": None, "resolved_entities": [], "retrieval_plan": None,
-            "evidence_bundle": None, "messages": [], "claims": [],
-            "final_response": None, "steps_completed": [], "errors": []
-        }
-
-        # Invoke LangGraph
-        final_state = await self.orchestrator.workflow.ainvoke(initial_state)
-        response = final_state.get("final_response")
-        latency_ms = (time.perf_counter() - start_time) * 1000
-
-        # 2. Extract context and metrics
-        bundle = final_state.get("evidence_bundle")
-        retrieved_contexts = [e.text_excerpt for e in bundle.verified_evidence] if bundle else []
-        retrieved_doc_ids = [e.provenance.document_id for e in bundle.verified_evidence] if bundle else []
-        resolved_entities = [e.entity_id for e in final_state["resolved_entities"]]
-
-        # Grounding metrics
-        claims = response.claims if response else []
-        grounded_claims = [c for c in claims if c.status == ClaimSupportStatus.SUPPORTED and c.sources]
-        grounded_rate = len(grounded_claims) / len(claims) if claims else 1.0
-        hallucination = any(c.status == ClaimSupportStatus.SUPPORTED and not c.sources for c in claims)
-
-        sample_res = SampleResult(
-            sample=sample,
-            answer=response.answer if response else "ERROR: No response generated",
-            retrieved_contexts=retrieved_contexts,
-            retrieved_document_ids=retrieved_doc_ids,
-            citations=[s.provenance.document_id for c in claims for s in c.sources],
-            resolved_entities=resolved_entities,
-            metrics=[],
-            latency_ms=latency_ms,
-            hallucination_detected=hallucination,
-            grounded_answer_rate=grounded_rate
+        logger.info(
+            f"Benchmark '{report.benchmark_name}' complete: "
+            f"{success_count}/{len(sample_results)} succeeded, "
+            f"avg_latency={avg_latency:.1f}ms"
         )
+        return report
 
-        # 3. Calculate RAGAS and Industrial scores
-        sample_res.metrics.extend(await self.industrial_evaluator.evaluate_sample(sample, sample_res))
+    async def _run_one(self, idx: int, sample: EvalSample) -> SampleResult:
+        """Execute one sample with timeout protection."""
+        start = time.perf_counter()
         try:
-            sample_res.metrics.extend(await self.ragas_evaluator.evaluate_sample(sample, sample_res))
-        except Exception as e:
-            logger.warning(f"RAGAS evaluation skipped for sample: {e}")
-
-        return sample_res
-
-    def _calculate_summary(self, results: list[SampleResult]) -> dict[str, float]:
-        if not results:
-            return {}
-        metric_sums: dict[str, float] = {}
-        metric_counts: dict[str, int] = {}
-
-        for res in results:
-            for m in res.metrics:
-                metric_sums[m.name] = metric_sums.get(m.name, 0.0) + m.score
-                metric_counts[m.name] = metric_counts.get(m.name, 0) + 1
-
-        summary = {f"avg_{name}": val/metric_counts[name] for name, val in metric_sums.items()}
-        summary["avg_latency_ms"] = sum(r.latency_ms for r in results) / len(results)
-        summary["total_samples"] = float(len(results))
-        return summary
+            state = await asyncio.wait_for(
+                self.workflow_fn(sample.query, sample.metadata),
+                timeout=self.timeout_seconds,
+            )
+            latency_ms = (time.perf_counter() - start) * 1000
+            return self.evaluator.evaluate(
+                state, sample, sample_index=idx, latency_ms=latency_ms,
+            )
+        except TimeoutError:
+            latency_ms = (time.perf_counter() - start) * 1000
+            logger.error(
+                f"Sample {idx} timed out after {self.timeout_seconds}s"
+            )
+            return SampleResult(
+                sample_index=idx,
+                query=sample.query,
+                answer="",
+                latency_ms=latency_ms,
+                error=f"Timeout after {self.timeout_seconds}s",
+                aborted=True,
+            )
+        except Exception as exc:
+            latency_ms = (time.perf_counter() - start) * 1000
+            logger.error(f"Sample {idx} failed: {exc}", exc_info=True)
+            return SampleResult(
+                sample_index=idx,
+                query=sample.query,
+                answer="",
+                latency_ms=latency_ms,
+                error=str(exc),
+            )

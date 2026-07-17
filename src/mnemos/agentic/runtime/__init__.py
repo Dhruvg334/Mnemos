@@ -101,6 +101,7 @@ from mnemos.agentic.runtime.types import (
 )
 from mnemos.agentic.runtime.workflow import (
     AgentExecutor,
+    InvestigationPipeline,
     create_investigation_workflow,
 )
 
@@ -153,6 +154,7 @@ __all__ = [
     # Audit
     "AuditLogger",
     # Workflow
+    "InvestigationPipeline",
     "create_investigation_workflow",
     # Reflection
     "ReflectionOutput",
