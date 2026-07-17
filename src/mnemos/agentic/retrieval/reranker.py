@@ -1,11 +1,19 @@
+import asyncio
+import os
+
 from pydantic import BaseModel
 
-from mnemos.agentic.deps import get_llm_service
+# Prefer sentence_transformers CrossEncoder if available
+try:
+    from sentence_transformers import CrossEncoder
+except Exception:
+    CrossEncoder = None
 
 
 class RerankResult(BaseModel):
     index: int
     score: float
+
 
 class BaseReranker:
     """
@@ -14,38 +22,68 @@ class BaseReranker:
     async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
         raise NotImplementedError
 
+
 class CrossEncoderReranker(BaseReranker):
     """
-    Implements reranking using a Cross-Encoder model (e.g., BGE-Reranker).
-    Cross-encoders are more accurate than bi-encoders for relevance scoring
-    as they process the query and document simultaneously.
+    Cross-encoder reranker using BGE / CrossEncoder-style models.
+
+    Behavior:
+      - If sentence_transformers.CrossEncoder is available, use it for accurate pairwise scoring.
+      - Otherwise fall back to a lightweight heuristic (word overlap + length-based) but this is NOT GPT reranking.
+
+    The underlying model can be configured with MNEMOS_RERANKER_MODEL environment variable.
     """
-    def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
-        self.model_name = model_name
-        # Prefer using configured cross-encoder endpoint via LLMService
-        self.llm = get_llm_service()
+
+    def __init__(self, model_name: str | None = None):
+        self.model_name = model_name or os.getenv("MNEMOS_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+        self._model: CrossEncoder | None = None
+        # CrossEncoder initialization can be blocking; defer to first use
+
+    async def _ensure_model(self):
+        if self._model is None:
+            if CrossEncoder is None:
+                return
+            loop = asyncio.get_event_loop()
+            # instantiate in thread to avoid blocking event loop
+            self._model = await loop.run_in_executor(None, CrossEncoder, self.model_name)
 
     async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
-        """
-        Scores each document against the query.
-        Returns a list of RerankResult sorted by score.
-        """
         if not documents:
             return []
 
-        # Try dedicated cross-encoder endpoint first
-        scores = await self.llm.rerank_with_cross_encoder(query, documents)
+        # Use CrossEncoder if available
+        await self._ensure_model()
+        if self._model is not None:
+            # Build pairs (query, doc)
+            pairs = [(query, d) for d in documents]
+            loop = asyncio.get_event_loop()
+            # The predict call is blocking; run in executor
+            scores = await loop.run_in_executor(None, self._model.predict, pairs, None)
+            # normalize scores between 0 and 1 using min-max if needed
+            if scores:
+                min_s, max_s = float(min(scores)), float(max(scores))
+                range_s = max_s - min_s if max_s != min_s else 1.0
+                normalized = [(s - min_s) / range_s for s in scores]
+            else:
+                normalized = [0.0] * len(scores)
 
-        # Normalize length
-        if len(scores) != len(documents):
-            # Fallback: uniform scores
-            src = scores or [0.0] * len(documents)
-            scores = []
-            for s in src:
-                scores.append(float(s) if isinstance(s, int | float) else 0.0)
+            results: list[RerankResult] = []
+            for i, sc in enumerate(normalized):
+                results.append(RerankResult(index=i, score=float(sc)))
 
+            results.sort(key=lambda x: x.score, reverse=True)
+            return results
+
+        # Fallback heuristic (fast, not model-based)
         results = []
-        for i in range(len(documents)):
-            results.append(RerankResult(index=i, score=float(scores[i] if i < len(scores) else 0.0)))
+        q_tokens = set(query.lower().split())
+        for i, doc in enumerate(documents):
+            doc_tokens = set(doc.lower().split())
+            overlap = len(q_tokens & doc_tokens)
+            base = overlap / max(1, len(q_tokens))
+            length_penalty = min(1.0, len(doc) / 512)
+            score = base * 0.8 + 0.2 * length_penalty
+            results.append(RerankResult(index=i, score=float(score)))
+
         results.sort(key=lambda x: x.score, reverse=True)
         return results

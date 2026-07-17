@@ -12,11 +12,14 @@ It delegates all orchestration decisions to the runtime's
 
 from __future__ import annotations
 
+import asyncio
+import json
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.runtime import (
@@ -30,7 +33,7 @@ from mnemos.agentic.runtime import (
 )
 from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
-from mnemos.models import AgentRun, Citation, Query, QueryClaim
+from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.services.query_execution import add_query_event
 
 logger = StructuredLogger("orchestrator")
@@ -228,8 +231,48 @@ class MnemosAIOrchestrator:
             await add_query_event(
                 self.db, query_id=query_id,
                 stage=node_name, progress_percent=percent, message=msg,
+        )
+        await self.db.commit()
+
+    # ------------------------------------------------------------------
+    # Real-time streaming
+    # ------------------------------------------------------------------
+
+    async def stream_status(self, query_id: str) -> AsyncGenerator[str, None]:
+        """Provides a real-time progress stream for the UI.
+
+        Polls ``QueryEvent`` rows and yields JSON-encoded progress
+        payloads until the query reaches a terminal state.
+        """
+        last_id = 0
+        while True:
+            stmt = (
+                select(QueryEvent)
+                .where(QueryEvent.query_id == query_id, QueryEvent.id > last_id)
+                .order_by(QueryEvent.id)
             )
-            await self.db.commit()
+            res = await self.db.execute(stmt)
+            events = res.scalars().all()
+
+            for ev in events:
+                yield json.dumps({
+                    "stage": ev.stage,
+                    "progress": ev.progress_percent,
+                    "message": ev.message,
+                    "timestamp": ev.created_at.isoformat(),
+                })
+                last_id = ev.id
+
+            query = await self.db.get(Query, query_id)
+            if query and query.status in ("succeeded", "failed", "cancelled"):
+                if query.status == "succeeded":
+                    yield json.dumps({
+                        "status": "completed",
+                        "answer": query.answer,
+                        "confidence": query.confidence_score,
+                    })
+                break
+            await asyncio.sleep(0.5)
 
     # ------------------------------------------------------------------
     # Persistence
