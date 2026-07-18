@@ -19,6 +19,7 @@ from typing import Any
 from jinja2 import (
     Environment,
     FileSystemLoader,
+    StrictUndefined,
     select_autoescape,
 )
 
@@ -81,7 +82,8 @@ class PromptManager:
 
         self.env = Environment(
             loader=FileSystemLoader(self.template_path),
-            autoescape=select_autoescape()
+            autoescape=select_autoescape(),
+            undefined=StrictUndefined,
         )
 
         self._registry: dict[str, PromptMetadata] = {}
