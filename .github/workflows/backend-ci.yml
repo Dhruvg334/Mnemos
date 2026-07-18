@@ -18,9 +18,9 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: pip install -e ".[dev]"
-      - run: ruff check src tests scripts
-      - run: python -m compileall -q src scripts
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m ruff check src tests scripts
+      - run: python -m compileall -q src tests scripts
       - name: Verify runtime imports and packaged prompts
         run: |
           python - <<'PY'
@@ -35,7 +35,7 @@ jobs:
           assert app is not None
           print(f"runtime imports passed; {len(templates)} prompt templates found")
           PY
-      - run: pytest -q
+      - run: python -m pytest -q --strict-markers
 
   evaluation-gates:
     runs-on: ubuntu-latest
@@ -47,13 +47,13 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev]"
       - name: Run evaluation gate tests
         # These run the evaluation framework against synthetic fixtures
         # without requiring a live LLM or database connection.
         # They enforce minimum thresholds defined in evaluation/baseline.py.
         run: |
-          pytest src/mnemos/agentic/evaluation/ -q --tb=short \
+          python -m pytest src/mnemos/agentic/evaluation/ -q --tb=short \
             -m "not integration" \
             --junitxml=evaluation-results.xml
       - name: Upload evaluation results
@@ -87,7 +87,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: pip install .
+      - run: python -m pip install .
       - run: alembic upgrade head
       - run: alembic downgrade base
       - run: alembic upgrade head

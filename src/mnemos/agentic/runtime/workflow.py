@@ -1753,6 +1753,9 @@ class InvestigationPipeline:
             findings=findings if isinstance(findings, dict) else {},
             trace_id=trace_id,
             triggered_by="pipeline",
+            organisation_id=ctx.get("organisation_id"),
+            site_id=ctx.get("site_id"),
+            requested_by_user_id=ctx.get("user_id"),
         )
         pending = dict(state.get("pending_approval_request") or {})
         pending["request_id"] = request.request_id

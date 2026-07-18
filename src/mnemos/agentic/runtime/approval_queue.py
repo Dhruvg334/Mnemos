@@ -67,6 +67,9 @@ class PendingApprovalRequest(BaseModel):
     state_snapshot: dict[str, Any] = Field(default_factory=dict)
     trace_id: str | None = None
     triggered_by: str = "supervisor"
+    organisation_id: str | None = None
+    site_id: str | None = None
+    requested_by_user_id: str | None = None
 
 
 class ApprovalDecision(BaseModel):
@@ -98,6 +101,9 @@ class ApprovalQueueBase(ABC):
         options: list[str] | None = None,
         trace_id: str | None = None,
         triggered_by: str = "supervisor",
+        organisation_id: str | None = None,
+        site_id: str | None = None,
+        requested_by_user_id: str | None = None,
         timeout_seconds: float | None = None,
     ) -> PendingApprovalRequest: ...
 
@@ -174,6 +180,9 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
         options: list[str] | None = None,
         trace_id: str | None = None,
         triggered_by: str = "supervisor",
+        organisation_id: str | None = None,
+        site_id: str | None = None,
+        requested_by_user_id: str | None = None,
         timeout_seconds: float | None = None,
     ) -> PendingApprovalRequest:
         timeout = timeout_seconds or self._default_timeout
@@ -187,6 +196,9 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
             state_snapshot=state_snapshot,
             trace_id=trace_id,
             triggered_by=triggered_by,
+            organisation_id=organisation_id,
+            site_id=site_id,
+            requested_by_user_id=requested_by_user_id,
         )
         self._requests[request.request_id] = request
         logger.info(
@@ -314,6 +326,9 @@ class DurableApprovalQueue(ApprovalQueueBase):
         options: list[str] | None = None,
         trace_id: str | None = None,
         triggered_by: str = "supervisor",
+        organisation_id: str | None = None,
+        site_id: str | None = None,
+        requested_by_user_id: str | None = None,
         timeout_seconds: float | None = None,
     ) -> PendingApprovalRequest:
         from mnemos.models.entities import RuntimeApprovalRequest
@@ -335,6 +350,9 @@ class DurableApprovalQueue(ApprovalQueueBase):
             state_snapshot=state_snapshot,
             trace_id=trace_id,
             triggered_by=triggered_by,
+            organisation_id=organisation_id,
+            site_id=site_id,
+            requested_by_user_id=requested_by_user_id,
         )
 
         async with self._session_factory() as db:
@@ -655,6 +673,10 @@ def _row_to_model(row: Any) -> PendingApprovalRequest:
     """Convert a RuntimeApprovalRequest ORM row to PendingApprovalRequest."""
     expires_ts = row.expires_at.timestamp() if row.expires_at else None
     created_ts = row.created_at.timestamp() if row.created_at else time.time()
+    snapshot = row.state_snapshot or {}
+    context = snapshot.get("context", {}) if isinstance(snapshot, dict) else {}
+    if not isinstance(context, dict):
+        context = {}
     return PendingApprovalRequest(
         request_id=row.id,
         investigation_id=row.investigation_id,
@@ -665,7 +687,10 @@ def _row_to_model(row: Any) -> PendingApprovalRequest:
         created_at=created_ts,
         expires_at=expires_ts,
         status=ApprovalStatus(row.status),
-        state_snapshot=row.state_snapshot or {},
+        state_snapshot=snapshot,
         trace_id=row.trace_id,
         triggered_by=row.triggered_by or "supervisor",
+        organisation_id=context.get("organisation_id"),
+        site_id=context.get("site_id"),
+        requested_by_user_id=context.get("user_id"),
     )
