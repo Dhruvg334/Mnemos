@@ -1,19 +1,7 @@
-from mnemos.agentic.langgraph.nodes import (
-    BaseNode,
-    EvidenceRetrievalNode,
-    QueryRouterNode,
-    ResponseComposerNode,
-    SupervisorNode,
-    router_decision,
-)
-from mnemos.agentic.langgraph.workflow import create_investigation_workflow
+"""Legacy LangGraph compatibility package.
 
-__all__ = [
-    "BaseNode",
-    "EvidenceRetrievalNode",
-    "QueryRouterNode",
-    "ResponseComposerNode",
-    "SupervisorNode",
-    "router_decision",
-    "create_investigation_workflow",
-]
+This package is retained temporarily for migration-only tests. Production code
+must use ``mnemos.agentic.runtime.build_investigation_pipeline`` instead.
+"""
+
+__all__: list[str] = []

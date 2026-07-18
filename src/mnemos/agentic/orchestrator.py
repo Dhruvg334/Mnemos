@@ -1,8 +1,8 @@
 """AI Orchestrator — bridges the application layer with the runtime.
 
 This module is responsible for:
-1. Instantiating and registering all agents
-2. Building the runtime workflow with registered agents
+1. Building the single canonical investigation runtime
+2. Passing the authenticated request context into that runtime
 3. Executing the workflow
 4. Returning the AgentResponse to the caller
 
@@ -13,19 +13,11 @@ service validates and persists the result in exactly one transaction.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.runtime import (
-    AgentCapability,
-    AgentRegistration,
-    AgentRegistry,
-    AgentRole,
-    InvestigationPipeline,
-    RetryStrategy,
-)
+from mnemos.agentic.runtime.factory import build_investigation_pipeline
 from mnemos.agentic.runtime.workflow import _ApprovalPendingError
 from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.utils.logging import StructuredLogger, setup_trace
@@ -66,9 +58,9 @@ class MnemosAIOrchestrator:
     tracing and safety.  Uses the 11-stage ``InvestigationPipeline``
     as the single canonical runtime.
 
-    On initialisation the orchestrator eagerly instantiates every
-    available agent (retrieval + reasoning) and registers it with the
-    runtime so that ``run_query`` can dispatch work immediately.
+    Concrete agent construction and dispatch are owned by the canonical
+    ``InvestigationPipeline``. The orchestrator deliberately carries no
+    secondary agent registry or compatibility workflow.
 
     The orchestrator performs NO persistence.  It returns an
     ``AgentResponse`` and the backend service is responsible for
@@ -77,207 +69,12 @@ class MnemosAIOrchestrator:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-        self._agent_functions: dict[str, Callable[..., Awaitable[dict[str, Any]]]] = {}
-        self._registry = AgentRegistry()
-        self._register_all_agents()
 
-    # ------------------------------------------------------------------
-    # Production agent registration
-    # ------------------------------------------------------------------
-
-    def _register_all_agents(self) -> None:
-        """Register every production agent with the runtime.
-
-        All retrieval and reasoning agents are registered eagerly so
-        that the orchestrator can dispatch work without additional
-        configuration.
-        """
-        agent_defs: list[dict[str, Any]] = [
-            {
-                "name": "query_router",
-                "role": AgentRole.RETRIEVAL,
-                "capabilities": [
-                    AgentCapability(
-                        name="query_classification",
-                        description="Classify query intent and extract entities",
-                        output_types=["intent", "entities"],
-                    )
-                ],
-                "max_retries": 2,
-                "timeout_seconds": 60.0,
-                "retry_strategy": RetryStrategy.EXPONENTIAL_BACKOFF,
-                "can_run_in_parallel": False,
-            },
-            {
-                "name": "retrieval_planner",
-                "role": AgentRole.RETRIEVAL,
-                "capabilities": [
-                    AgentCapability(
-                        name="retrieval_planning",
-                        description="Build retrieval plan with strategies and filters",
-                        output_types=["retrieval_plan"],
-                    )
-                ],
-            },
-            {
-                "name": "evidence_retrieval",
-                "role": AgentRole.RETRIEVAL,
-                "capabilities": [
-                    AgentCapability(
-                        name="evidence_retrieval",
-                        description="Execute retrieval plan via HybridRetrievalEngine",
-                        output_types=["evidence"],
-                    )
-                ],
-            },
-            {
-                "name": "evidence_verification",
-                "role": AgentRole.VERIFICATION,
-                "capabilities": [
-                    AgentCapability(
-                        name="evidence_verification",
-                        description="Verify evidence provenance, citations, confidence",
-                        output_types=["verified_evidence", "citations"],
-                    )
-                ],
-            },
-            {
-                "name": "retrieval_reflection",
-                "role": AgentRole.REFLECTION,
-                "capabilities": [
-                    AgentCapability(
-                        name="retrieval_reflection",
-                        description="Evaluate evidence sufficiency and identify gaps",
-                        output_types=["reflection_decision", "gaps"],
-                    )
-                ],
-            },
-            {
-                "name": "rca_agent",
-                "role": AgentRole.ANALYSIS,
-                "capabilities": [
-                    AgentCapability(
-                        name="rca",
-                        description="Root cause analysis of failures",
-                        input_types=["evidence"],
-                        output_types=["rca_findings", "recommended_actions"],
-                    )
-                ],
-            },
-            {
-                "name": "compliance_agent",
-                "role": AgentRole.ANALYSIS,
-                "capabilities": [
-                    AgentCapability(
-                        name="compliance",
-                        description="Regulatory and standards compliance checking",
-                        input_types=["evidence"],
-                        output_types=["compliance_results"],
-                    )
-                ],
-            },
-            {
-                "name": "asset_intelligence",
-                "role": AgentRole.ANALYSIS,
-                "capabilities": [
-                    AgentCapability(
-                        name="asset_intelligence",
-                        description="Asset maintenance and performance intelligence",
-                        input_types=["evidence"],
-                        output_types=["asset_insights"],
-                    )
-                ],
-            },
-            {
-                "name": "lessons_learned_agent",
-                "role": AgentRole.ANALYSIS,
-                "capabilities": [
-                    AgentCapability(
-                        name="lessons_learned",
-                        description="Historical lessons learned retrieval",
-                        input_types=["evidence"],
-                        output_types=["lessons"],
-                    )
-                ],
-            },
-            {
-                "name": "expert_knowledge_agent",
-                "role": AgentRole.ANALYSIS,
-                "capabilities": [
-                    AgentCapability(
-                        name="expert_knowledge",
-                        description="Expert knowledge retrieval and reasoning",
-                        input_types=["evidence"],
-                        output_types=["expert_insights"],
-                    )
-                ],
-            },
-            {
-                "name": "report_composer",
-                "role": AgentRole.COMPOSITION,
-                "capabilities": [
-                    AgentCapability(
-                        name="report_composition",
-                        description="Synthesize all outputs into FinalReport",
-                        input_types=["evidence", "reasoning_outputs"],
-                        output_types=["final_report"],
-                    )
-                ],
-                "can_run_in_parallel": False,
-            },
-        ]
-
-        for defn in agent_defs:
-            name = defn["name"]
-            self._registry.register(
-                AgentRegistration(
-                    name=name,
-                    role=defn.get("role", AgentRole.GENERIC),
-                    capabilities=defn.get("capabilities", []),
-                    max_retries=defn.get("max_retries", 2),
-                    timeout_seconds=defn.get("timeout_seconds", 120.0),
-                    retry_strategy=defn.get("retry_strategy", RetryStrategy.EXPONENTIAL_BACKOFF),
-                    can_run_in_parallel=defn.get("can_run_in_parallel", True),
-                    requires_human_approval=defn.get("requires_human_approval", False),
-                )
-            )
-
-        logger.info(
-            f"Registered {len(agent_defs)} production agents with the runtime",
-        )
-
-    # ------------------------------------------------------------------
-    # Backward-compatible per-agent function registration
-    # ------------------------------------------------------------------
-
-    def register_agent(
-        self,
-        name: str,
-        fn: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]],
-        *,
-        role: AgentRole = AgentRole.GENERIC,
-        capabilities: list[AgentCapability] | None = None,
-        max_retries: int = 2,
-        timeout_seconds: float = 120.0,
-        retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF,
-        can_run_in_parallel: bool = True,
-        requires_human_approval: bool = False,
-    ) -> None:
-        """Register an agent function with the runtime (backward compat)."""
-        self._agent_functions[name] = fn
-        if not self._registry.is_registered(name):
-            self._registry.register(
-                AgentRegistration(
-                    name=name,
-                    role=role,
-                    capabilities=capabilities or [],
-                    max_retries=max_retries,
-                    timeout_seconds=timeout_seconds,
-                    retry_strategy=retry_strategy,
-                    can_run_in_parallel=can_run_in_parallel,
-                    requires_human_approval=requires_human_approval,
-                )
-            )
+    # The canonical pipeline owns concrete agent construction and dispatch.
+    # Keeping a second registry here previously created two competing sources
+    # of truth: metadata registered by the orchestrator and classes
+    # instantiated directly by InvestigationPipeline.  Production execution
+    # now has one owner only.
 
     # ------------------------------------------------------------------
     # Execution
@@ -300,9 +97,7 @@ class MnemosAIOrchestrator:
         context = _build_context(request)
         context["trace_id"] = trace_id
 
-        pipeline = InvestigationPipeline(
-            db=self.db,
-        )
+        pipeline = build_investigation_pipeline(db=self.db)
 
         try:
             result = await pipeline.run(
@@ -323,53 +118,3 @@ class MnemosAIOrchestrator:
             return AgentResponse(**response)
 
         return response
-
-    # ------------------------------------------------------------------
-    # Response extraction (kept for backward compatibility)
-    # ------------------------------------------------------------------
-
-    def _extract_response(self, state: dict[str, Any]) -> AgentResponse | None:
-        """Extract the final response from the investigation state."""
-        final = state.get("final_response")
-        if final is not None:
-            if isinstance(final, AgentResponse):
-                return final
-            if isinstance(final, dict):
-                return AgentResponse(**final)
-
-        agent_outputs = state.get("agent_outputs", {})
-        evidence = state.get("evidence", [])
-        claims = state.get("claims", [])
-
-        if not agent_outputs and not evidence and not claims:
-            return None
-
-        composition_output = agent_outputs.get("composition_agent", {})
-        if composition_output:
-            return AgentResponse(
-                answer=composition_output.get("answer", ""),
-                confidence_score=composition_output.get("confidence", 0.0),
-                claims=claims if isinstance(claims, list) else [],
-                missing_evidence=composition_output.get("missing_evidence", []),
-                metadata={"trace_id": state.get("trace_id")},
-            )
-
-        parts = []
-        total_confidence = 0.0
-        count = 0
-        for _name, output in agent_outputs.items():
-            if isinstance(output, dict):
-                if "answer" in output:
-                    parts.append(output["answer"])
-                if "confidence" in output:
-                    total_confidence += output["confidence"]
-                    count += 1
-
-        avg_confidence = total_confidence / count if count else 0.0
-
-        return AgentResponse(
-            answer="\n\n".join(parts) if parts else "Investigation completed.",
-            confidence_score=avg_confidence,
-            claims=claims if isinstance(claims, list) else [],
-            metadata={"trace_id": state.get("trace_id")},
-        )

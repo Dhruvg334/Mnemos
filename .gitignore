@@ -1,3 +1,4 @@
+# Python bytecode and build outputs
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,38 +22,87 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Secrets and local environment
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
 
+# Python environments and tooling
 .venv/
 venv/
 ENV/
 env/
-
 .pytest_cache/
 .mypy_cache/
+.pyright/
 .ruff_cache/
+.hypothesis/
+.tox/
+.nox/
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
+*.sqlite
+*.sqlite3
 
+# Frontend dependencies and generated output
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+coverage/
+frontend/coverage/
+playwright-report/
+test-results/
+.npm/
+.yarn/
+.pnpm-store/
+
+# Editors and operating-system files
 .idea/
 .vscode/
+*.code-workspace
 .DS_Store
 Thumbs.db
+desktop.ini
 
+# Logs, caches, and temporary files
 *.log
 logs/
+.cache/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
 
+# Local service data
 data/
 uploads/
 minio-data/
 postgres-data/
 redis-data/
+neo4j-data/
+neo4j-logs/
 temporal-data/
 
+# Generated archives and local exports
 *.zip
+*.tar
+*.tar.gz
+*.tgz
+exports/
+reports/generated/
+
+# Infrastructure state and local overrides
 .env.production
 *.tfstate
 *.tfstate.*
@@ -60,3 +110,8 @@ temporal-data/
 .terraform.lock.hcl
 terraform.tfvars
 crash.log
+
+# AI/editor local instruction files that must not enter the repository
+CLAUDE.md
+AGENTS.md
+.cursor/
