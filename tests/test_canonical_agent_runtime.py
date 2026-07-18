@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -54,8 +53,6 @@ def test_pipeline_construction_has_one_production_factory() -> None:
     factory = _source("src/mnemos/agentic/runtime/factory.py")
     tree = ast.parse(factory)
 
-    function_names = {
-        node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-    }
+    function_names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
     assert function_names == {"build_investigation_pipeline"}
     assert "return InvestigationPipeline(db=db)" in factory

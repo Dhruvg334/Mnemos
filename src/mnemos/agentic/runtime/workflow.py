@@ -411,13 +411,15 @@ class InvestigationPipeline:
         self.max_iterations = max_iterations
         self.evidence_confidence_threshold = evidence_confidence_threshold
         self.auto_checkpoint = auto_checkpoint
-        self.audit_logger = audit_logger or self._create_audit_logger("default")
 
+        # Runtime dependencies are assigned before any component is created so
+        # the canonical factory can fully control durable construction.
         self._checkpoint_store = checkpoint_store
         self._event_store = event_store
         self._audit_sink = audit_sink
         self._approval_queue = approval_queue
         self._node_registry = node_registry
+        self.audit_logger = audit_logger or self._create_audit_logger("default")
 
         self.failure_recovery = FailureRecoveryManager()
         self.approval_node = HumanApprovalNode(audit_logger=self.audit_logger)
@@ -925,59 +927,73 @@ class InvestigationPipeline:
     # ------------------------------------------------------------------
 
     def _create_event_log(self, investigation_id: str) -> InvestigationEventLog:
-        """Create an event log.  Uses durable DB-backed log when a
-        DB session is available, otherwise falls back to in-memory."""
+        """Create the configured event log for an investigation."""
+        if self._event_store is not None:
+            return self._resolve_runtime_dependency(
+                self._event_store,
+                investigation_id,
+                InvestigationEventLog,
+                "event_store",
+            )
         if self.db is not None:
-            try:
-                from mnemos.agentic.runtime.persistence import (
-                    DurableEventLog,
-                )
+            from mnemos.agentic.runtime.persistence import DurableEventLog
 
-                return DurableEventLog(investigation_id, self.db)
-            except Exception as exc:
-                logger.warning(
-                    "Falling back to in-memory event log (DurableEventLog unavailable): %s",
-                    exc,
-                )
+            return DurableEventLog(investigation_id, self.db)
         return InvestigationEventLog(investigation_id)
 
     def _create_audit_logger(self, investigation_id: str) -> AuditLogger:
-        """Create an audit logger. Uses durable DB-backed logging when
-        a DB session is available, otherwise falls back to in-memory."""
+        """Create the configured audit logger for an investigation."""
+        if self._audit_sink is not None:
+            return self._resolve_runtime_dependency(
+                self._audit_sink,
+                investigation_id,
+                AuditLogger,
+                "audit_sink",
+            )
         if self.db is not None:
-            try:
-                from mnemos.agentic.runtime.persistence import (
-                    DurableAuditLogger,
-                )
+            from mnemos.agentic.runtime.persistence import DurableAuditLogger
 
-                return DurableAuditLogger(investigation_id, self.db)
-            except Exception as exc:
-                logger.warning(
-                    "Falling back to in-memory audit logger (DurableAuditLogger unavailable): %s",
-                    exc,
-                )
+            return DurableAuditLogger(investigation_id, self.db)
         return AuditLogger(investigation_id)
 
     def _create_checkpoint_manager(
         self,
         investigation_id: str,
     ) -> CheckpointManager:
-        """Create a checkpoint manager.  Uses durable DB-backed manager
-        when a DB session is available."""
+        """Create the configured checkpoint manager for an investigation."""
+        if self._checkpoint_store is not None:
+            return self._resolve_runtime_dependency(
+                self._checkpoint_store,
+                investigation_id,
+                CheckpointManager,
+                "checkpoint_store",
+            )
         if self.db is not None:
-            try:
-                from mnemos.agentic.runtime.persistence import (
-                    DurableCheckpointManager,
-                )
+            from mnemos.agentic.runtime.persistence import DurableCheckpointManager
 
-                return DurableCheckpointManager(investigation_id, self.db)
-            except Exception as exc:
-                logger.warning(
-                    "Falling back to in-memory checkpoint manager "
-                    "(DurableCheckpointManager unavailable): %s",
-                    exc,
-                )
+            return DurableCheckpointManager(investigation_id, self.db)
         return CheckpointManager(investigation_id)
+
+    @staticmethod
+    def _resolve_runtime_dependency(
+        dependency: Any,
+        investigation_id: str,
+        expected_type: type,
+        dependency_name: str,
+    ) -> Any:
+        """Resolve a runtime dependency instance or factory.
+
+        Production wiring uses factories because checkpoint, event, and audit
+        components are investigation-scoped. Invalid dependency wiring fails
+        immediately instead of silently downgrading to volatile storage.
+        """
+        resolved = dependency(investigation_id) if callable(dependency) else dependency
+        if not isinstance(resolved, expected_type):
+            raise TypeError(
+                f"{dependency_name} must resolve to {expected_type.__name__}; "
+                f"got {type(resolved).__name__}"
+            )
+        return resolved
 
     # ------------------------------------------------------------------
     # Stage 1: Supervisor Init
