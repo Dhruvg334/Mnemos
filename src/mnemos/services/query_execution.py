@@ -11,7 +11,7 @@ from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine
 from mnemos.core.db import SessionLocal
 from mnemos.core.errors import AppError
 from mnemos.integrations.agents import get_agent_gateway
-from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
+from mnemos.models import AgentRun, Citation, Membership, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import AgentOptions, AgentQueryRequest, AgentScope
 from mnemos.services.agent_validation import validate_agent_result
 
@@ -32,6 +32,45 @@ _SAFE_ERROR_MESSAGES = {
 def _hash_payload(payload: dict) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+
+
+async def _resolve_query_membership(
+    db: AsyncSession,
+    *,
+    user_id: str,
+    organisation_id: str,
+    site_id: str,
+) -> Membership:
+    """Resolve the effective membership for an asynchronous query run.
+
+    Background execution must not reuse the role that existed when the query
+    was created. Memberships may be revoked or narrowed before execution
+    begins, so the worker re-resolves authorization immediately before calling
+    the agentic runtime. Site-specific memberships take precedence over
+    organisation-wide memberships.
+    """
+    memberships = list(
+        (
+            await db.scalars(
+                select(Membership).where(
+                    Membership.user_id == user_id,
+                    Membership.organisation_id == organisation_id,
+                    (Membership.site_id == site_id) | (Membership.site_id.is_(None)),
+                )
+            )
+        ).all()
+    )
+    if not memberships:
+        raise AppError(
+            "QUERY_ACCESS_REVOKED",
+            "Access to this query scope is no longer available.",
+            403,
+        )
+
+    memberships.sort(key=lambda membership: membership.site_id is None)
+    return memberships[0]
 
 
 def _safe_error(exc: Exception) -> tuple[str, str]:
@@ -66,6 +105,26 @@ async def execute_query_background(query_id: str) -> None:
         if query is None or query.status not in {"queued", "running"}:
             return
 
+        try:
+            membership = await _resolve_query_membership(
+                db,
+                user_id=query.user_id,
+                organisation_id=query.organisation_id,
+                site_id=query.site_id,
+            )
+        except AppError:
+            query.status = "failed"
+            query.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="authorization_failed",
+                progress_percent=100,
+                message="Query access was revoked before execution",
+            )
+            await db.commit()
+            return
+
         gateway = get_agent_gateway()
         run = AgentRun(
             query_id=query.id,
@@ -92,6 +151,8 @@ async def execute_query_background(query_id: str) -> None:
             organisation_id=query.organisation_id,
             site_id=query.site_id,
             user_id=query.user_id,
+            membership_id=membership.id,
+            actor_role=membership.role,
             query_type=query.mode,
             question=query.question,
             scope=AgentScope(

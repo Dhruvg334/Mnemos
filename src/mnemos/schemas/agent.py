@@ -26,6 +26,8 @@ class AgentQueryRequest(APIModel):
     organisation_id: str
     site_id: str
     user_id: str
+    membership_id: str
+    actor_role: str
     query_type: str
     question: str
     scope: AgentScope
