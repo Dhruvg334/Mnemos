@@ -91,6 +91,7 @@ class AgentQueryResult(APIModel):
     conflicts: list[dict] = Field(default_factory=list)
     related_entities: list[AgentRelatedEntity] = Field(default_factory=list)
     run_metadata: AgentRunMetadata = Field(default_factory=AgentRunMetadata)
+    approval_request_id: str | None = None
     error_code: str | None = None
     error_message: str | None = None
 
@@ -101,8 +102,12 @@ class AgentQueryResult(APIModel):
                 raise ValueError("Failed agent results require error_code")
             return self
         if self.status == "pending_approval":
+            if not self.approval_request_id:
+                raise ValueError(
+                    "Pending approval results require approval_request_id"
+                )
             # Workflow paused for human review — answer and confidence are not
-            # available yet.  Skip content validation.
+            # available yet. Skip content validation.
             return self
         if not self.answer or self.confidence is None:
             raise ValueError("Successful agent results require answer and confidence")

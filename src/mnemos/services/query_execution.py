@@ -293,3 +293,228 @@ async def execute_query_background(query_id: str) -> None:
                 message="Query execution failed",
             )
             await db.commit()
+
+
+async def resume_query_after_approval(request_id: str) -> None:
+    """Resume or terminate a query after a durable approval decision.
+
+    This callback is scheduled by the approvals API only after the decision is
+    committed. It re-resolves the user's current membership before resuming so
+    approval cannot bypass access revocation that happened while the workflow
+    was paused.
+    """
+    from mnemos.agentic.runtime.approval_queue import DurableApprovalQueue
+
+    queue = DurableApprovalQueue(session_factory=SessionLocal)
+    approval = await queue.get_request(request_id)
+    decision = await queue.get_decision(request_id)
+    if approval is None or decision is None:
+        return
+
+    async with SessionLocal() as db:
+        query = await db.scalar(
+            select(Query).where(Query.id == approval.investigation_id).with_for_update()
+        )
+        if query is None or query.status != "pending_approval":
+            return
+
+        run = await db.scalar(
+            select(AgentRun)
+            .where(
+                AgentRun.query_id == query.id,
+                AgentRun.status == "pending_approval",
+            )
+            .order_by(AgentRun.started_at.desc())
+            .with_for_update()
+        )
+        if run is None:
+            query.status = "failed"
+            query.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="approval_resume_failed",
+                progress_percent=100,
+                message="Approval was recorded but no resumable run was found",
+            )
+            await db.commit()
+            return
+
+        if decision.decision != "approve":
+            query.status = "failed"
+            query.completed_at = datetime.now(UTC)
+            run.status = "failed"
+            run.error_code = "APPROVAL_REJECTED"
+            run.error_message = "The workflow was not approved for completion."
+            run.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="approval_rejected",
+                progress_percent=100,
+                message="Human review did not approve the workflow",
+            )
+            await db.commit()
+            return
+
+        try:
+            membership = await _resolve_query_membership(
+                db,
+                user_id=query.user_id,
+                organisation_id=query.organisation_id,
+                site_id=query.site_id,
+            )
+        except AppError:
+            query.status = "failed"
+            query.completed_at = datetime.now(UTC)
+            run.status = "failed"
+            run.error_code = "QUERY_ACCESS_REVOKED"
+            run.error_message = "Access was revoked before approval resume."
+            run.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="authorization_failed",
+                progress_percent=100,
+                message="Query access was revoked before approval resume",
+            )
+            await db.commit()
+            return
+
+        request = AgentQueryRequest(
+            run_id=run.id,
+            query_id=query.id,
+            organisation_id=query.organisation_id,
+            site_id=query.site_id,
+            user_id=query.user_id,
+            membership_id=membership.id,
+            actor_role=membership.role,
+            query_type=query.mode,
+            question=query.question,
+            scope=AgentScope(
+                asset_ids=list(query.context_asset_ids or []),
+                document_ids=list(query.context_document_ids or []),
+            ),
+            options=AgentOptions(),
+        )
+
+        gateway = get_agent_gateway()
+        resume = getattr(gateway, "resume_query", None)
+        if resume is None:
+            query.status = "failed"
+            query.completed_at = datetime.now(UTC)
+            run.status = "failed"
+            run.error_code = "APPROVAL_RESUME_UNSUPPORTED"
+            run.error_message = "The configured agent gateway cannot resume workflows."
+            run.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="approval_resume_failed",
+                progress_percent=100,
+                message="The configured agent gateway cannot resume workflows",
+            )
+            await db.commit()
+            return
+
+        try:
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="approval_received",
+                progress_percent=92,
+                message="Approval received; resuming workflow",
+            )
+            await db.commit()
+            result = await resume(request, request_id)
+            await validate_agent_result(db, query=query, result=result)
+            if result.status == "failed":
+                raise AppError(
+                    result.error_code or "AGENT_EXECUTION_FAILED",
+                    result.error_message or "Agent resume failed.",
+                    502,
+                )
+
+            query.answer = result.answer
+            query.confidence_label = result.confidence.label if result.confidence else None
+            query.confidence_score = result.confidence.score if result.confidence else None
+            query.missing_evidence = result.missing_evidence
+            query.conflicts = result.conflicts
+            query.related_entities = [item.model_dump() for item in result.related_entities]
+            query.status = "succeeded"
+            query.completed_at = datetime.now(UTC)
+
+            claim_map: dict[str, QueryClaim] = {}
+            for item in result.claims:
+                claim = QueryClaim(
+                    query_id=query.id,
+                    external_id=item.id,
+                    text=item.text,
+                    support_status=item.support_status,
+                )
+                db.add(claim)
+                claim_map[item.id] = claim
+            await db.flush()
+
+            citation_to_claim: dict[str, QueryClaim] = {}
+            for item in result.claims:
+                for citation_id in item.citation_ids:
+                    citation_to_claim.setdefault(citation_id, claim_map[item.id])
+
+            for item in result.citations:
+                linked_claim = citation_to_claim.get(item.id)
+                db.add(
+                    Citation(
+                        query_id=query.id,
+                        claim_id=linked_claim.id if linked_claim else None,
+                        claim_text=linked_claim.text if linked_claim else "Evidence",
+                        support_status=(
+                            linked_claim.support_status if linked_claim else "not_evaluated"
+                        ),
+                        document_id=item.document_id,
+                        document_title=item.document_title,
+                        document_version=item.document_version,
+                        chunk_id=item.chunk_id,
+                        evidence_region_id=item.evidence_region_id,
+                        page_or_sheet=item.page_or_sheet,
+                        locator=item.locator,
+                        text_excerpt=item.text_excerpt,
+                        retrieval_sources=item.retrieval_sources,
+                        access_allowed=item.access_allowed,
+                    )
+                )
+
+            run.status = "succeeded"
+            run.pipeline_version = result.run_metadata.pipeline_version
+            run.latency_ms = result.run_metadata.latency_ms
+            run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
+            run.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=query.id,
+                stage="completed",
+                progress_percent=100,
+                message="Query completed after human approval",
+            )
+            await db.commit()
+        except Exception as exc:
+            await db.rollback()
+            error_code, error_message = _safe_error(exc)
+            query = await db.get(Query, approval.investigation_id)
+            run = await db.get(AgentRun, run.id)
+            if query is not None:
+                query.status = "failed"
+                query.completed_at = datetime.now(UTC)
+            if run is not None:
+                run.status = "failed"
+                run.error_code = error_code
+                run.error_message = error_message
+                run.completed_at = datetime.now(UTC)
+            await add_query_event(
+                db,
+                query_id=approval.investigation_id,
+                stage="approval_resume_failed",
+                progress_percent=100,
+                message="Workflow could not resume after approval",
+            )
+            await db.commit()

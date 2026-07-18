@@ -118,3 +118,20 @@ class MnemosAIOrchestrator:
             return AgentResponse(**response)
 
         return response
+
+
+    async def resume_query(
+        self,
+        request: AgentQueryRequest,
+        approval_request_id: str,
+    ) -> AgentResponse:
+        """Resume the canonical pipeline after a durable approval decision."""
+        pipeline = build_investigation_pipeline(db=self.db)
+        result = await pipeline.resume_from_approval(approval_request_id)
+        response = result.get("final_response")
+        if response is None:
+            raise RuntimeError("Resumed workflow terminated without a final response.")
+        if isinstance(response, dict):
+            return AgentResponse(**response)
+        return response
+

@@ -76,10 +76,14 @@ app.include_router(audit.router, prefix=settings.api_v1_prefix)
 # Mount the approval router (P0 #7) — wired to the durable approval queue
 from mnemos.agentic.runtime.api.approvals import create_approval_router  # noqa: E402
 from mnemos.agentic.runtime.approval_queue import DurableApprovalQueue  # noqa: E402
+from mnemos.services.query_execution import resume_query_after_approval  # noqa: E402
 
 _approval_queue = DurableApprovalQueue(session_factory=SessionLocal)
 app.include_router(
-    create_approval_router(_approval_queue),
+    create_approval_router(
+        _approval_queue,
+        resume_callback=resume_query_after_approval,
+    ),
     prefix=f"{settings.api_v1_prefix}/approvals",
 )
 

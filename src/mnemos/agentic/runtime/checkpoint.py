@@ -202,27 +202,36 @@ class CheckpointManager:
 # ---------------------------------------------------------------------------
 
 
+def _json_safe(value: Any) -> Any:
+    """Recursively convert runtime values into JSON-safe structures.
+
+    Approval snapshots and checkpoints can contain nested Pydantic models,
+    enums, tuples, sets, and datetimes inside ``context``. A shallow conversion
+    is insufficient and can fail only when the workflow reaches a real
+    approval gate. This helper keeps the persisted snapshot deterministic and
+    resumable.
+    """
+    from datetime import date, datetime
+    from enum import Enum
+
+    if hasattr(value, "model_dump"):
+        return _json_safe(value.model_dump(mode="json"))
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_json_safe(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 def _serialise_state(state: dict[str, Any]) -> dict[str, Any]:
-    """Best-effort serialisation of the investigation state for storage.
-    Pydantic models are converted via ``model_dump``; everything else
-    is passed through."""
-    serialised: dict[str, Any] = {}
-    for key, value in state.items():
-        if hasattr(value, "model_dump"):
-            serialised[key] = value.model_dump(mode="json")
-        elif isinstance(value, list):
-            serialised[key] = [
-                item.model_dump(mode="json") if hasattr(item, "model_dump") else item
-                for item in value
-            ]
-        elif isinstance(value, dict):
-            serialised[key] = {
-                k: v.model_dump(mode="json") if hasattr(v, "model_dump") else v
-                for k, v in value.items()
-            }
-        else:
-            serialised[key] = value
-    return serialised
+    """Return a recursively JSON-safe investigation state snapshot."""
+    return _json_safe(state)
 
 
 def _deserialise_state(snapshot: dict[str, Any]) -> dict[str, Any]:

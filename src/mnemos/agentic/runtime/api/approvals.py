@@ -21,9 +21,10 @@ Authorization (P0 #8):
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from mnemos.agentic.runtime.approval_queue import (
@@ -101,6 +102,8 @@ def _require_approval_role(
 
 def create_approval_router(
     approval_queue: ApprovalQueueBase,
+    *,
+    resume_callback: Callable[[str], Awaitable[None]] | None = None,
 ) -> APIRouter:
     """Create a FastAPI router wired to an ApprovalQueueBase instance.
 
@@ -178,6 +181,7 @@ def create_approval_router(
     async def submit_decision(
         request_id: str,
         body: DecisionRequest,
+        background_tasks: BackgroundTasks,
         principal: Principal = Depends(get_principal),
     ) -> dict[str, Any]:
         """Submit an approval decision for a pending request.
@@ -223,12 +227,18 @@ def create_approval_router(
                 detail="Failed to record the decision. Please retry.",
             )
 
+        resume_scheduled = False
+        if resume_callback is not None:
+            background_tasks.add_task(resume_callback, request_id)
+            resume_scheduled = True
+
         return {
             "success": True,
             "request_id": request_id,
             "status": updated.status.value,
             "decision": body.decision,
             "reviewer": reviewer,
+            "resume_scheduled": resume_scheduled,
         }
 
     # ------------------------------------------------------------------

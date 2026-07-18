@@ -165,12 +165,13 @@ class LangGraphAgentGateway:
                     ),
                 )
 
-            except _ApprovalPendingError:
+            except _ApprovalPendingError as exc:
                 await db.commit()
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 return AgentQueryResult(
                     run_id=request.run_id,
                     status="pending_approval",
+                    approval_request_id=exc.request_id,
                     answer="",
                     confidence=AgentConfidence(label="low", score=0.0),
                     run_metadata=AgentRunMetadata(
@@ -205,6 +206,90 @@ class LangGraphAgentGateway:
                         latency_ms=latency_ms,
                     ),
                 )
+
+    async def resume_query(
+        self,
+        request: AgentQueryRequest,
+        approval_request_id: str,
+    ) -> AgentQueryResult:
+        """Resume a previously paused workflow after durable approval."""
+        started = time.perf_counter()
+        async with SessionLocal() as db:
+            orchestrator = MnemosAIOrchestrator(db)
+            try:
+                agent_response = await orchestrator.resume_query(
+                    request=request,
+                    approval_request_id=approval_request_id,
+                )
+                await db.commit()
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                return self._response_to_result(request, agent_response, latency_ms)
+            except Exception as exc:
+                await db.rollback()
+                error_code, error_message = _sanitize_error(exc)
+                logger.error(
+                    "LangGraph approval resume failed: code=%s",
+                    error_code,
+                    extra={
+                        "query_id": request.query_id,
+                        "run_id": request.run_id,
+                        "approval_request_id": approval_request_id,
+                    },
+                )
+                return AgentQueryResult(
+                    run_id=request.run_id,
+                    status="failed",
+                    error_code=error_code,
+                    error_message=error_message,
+                    run_metadata=AgentRunMetadata(
+                        pipeline_version="v2.0-multi-agent-runtime",
+                        latency_ms=int((time.perf_counter() - started) * 1000),
+                    ),
+                )
+
+    def _response_to_result(
+        self,
+        request: AgentQueryRequest,
+        agent_response: object,
+        latency_ms: int,
+    ) -> AgentQueryResult:
+        return AgentQueryResult(
+            run_id=request.run_id,
+            status="succeeded",
+            answer=agent_response.answer,
+            confidence=AgentConfidence(
+                label="high" if agent_response.confidence_score > 0.8 else "medium",
+                score=agent_response.confidence_score,
+            ),
+            claims=[
+                AgentClaim(
+                    id=claim.claim_id,
+                    text=claim.text,
+                    support_status=self._map_status(claim.status),
+                    citation_ids=[f"cit_{index}_{source_index}" for source_index, _ in enumerate(claim.sources)],
+                )
+                for index, claim in enumerate(agent_response.claims)
+            ],
+            citations=[
+                AgentCitation(
+                    id=f"cit_{claim_index}_{source_index}",
+                    document_id=source.provenance.document_id,
+                    document_title=source.provenance.source_filename,
+                    document_version=source.provenance.document_version,
+                    text_excerpt=source.text_excerpt,
+                    page_or_sheet=source.provenance.page_number,
+                    locator=source.provenance.locator,
+                    evidence_region_id=source.provenance.evidence_region_id,
+                )
+                for claim_index, claim in enumerate(agent_response.claims)
+                for source_index, source in enumerate(claim.sources)
+            ],
+            missing_evidence=agent_response.missing_evidence,
+            run_metadata=AgentRunMetadata(
+                pipeline_version="v2.0-multi-agent-runtime",
+                latency_ms=latency_ms,
+            ),
+        )
 
     @staticmethod
     def _map_status(status: ClaimSupportStatus) -> str:

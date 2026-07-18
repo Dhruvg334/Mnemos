@@ -659,6 +659,7 @@ class InvestigationPipeline:
                 event_log,
                 "human_approval",
                 self._stage_human_approval,
+                checkpoint_manager,
             )
 
             if approved:
@@ -1655,6 +1656,7 @@ class InvestigationPipeline:
         self,
         state: InvestigationState,
         event_log: InvestigationEventLog,
+        checkpoint_manager: CheckpointManager,
     ) -> tuple[InvestigationState, bool]:
         """Stage 9: Check if approval needed, pause if so.
 
@@ -1718,20 +1720,54 @@ class InvestigationPipeline:
             gate_type=HumanApprovalNode.resolve_gate_type(gate_str),
         )
 
-        # Submit to the durable approval queue so the API can serve it
-        if self._approval_queue is not None:
-            findings = state.get("findings", {})
-            trace_id = state.get("trace_id")
-            await self._approval_queue.submit_request(
-                investigation_id=state.get("investigation_id", ""),
-                gate_type=gate_str,
-                state_snapshot=state,
-                summary=state.get("query", ""),
-                findings=findings if isinstance(findings, dict) else {},
-                trace_id=trace_id,
-                triggered_by="pipeline",
-            )
+        if self._approval_queue is None:
+            raise RuntimeError("Durable approval queue is required for approval gates")
 
+        # Persist an authoritative checkpoint before publishing the approval
+        # request. The workflow must never report ``pending_approval`` unless
+        # the exact state needed for resume is durable.
+        from mnemos.agentic.runtime.checkpoint import _optimistic_save, _serialise_state
+
+        checkpoint = await _optimistic_save(
+            checkpoint_manager,
+            state,
+            phase=InvestigationPhase.APPROVAL,
+            checkpoint_type=CheckpointType.HUMAN_REQUESTED,
+            agent_name="human_approval",
+            description="Workflow paused for human approval",
+            event_log_offset=event_log.get_offset(),
+            db=self.db,
+        )
+        state["last_checkpoint_id"] = checkpoint.metadata.checkpoint_id
+        checkpoints = list(state.get("checkpoints", []))
+        checkpoints.append(checkpoint)
+        state["checkpoints"] = checkpoints
+
+        findings = state.get("findings", {})
+        trace_id = state.get("trace_id")
+        request = await self._approval_queue.submit_request(
+            investigation_id=state.get("investigation_id", ""),
+            gate_type=gate_str,
+            state_snapshot=_serialise_state(state),
+            summary=state.get("query", ""),
+            findings=findings if isinstance(findings, dict) else {},
+            trace_id=trace_id,
+            triggered_by="pipeline",
+        )
+        pending = dict(state.get("pending_approval_request") or {})
+        pending["request_id"] = request.request_id
+        pending["checkpoint_id"] = checkpoint.metadata.checkpoint_id
+        state["pending_approval_request"] = pending
+
+        event_log.append(
+            EventType.CHECKPOINT_SAVED,
+            phase=InvestigationPhase.APPROVAL,
+            agent_name="human_approval",
+            data={
+                "checkpoint_id": checkpoint.metadata.checkpoint_id,
+                "approval_request_id": request.request_id,
+            },
+        )
         _record_step(state, "human_approval", "awaiting_human")
 
         elapsed_ms = (time.time() - started) * 1000
@@ -1743,7 +1779,67 @@ class InvestigationPipeline:
         # Raise to propagate pending-approval status to the gateway.
         # The gateway catches this and returns a pending_approval result.
         # The backend saves the state and exposes an approval API.
-        raise _ApprovalPendingError(gate_str, state)
+        raise _ApprovalPendingError(gate_str, state, request.request_id)
+
+    async def resume_from_approval(self, request_id: str) -> dict[str, Any]:
+        """Resume a workflow after a durably recorded approval decision.
+
+        Only approved requests can resume. Rejected, expired, cancelled, or
+        change-requested decisions remain terminal and are handled by the
+        backend query service. The state snapshot is hydrated before the final
+        response stage so Pydantic report models retain their typed behavior.
+        """
+        if self._approval_queue is None:
+            raise RuntimeError("Durable approval queue is required for resume")
+
+        request = await self._approval_queue.get_request(request_id)
+        decision = await self._approval_queue.get_decision(request_id)
+        if request is None:
+            raise ValueError("Approval request was not found")
+        if request.status.value != "approved" or decision is None:
+            raise RuntimeError("Approval request is not approved")
+
+        state = _hydrate_resumed_state(request.state_snapshot)
+        investigation_id = state.get("investigation_id") or request.investigation_id
+        state["investigation_id"] = investigation_id
+        state["approval_required"] = False
+        state["approval_result"] = decision.model_dump(mode="json")
+        state["pending_approval_request"] = None
+        state["phase"] = InvestigationPhase.APPROVAL
+
+        event_log = self._create_event_log(investigation_id)
+        checkpoint_manager = self._create_checkpoint_manager(investigation_id)
+        self._tracing_manager = _create_tracing_manager(investigation_id, event_log)
+
+        event_log.append(
+            EventType.APPROVAL_RECEIVED,
+            phase=InvestigationPhase.APPROVAL,
+            agent_name="human_approval",
+            data={
+                "request_id": request_id,
+                "decision": decision.decision,
+                "reviewer": decision.reviewer,
+            },
+        )
+        _record_step(state, "human_approval", "approved")
+
+        state = await _execute_stage(
+            self,
+            state,
+            event_log,
+            "final_response",
+            self._stage_final_response,
+        )
+        state = await _execute_stage(
+            self,
+            state,
+            event_log,
+            "complete",
+            self._stage_complete,
+            checkpoint_manager,
+        )
+        await _flush_runtime_records(self, event_log)
+        return self._build_result(state, investigation_id, event_log)
 
     # ------------------------------------------------------------------
     # Stage 10: Final Response
@@ -1979,6 +2075,20 @@ class InvestigationPipeline:
             result["observability"] = None
 
         return result
+
+
+def _hydrate_resumed_state(snapshot: dict[str, Any]) -> InvestigationState:
+    """Restore typed values required by post-approval stages."""
+    state = cast(InvestigationState, dict(snapshot))
+    context = dict(state.get("context", {}))
+    report = context.get("final_report")
+    if isinstance(report, dict):
+        context["final_report"] = FinalReport.model_validate(report)
+    response = context.get("final_response")
+    if isinstance(response, dict):
+        context["final_response"] = AgentResponse.model_validate(response)
+    state["context"] = context
+    return state
 
 
 # ======================================================================
@@ -2600,7 +2710,13 @@ class _ApprovalPendingError(Exception):
     to the backend.
     """
 
-    def __init__(self, gate_type: str, state: InvestigationState) -> None:
+    def __init__(
+        self,
+        gate_type: str,
+        state: InvestigationState,
+        request_id: str,
+    ) -> None:
         self.gate_type = gate_type
         self.frozen_state = state
+        self.request_id = request_id
         super().__init__(f"Approval required for gate '{gate_type}' — pipeline paused")
