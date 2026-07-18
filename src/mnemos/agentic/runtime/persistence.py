@@ -4,9 +4,9 @@ Provides DB-backed implementations of ``CheckpointManager``,
 ``AuditLogger``, and ``InvestigationEventLog`` that write through
 to PostgreSQL via SQLAlchemy AsyncSession.
 
-All durable writers are **fire-and-forget**: a failed DB write is
-logged but never raises, so the pipeline can continue even if the
-database is temporarily unreachable.
+Checkpoint writes used by the production workflow are awaited and fail
+closed. Audit and event persistence remain staged on the request-scoped
+transaction and are addressed in the next durability phase.
 """
 
 from __future__ import annotations
@@ -70,6 +70,11 @@ class DurableCheckpointManager(CheckpointManager):
                 "DurableCheckpoint: no event loop available for async persist of %s",
                 checkpoint.metadata.checkpoint_id,
             )
+
+
+    async def _persist_async(self, checkpoint: Checkpoint) -> None:
+        """Await durable checkpoint persistence before returning."""
+        await self.persist_async(checkpoint)
 
     async def persist_async(self, checkpoint: Checkpoint) -> None:
         """Async persistence with optimistic concurrency version check (P0 #13)."""

@@ -55,4 +55,21 @@ def test_pipeline_construction_has_one_production_factory() -> None:
 
     function_names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
     assert function_names == {"build_investigation_pipeline"}
-    assert "return InvestigationPipeline(db=db)" in factory
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "InvestigationPipeline"
+    ]
+    assert len(calls) == 1
+
+    keyword_names = {keyword.arg for keyword in calls[0].keywords}
+    assert keyword_names == {
+        "db",
+        "checkpoint_store",
+        "event_store",
+        "audit_sink",
+        "approval_queue",
+        "node_registry",
+    }

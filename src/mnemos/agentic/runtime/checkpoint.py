@@ -49,6 +49,57 @@ class CheckpointManager:
         description: str = "",
         event_log_offset: int = 0,
     ) -> Checkpoint:
+        """Save a checkpoint synchronously.
+
+        This remains available for in-memory tests and non-async callers.
+        Production runtime code should use :meth:`save_async` so durable
+        persistence is awaited before execution continues.
+        """
+        checkpoint = self._build_checkpoint(
+            state,
+            phase=phase,
+            checkpoint_type=checkpoint_type,
+            agent_name=agent_name,
+            description=description,
+            event_log_offset=event_log_offset,
+        )
+        self._checkpoints.append(checkpoint)
+        self._persist(checkpoint)
+        return checkpoint
+
+    async def save_async(
+        self,
+        state: dict[str, Any],
+        *,
+        phase: InvestigationPhase = InvestigationPhase.INITIALIZATION,
+        checkpoint_type: CheckpointType = CheckpointType.AUTOMATIC,
+        agent_name: str | None = None,
+        description: str = "",
+        event_log_offset: int = 0,
+    ) -> Checkpoint:
+        """Save a checkpoint and await the persistence boundary."""
+        checkpoint = self._build_checkpoint(
+            state,
+            phase=phase,
+            checkpoint_type=checkpoint_type,
+            agent_name=agent_name,
+            description=description,
+            event_log_offset=event_log_offset,
+        )
+        self._checkpoints.append(checkpoint)
+        await self._persist_async(checkpoint)
+        return checkpoint
+
+    def _build_checkpoint(
+        self,
+        state: dict[str, Any],
+        *,
+        phase: InvestigationPhase,
+        checkpoint_type: CheckpointType,
+        agent_name: str | None,
+        description: str,
+        event_log_offset: int,
+    ) -> Checkpoint:
         snapshot = _serialise_state(state)
         state_hash = hashlib.sha256(
             json.dumps(snapshot, sort_keys=True, default=str).encode()
@@ -63,15 +114,11 @@ class CheckpointManager:
             state_hash=state_hash,
         )
 
-        checkpoint = Checkpoint(
+        return Checkpoint(
             metadata=metadata,
             state_snapshot=snapshot,
             event_log_offset=event_log_offset,
         )
-
-        self._checkpoints.append(checkpoint)
-        self._persist(checkpoint)
-        return checkpoint
 
     # ------------------------------------------------------------------
     # Load
@@ -141,6 +188,10 @@ class CheckpointManager:
     def _persist(self, checkpoint: Checkpoint) -> None:
         """Persist a checkpoint. Default: no-op (in-memory only)."""
 
+    async def _persist_async(self, checkpoint: Checkpoint) -> None:
+        """Async persistence hook. In-memory storage has no extra work."""
+        self._persist(checkpoint)
+
     def _load_all(self) -> list[Checkpoint]:
         """Load all checkpoints. Default: empty."""
         return []
@@ -196,7 +247,7 @@ async def _optimistic_save(
     When a DB session is available, uses version-increment semantics to
     prevent two workers from overwriting the same investigation checkpoint.
     """
-    checkpoint = checkpoint_manager.save(
+    checkpoint = await checkpoint_manager.save_async(
         state,
         phase=phase,
         checkpoint_type=checkpoint_type,

@@ -692,11 +692,11 @@ class InvestigationPipeline:
 
             if self.auto_checkpoint:
                 try:
-                    checkpoint_manager.save(
+                    await checkpoint_manager.save_async(
                         state,
                         phase=InvestigationPhase.FAILED,
                         checkpoint_type=CheckpointType.ON_FAILURE,
-                        description=f"Pipeline failure: {exc}",
+                        description="Pipeline failure checkpoint",
                         event_log_offset=event_log.get_offset(),
                     )
                 except Exception:
@@ -2380,7 +2380,7 @@ def _create_checkpoint_node(
     async def checkpoint_fn(
         state: InvestigationState,
     ) -> dict[str, Any]:
-        checkpoint = checkpoint_manager.save(
+        checkpoint = await checkpoint_manager.save_async(
             state,
             phase=InvestigationPhase(
                 _phase_str(
