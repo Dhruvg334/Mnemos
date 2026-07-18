@@ -56,6 +56,15 @@ class InvestigationEventLog:
     def append_many(self, events: list[InvestigationEvent]) -> None:
         self._events.extend(events)
 
+    async def flush_async(self) -> None:
+        """Flush pending event records.
+
+        The base event log is in-memory only. Durable implementations override
+        this method and await their database writes.
+        """
+
+        return None
+
     # ------------------------------------------------------------------
     # Read
     # ------------------------------------------------------------------

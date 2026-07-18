@@ -4,9 +4,9 @@ Provides DB-backed implementations of ``CheckpointManager``,
 ``AuditLogger``, and ``InvestigationEventLog`` that write through
 to PostgreSQL via SQLAlchemy AsyncSession.
 
-Checkpoint writes used by the production workflow are awaited and fail
-closed. Audit and event persistence remain staged on the request-scoped
-transaction and are addressed in the next durability phase.
+Checkpoint, audit, event, and idempotency writes used by the production
+workflow are awaited and staged on an isolated runtime transaction. The
+agent gateway commits that transaction before its session closes.
 """
 
 from __future__ import annotations
@@ -200,10 +200,12 @@ class DurableCheckpointManager(CheckpointManager):
 
 
 class DurableAuditLogger(AuditLogger):
-    """Writes audit entries to PostgreSQL in addition to in-memory.
+    """Buffer audit entries and persist them through an awaited flush.
 
-    Each ``log()`` call creates an ``AuditEntry`` in memory (as before)
-    and fires a DB insert.  DB errors are logged but never raised.
+    Audit calls remain synchronous for compatibility with agents and tools, but
+    production workflow boundaries call :meth:`flush_async` before advancing.
+    A failed flush raises and prevents the runtime transaction from being
+    reported as durable.
     """
 
     def __init__(
@@ -213,15 +215,22 @@ class DurableAuditLogger(AuditLogger):
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
+        self._pending: list[AuditEntry] = []
 
     def log(self, action: Any, **kwargs: Any) -> AuditEntry:  # noqa: ANN401
         entry = super().log(action, **kwargs)
         if self._db is not None:
-            self._schedule_persist(entry)
+            self._pending.append(entry)
         return entry
 
-    def _schedule_persist(self, entry: AuditEntry) -> None:
-        try:
+    async def flush_async(self) -> None:
+        """Stage every queued audit entry and await the database flush."""
+
+        if self._db is None or not self._pending:
+            return
+
+        pending = list(self._pending)
+        for entry in pending:
             self._db.add(
                 RuntimeAuditEntry(
                     id=entry.audit_id,
@@ -237,10 +246,12 @@ class DurableAuditLogger(AuditLogger):
                     input_data=entry.input_data,
                     output_data=entry.output_data,
                     guardrail_checks=[
-                        c.value if hasattr(c, "value") else str(c) for c in entry.guardrail_checks
+                        item.value if hasattr(item, "value") else str(item)
+                        for item in entry.guardrail_checks
                     ],
                     guardrail_verdicts=[
-                        v.value if hasattr(v, "value") else str(v) for v in entry.guardrail_verdicts
+                        item.value if hasattr(item, "value") else str(item)
+                        for item in entry.guardrail_verdicts
                     ],
                     approval_gate=entry.approval_gate,
                     approval_decision=entry.approval_decision,
@@ -250,102 +261,15 @@ class DurableAuditLogger(AuditLogger):
                     duration_ms=entry.metadata.get("duration_ms", 0.0)
                     if isinstance(entry.metadata, dict)
                     else 0.0,
-                    metadata_json=entry.metadata if isinstance(entry.metadata, dict) else {},
+                    metadata_json=entry.metadata
+                    if isinstance(entry.metadata, dict)
+                    else {},
                     created_at=entry.timestamp,
                 )
             )
-            return
-        except Exception as exc:
-            logger.warning(
-                "DurableAuditLogger: failed to stage DB persist: %s",
-                exc,
-            )
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(self._async_persist(entry))
-            else:
-                loop.run_until_complete(self._async_persist(entry))
-        except RuntimeError:
-            try:
-                asyncio.get_event_loop().call_soon(
-                    asyncio.ensure_future,
-                    self._async_persist(entry),
-                )
-            except Exception:
-                logger.warning("DurableAuditLogger: could not schedule DB persist")
 
-    async def _async_persist(self, entry: AuditEntry) -> None:
-        try:
-            await self._db.execute(
-                text(
-                    """
-                    INSERT INTO runtime_audit_entries
-                        (id, investigation_id, trace_id, agent_name,
-                         action, tool_name, resource_type, resource_id,
-                         input_data, output_data, guardrail_checks,
-                         guardrail_verdicts, approval_gate,
-                         approval_decision, success, error_code,
-                         error_message, duration_ms, metadata_json,
-                         created_at)
-                    VALUES
-                        (:id, :investigation_id, :trace_id, :agent_name,
-                         :action, :tool_name, :resource_type, :resource_id,
-                         :input_data, :output_data, :guardrail_checks,
-                         :guardrail_verdicts, :approval_gate,
-                         :approval_decision, :success, :error_code,
-                         :error_message, :duration_ms, :metadata_json,
-                         :created_at)
-                    """
-                ),
-                {
-                    "id": entry.audit_id,
-                    "investigation_id": entry.investigation_id,
-                    "trace_id": entry.trace_id,
-                    "agent_name": entry.agent_name,
-                    "action": entry.action.value
-                    if hasattr(entry.action, "value")
-                    else str(entry.action),
-                    "tool_name": entry.tool_name,
-                    "resource_type": entry.resource_type,
-                    "resource_id": entry.resource_id,
-                    "input_data": json.dumps(entry.input_data, default=str),
-                    "output_data": json.dumps(entry.output_data, default=str),
-                    "guardrail_checks": json.dumps(
-                        [
-                            c.value if hasattr(c, "value") else str(c)
-                            for c in entry.guardrail_checks
-                        ],
-                    ),
-                    "guardrail_verdicts": json.dumps(
-                        [
-                            v.value if hasattr(v, "value") else str(v)
-                            for v in entry.guardrail_verdicts
-                        ],
-                    ),
-                    "approval_gate": entry.approval_gate,
-                    "approval_decision": entry.approval_decision,
-                    "success": entry.success,
-                    "error_code": None,
-                    "error_message": entry.error,
-                    "duration_ms": entry.metadata.get("duration_ms", 0.0)
-                    if isinstance(entry.metadata, dict)
-                    else 0.0,
-                    "metadata_json": json.dumps(
-                        entry.metadata,
-                        default=str,
-                    )
-                    if isinstance(entry.metadata, dict)
-                    else json.dumps({}),
-                    "created_at": entry.timestamp,
-                },
-            )
-            await self._db.flush()
-        except Exception as exc:
-            logger.warning(
-                "DurableAuditLogger: failed to persist to DB: %s",
-                exc,
-            )
+        await self._db.flush()
+        del self._pending[: len(pending)]
 
 
 # ======================================================================
@@ -354,11 +278,7 @@ class DurableAuditLogger(AuditLogger):
 
 
 class DurableEventLog(InvestigationEventLog):
-    """Writes investigation events to PostgreSQL in addition to in-memory.
-
-    Each ``append()`` call creates an ``InvestigationEvent`` in memory
-    and fires a DB insert.  DB errors are logged but never raised.
-    """
+    """Buffer investigation events and persist them through awaited flushes."""
 
     def __init__(
         self,
@@ -367,15 +287,23 @@ class DurableEventLog(InvestigationEventLog):
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
+        self._pending: list[Any] = []
 
     def append(self, event_type: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         event = super().append(event_type, **kwargs)
         if self._db is not None:
-            self._schedule_persist(event)
+            self._pending.append(event)
         return event
 
-    def _schedule_persist(self, event: Any) -> None:  # noqa: ANN401
-        try:
+    async def flush_async(self) -> None:
+        """Stage every queued event and await the database flush."""
+
+        if self._db is None or not self._pending:
+            return
+
+
+        pending = list(self._pending)
+        for event in pending:
             data = event.model_dump(mode="json") if hasattr(event, "model_dump") else {}
             self._db.add(
                 RuntimeInvestigationEvent(
@@ -389,63 +317,9 @@ class DurableEventLog(InvestigationEventLog):
                     created_at=getattr(event, "timestamp", None) or _utcnow(),
                 )
             )
-            return
-        except Exception as exc:
-            logger.warning(
-                "DurableEventLog: failed to stage DB persist: %s",
-                exc,
-            )
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(self._async_persist(event))
-            else:
-                loop.run_until_complete(self._async_persist(event))
-        except RuntimeError:
-            try:
-                asyncio.get_event_loop().call_soon(
-                    asyncio.ensure_future,
-                    self._async_persist(event),
-                )
-            except Exception:
-                logger.warning("DurableEventLog: could not schedule DB persist")
 
-    async def _async_persist(self, event: Any) -> None:  # noqa: ANN401
-        try:
-            data = event.model_dump(mode="json") if hasattr(event, "model_dump") else {}
-            await self._db.execute(
-                text(
-                    """
-                    INSERT INTO runtime_investigation_events
-                        (id, investigation_id, event_type, phase,
-                         agent_name, data_json, correlation_id,
-                         created_at)
-                    VALUES
-                        (:id, :investigation_id, :event_type, :phase,
-                         :agent_name, :data_json, :correlation_id,
-                         :created_at)
-                    """
-                ),
-                {
-                    "id": f"revt_{uuid.uuid4().hex[:12]}",
-                    "investigation_id": self.investigation_id,
-                    "event_type": data.get("event_type", "unknown"),
-                    "phase": data.get("phase", "unknown"),
-                    "agent_name": data.get("agent_name"),
-                    "data_json": json.dumps(data.get("data", {}), default=str),
-                    "correlation_id": data.get("correlation_id"),
-                    "created_at": data.get(
-                        "timestamp",
-                        _utcnow().isoformat(),
-                    ),
-                },
-            )
-            await self._db.flush()
-        except Exception as exc:
-            logger.warning(
-                "DurableEventLog: failed to persist to DB: %s",
-                exc,
-            )
+        await self._db.flush()
+        del self._pending[: len(pending)]
 
 
 # ======================================================================
@@ -458,7 +332,7 @@ class DurableNodeRegistry:
     so idempotency keys survive process restarts.
 
     Used by ``IdempotentNodeExecutor`` when a DB session is available.
-    In-memory fallback is automatic on DB errors.
+    Completion writes are awaited and failures propagate to the workflow.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -466,26 +340,30 @@ class DurableNodeRegistry:
         # In-memory cache so same-process lookups don't hit DB every time
         self._cache: dict[str, bool] = {}
 
-    def mark_complete(self, idempotency_key: str, investigation_id: str, node_name: str) -> None:
+    async def mark_complete_async(
+        self,
+        idempotency_key: str,
+        investigation_id: str,
+        node_name: str,
+    ) -> None:
+        """Persist a node-completion marker before the stage returns."""
+
+        self._db.add(
+            RuntimeInvestigationEvent(
+                id=f"revt_{uuid.uuid4().hex[:12]}",
+                investigation_id=investigation_id,
+                event_type="node_completed",
+                phase="idempotency",
+                agent_name=node_name,
+                data_json={
+                    "idempotency_key": idempotency_key,
+                    "node_name": node_name,
+                },
+                created_at=_utcnow(),
+            )
+        )
+        await self._db.flush()
         self._cache[idempotency_key] = True
-        try:
-            self._db.add(
-                RuntimeInvestigationEvent(
-                    id=f"revt_{uuid.uuid4().hex[:12]}",
-                    investigation_id=investigation_id,
-                    event_type="node_completed",
-                    phase="idempotency",
-                    agent_name=node_name,
-                    data_json={"idempotency_key": idempotency_key, "node_name": node_name},
-                    created_at=_utcnow(),
-                )
-            )
-        except Exception as exc:
-            logger.warning(
-                "DurableNodeRegistry: failed to persist node completion %s: %s",
-                idempotency_key,
-                exc,
-            )
 
     def is_complete(self, idempotency_key: str) -> bool:
         return self._cache.get(idempotency_key, False)

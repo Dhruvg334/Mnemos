@@ -315,6 +315,16 @@ def _create_tracing_manager(
     return TracingManager(trace_id=investigation_id, exporter=span_exporter)
 
 
+async def _flush_runtime_records(
+    pipeline: InvestigationPipeline,
+    event_log: InvestigationEventLog,
+) -> None:
+    """Await durable event and audit staging at a workflow boundary."""
+
+    await event_log.flush_async()
+    await pipeline.audit_logger.flush_async()
+
+
 async def _execute_stage(
     pipeline: InvestigationPipeline,
     state: InvestigationState,
@@ -324,7 +334,8 @@ async def _execute_stage(
     *args: Any,
     **kwargs: Any,
 ) -> Any:
-    """Execute a pipeline stage with idempotency (P0 #22) and tracing (P0 #19)."""
+    """Execute one stage with tracing, idempotency, and awaited durability."""
+
     investigation_id = state.get("investigation_id", "")
 
     if pipeline._tracing_manager is not None:
@@ -346,6 +357,11 @@ async def _execute_stage(
             state=state,
         )
 
+        # Audit and event writes are staged and flushed before a completed
+        # stage becomes visible to the next stage. Idempotency completion is
+        # awaited inside IdempotentNodeExecutor.
+        await _flush_runtime_records(pipeline, event_log)
+
         if was_cached:
             logger.debug("Stage '%s' skipped (idempotent cache hit)", stage_name)
             if tracer is not None:
@@ -364,6 +380,10 @@ async def _execute_stage(
         return result
 
     except Exception as exc:
+        # Persist any audit/event records emitted before the failure. If the
+        # durability boundary itself fails, surface that failure instead of
+        # silently claiming the stage was recorded.
+        await _flush_runtime_records(pipeline, event_log)
         if tracer is not None:
             tracer.span.finish(status=SpanStatus.ERROR, message=str(exc)[:200])
         raise
@@ -701,6 +721,8 @@ class InvestigationPipeline:
                     )
                 except Exception:
                     logger.warning("Auto-checkpoint on failure failed", exc_info=True)
+
+            await _flush_runtime_records(self, event_log)
 
         return self._build_result(state, investigation_id, event_log)
 

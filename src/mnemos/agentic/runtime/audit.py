@@ -241,6 +241,16 @@ class AuditLogger:
             output_data={"claim_text": claim_text[:200]},
         )
 
+    async def flush_async(self) -> None:
+        """Flush pending audit records.
+
+        The in-memory implementation has no external persistence, so this is
+        intentionally a no-op. Durable implementations override it and must
+        not return until all queued records have reached their transaction.
+        """
+
+        return None
+
     # ------------------------------------------------------------------
     # Query
     # ------------------------------------------------------------------

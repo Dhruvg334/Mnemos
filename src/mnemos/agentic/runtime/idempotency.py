@@ -125,6 +125,8 @@ class NodeCompletionRegistry:
         output_summary: str = "",
         output: Any = None,
     ) -> NodeCompletionRecord:
+        """Record completion in memory for synchronous/test-only callers."""
+
         record = NodeCompletionRecord(
             investigation_id=investigation_id,
             node_name=node_name,
@@ -133,12 +135,32 @@ class NodeCompletionRegistry:
             output=output,
         )
         self._completed[idempotency_key] = record
-        # Also persist durably when a DB-backed registry is available
+        return record
+
+    async def mark_complete_async(
+        self,
+        investigation_id: str,
+        node_name: str,
+        idempotency_key: str,
+        output_summary: str = "",
+        output: Any = None,
+    ) -> NodeCompletionRecord:
+        """Persist completion before exposing it through the in-memory cache."""
+
+        record = NodeCompletionRecord(
+            investigation_id=investigation_id,
+            node_name=node_name,
+            idempotency_key=idempotency_key,
+            output_summary=output_summary,
+            output=output,
+        )
         if self._durable is not None:
-            try:
-                self._durable.mark_complete(idempotency_key, investigation_id, node_name)
-            except Exception:
-                logger.warning("Durable mark_complete failed for key '%s'", idempotency_key)
+            await self._durable.mark_complete_async(
+                idempotency_key,
+                investigation_id,
+                node_name,
+            )
+        self._completed[idempotency_key] = record
         return record
 
     def is_complete(self, idempotency_key: str) -> bool:
@@ -258,7 +280,7 @@ class IdempotentNodeExecutor:
             try:
                 result = await node_fn(state, *args, **kwargs)
                 # Mark complete
-                self._registry.mark_complete(
+                await self._registry.mark_complete_async(
                     investigation_id=investigation_id,
                     node_name=node_name,
                     idempotency_key=idem_key,

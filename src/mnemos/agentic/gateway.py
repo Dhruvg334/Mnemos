@@ -120,6 +120,11 @@ class LangGraphAgentGateway:
                 agent_response = await orchestrator.run_query(
                     request=request,
                 )
+                # Runtime checkpoints, events, audits, and idempotency markers
+                # use this isolated session. Commit them before the session
+                # closes; final application results are still persisted only by
+                # the backend query-execution transaction.
+                await db.commit()
 
                 latency_ms = int((time.perf_counter() - started) * 1000)
 
@@ -161,6 +166,7 @@ class LangGraphAgentGateway:
                 )
 
             except _ApprovalPendingError:
+                await db.commit()
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 return AgentQueryResult(
                     run_id=request.run_id,
@@ -174,6 +180,10 @@ class LangGraphAgentGateway:
                 )
 
             except Exception as exc:
+                try:
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
                 error_code, error_message = _sanitize_error(exc)
                 logger.error(
                     "LangGraph agent execution failed: code=%s",
