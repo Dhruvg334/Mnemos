@@ -25,6 +25,7 @@ logger = StructuredLogger("runtime.model_router")
 
 class ModelTier(StrEnum):
     """Model tiers for routing."""
+
     FAST = "fast"
     PRIMARY = "primary"
     AUTO = "auto"
@@ -32,6 +33,7 @@ class ModelTier(StrEnum):
 
 class RouteDecision(BaseModel):
     """Decision from the model router."""
+
     tier: ModelTier
     model_name: str
     reason: str
@@ -129,10 +131,7 @@ class ModelRouter:
         start = time.time()
 
         if tier_hint and tier_hint != ModelTier.AUTO:
-            model_name = (
-                self._fast_model if tier_hint == ModelTier.FAST
-                else self._primary_model
-            )
+            model_name = self._fast_model if tier_hint == ModelTier.FAST else self._primary_model
             return RouteDecision(
                 tier=tier_hint,
                 model_name=model_name,
@@ -223,10 +222,7 @@ class ModelRouter:
 
     def get_avg_latency(self, tier: ModelTier) -> float:
         """Get average latency for a tier."""
-        latencies = (
-            self._fast_latencies if tier == ModelTier.FAST
-            else self._primary_latencies
-        )
+        latencies = self._fast_latencies if tier == ModelTier.FAST else self._primary_latencies
         if not latencies:
             return 0.0
         return sum(latencies) / len(latencies)

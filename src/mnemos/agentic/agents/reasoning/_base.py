@@ -82,9 +82,7 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
                 "site_id": ctx.get("site_id", ""),
                 "user_id": ctx.get("user_id", ""),
                 "role": ctx.get("role", "engineer"),
-                "access_classifications": ctx.get(
-                    "access_classifications", ["internal"]
-                ),
+                "access_classifications": ctx.get("access_classifications", ["internal"]),
                 "asset_ids": ctx.get("asset_ids", []),
                 "document_ids": ctx.get("document_ids", []),
             }
@@ -107,6 +105,7 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
         """Return tools this agent is allowed to call (P0 #13)."""
         try:
             from mnemos.agentic.mcp.dispatch import _AGENT_TOOL_ALLOWLISTS
+
             return _AGENT_TOOL_ALLOWLISTS.get(self.name, frozenset())
         except ImportError:
             return frozenset()
@@ -177,9 +176,7 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
             return [r for r in all_reasoning if r.agent_name == agent_name]
         return all_reasoning
 
-    def _store_reasoning_output(
-        self, state: AgentState, output: ReasoningOutput
-    ) -> AgentState:
+    def _store_reasoning_output(self, state: AgentState, output: ReasoningOutput) -> AgentState:
         """Store a reasoning output in state context."""
         ctx = dict(state.get("context", {}))
         outputs: list[ReasoningOutput] = ctx.get("reasoning_outputs", [])
@@ -189,9 +186,7 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
         state["context"] = ctx
         return state
 
-    def _validate_evidence_exists(
-        self, state: AgentState
-    ) -> EvidenceBundle | None:
+    def _validate_evidence_exists(self, state: AgentState) -> EvidenceBundle | None:
         """Get evidence bundle or set abstain if missing."""
         bundle = self._get_evidence_bundle(state)
         if bundle is None:
@@ -304,7 +299,6 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
     def required_dependencies(self) -> list[str]:
         return []
 
-    @abstractmethod
     def _capabilities(self) -> list[Any]:
         return []
 

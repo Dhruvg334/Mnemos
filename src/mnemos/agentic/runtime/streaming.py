@@ -53,8 +53,8 @@ class InvestigationProgressEvent(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
     event_type: str  # phase_start | agent_start | agent_complete | agent_error |
-                     # evidence_collected | confidence_updated | approval_required |
-                     # reflection | workflow_complete
+    # evidence_collected | confidence_updated | approval_required |
+    # reflection | workflow_complete
     phase: str
     agent_name: str | None = None
     timestamp: str = Field(
@@ -245,9 +245,7 @@ class StreamingSupervisor:
                     "parallel": decision.parallel,
                     "should_continue": decision.should_continue,
                     "termination_reason": (
-                        decision.termination_reason.value
-                        if decision.termination_reason
-                        else None
+                        decision.termination_reason.value if decision.termination_reason else None
                     ),
                     "reasoning": decision.reasoning,
                 },
@@ -383,17 +381,17 @@ class StreamingSupervisor:
 
                 if reflection_output.should_abstain:
                     current_state["should_abstain"] = True
-                    current_state["abstention_reason"] = (
-                        reflection_output.abstention_reason
-                    )
+                    current_state["abstention_reason"] = reflection_output.abstention_reason
                     current_state["phase"] = InvestigationPhase.ABSTENTION
                     continue
 
                 if not reflection_output.should_continue and not reflection_output.should_abstain:
                     current_state["is_complete"] = True
                     current_state["termination_reason"] = (
-                        reflection_output.abstention_reason
-                    ) if reflection_output.abstention_reason else None
+                        (reflection_output.abstention_reason)
+                        if reflection_output.abstention_reason
+                        else None
+                    )
                     break
 
                 continue
@@ -436,7 +434,11 @@ class StreamingSupervisor:
 
             # Execute agents
             exec_result = await self._execute_agents(
-                current_state, pending, can_parallel, new_phase, iteration,
+                current_state,
+                pending,
+                can_parallel,
+                new_phase,
+                iteration,
             )
             current_state = exec_result.state
 
@@ -446,11 +448,11 @@ class StreamingSupervisor:
 
         # Propagate final state back to the caller's TypedDict reference.
         # TypedDict does not support .clear(), so we update each key individually.
-        for key in list(state.keys()):
-            if key in current_state:
-                state[key] = current_state[key]  # type: ignore[literal-required]
-            elif key in state:
-                del state[key]  # type: ignore[misc]
+        state.update(current_state)
+        # Remove keys that disappeared from current_state
+        removed = [k for k in state if k not in current_state]
+        for k in removed:
+            state.pop(k, None)
 
     # ------------------------------------------------------------------
     # Agent execution
@@ -489,7 +491,11 @@ class StreamingSupervisor:
             for name, result in zip(agent_names, results, strict=False):
                 if isinstance(result, Exception):
                     state = self._handle_agent_error(
-                        state, name, result, phase_str, iteration,
+                        state,
+                        name,
+                        result,
+                        phase_str,
+                        iteration,
                     )
                     pending_events.append(
                         InvestigationProgressEvent(
@@ -506,7 +512,10 @@ class StreamingSupervisor:
                         _merge_state(state, result_state)
                     pending_events.extend(
                         self._build_completion_events(
-                            name, phase_str, iteration, state,
+                            name,
+                            phase_str,
+                            iteration,
+                            state,
                         )
                     )
         else:
@@ -519,18 +528,28 @@ class StreamingSupervisor:
 
                 try:
                     result_state, _status, _attempts = await self._execute_single_agent(
-                        name, fn, reg, state,
+                        name,
+                        fn,
+                        reg,
+                        state,
                     )
                     if result_state is not None:
                         _merge_state(state, result_state)
                     pending_events.extend(
                         self._build_completion_events(
-                            name, phase_str, iteration, state,
+                            name,
+                            phase_str,
+                            iteration,
+                            state,
                         )
                     )
                 except Exception as exc:
                     state = self._handle_agent_error(
-                        state, name, exc, phase_str, iteration,
+                        state,
+                        name,
+                        exc,
+                        phase_str,
+                        iteration,
                     )
                     pending_events.append(
                         InvestigationProgressEvent(
@@ -607,10 +626,7 @@ class StreamingSupervisor:
                 data={"attempts": attempts, "elapsed_ms": elapsed_ms},
             )
         else:
-            error_msg = (
-                f"Agent {agent_name} failed with status {status} "
-                f"after {attempts} attempts"
-            )
+            error_msg = f"Agent {agent_name} failed with status {status} after {attempts} attempts"
             self._failure_recovery.record_failure(agent_name, error_msg)
             self._event_log.append(
                 EventType.AGENT_FAILED,

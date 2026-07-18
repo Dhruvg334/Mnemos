@@ -251,9 +251,10 @@ class RetrievalPlannerAgent(_BaseRetrievalAgent):
         llm_out: PlannerLLMOutput,
     ) -> RetrievalPlan:
         # Ensure at least one strategy
-        strategies = llm_out.strategies or _INTENT_DEFAULTS.get(
-            intent, _INTENT_DEFAULTS[QueryIntent.GENERAL]
-        )["strategies"]
+        strategies = (
+            llm_out.strategies
+            or _INTENT_DEFAULTS.get(intent, _INTENT_DEFAULTS[QueryIntent.GENERAL])["strategies"]
+        )
 
         # Merge entity IDs from resolved entities if LLM didn't specify
         asset_ids = llm_out.asset_ids or [

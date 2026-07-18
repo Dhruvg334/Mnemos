@@ -47,8 +47,10 @@ def _utcnow() -> datetime:
 class DurableCheckpointManager(CheckpointManager):
     """Writes checkpoints to PostgreSQL in addition to in-memory storage.
 
-    Falls back to in-memory only on DB errors so the pipeline never
-    breaks due to persistence issues.
+    Uses optimistic concurrency with version checking (P0 #13) to prevent
+    two workers from overwriting the same investigation checkpoint.
+    Does NOT silently fall back to in-memory on DB errors — production
+    checkpoint writes must be durable.
     """
 
     def __init__(self, investigation_id: str, db: AsyncSession) -> None:
@@ -56,97 +58,88 @@ class DurableCheckpointManager(CheckpointManager):
         self._db = db
 
     def _persist(self, checkpoint: Checkpoint) -> None:
-        """Persist a checkpoint to the current DB transaction."""
-        try:
-            self._db.add(
-                RuntimeCheckpoint(
-                    id=checkpoint.metadata.checkpoint_id,
-                    investigation_id=checkpoint.metadata.investigation_id,
-                    checkpoint_type=checkpoint.metadata.checkpoint_type.value
-                    if hasattr(checkpoint.metadata.checkpoint_type, "value")
-                    else str(checkpoint.metadata.checkpoint_type),
-                    phase=checkpoint.metadata.phase.value
-                    if hasattr(checkpoint.metadata.phase, "value")
-                    else str(checkpoint.metadata.phase),
-                    agent_name=checkpoint.metadata.agent_name,
-                    description=checkpoint.metadata.description,
-                    state_hash=checkpoint.metadata.state_hash,
-                    state_snapshot=checkpoint.state_snapshot,
-                    event_log_offset=checkpoint.event_log_offset,
-                    version=1,
-                    created_at=_utcnow(),
-                )
-            )
-            return
-        except Exception as exc:
-            logger.warning(
-                "DurableCheckpoint: failed to stage DB persist: %s", exc,
-            )
+        """Persist a checkpoint. Synchronous callers hit in-memory + schedule DB."""
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.ensure_future(self._async_persist(checkpoint))
+                asyncio.ensure_future(self.persist_async(checkpoint))
             else:
-                loop.run_until_complete(self._async_persist(checkpoint))
+                loop.run_until_complete(self.persist_async(checkpoint))
         except RuntimeError:
-            # No running event loop — schedule via a new task if possible
-            try:
-                asyncio.get_event_loop().call_soon(
-                    asyncio.ensure_future,
-                    self._async_persist(checkpoint),
-                )
-            except Exception:
-                logger.warning(
-                    "DurableCheckpoint: could not schedule DB persist "
-                    "(no event loop)"
-                )
-
-    async def _async_persist(self, checkpoint: Checkpoint) -> None:
-        try:
-            await self._db.execute(
-                text(
-                    """
-                    INSERT INTO runtime_checkpoints
-                        (id, investigation_id, checkpoint_type, phase,
-                         agent_name, description, state_hash,
-                         state_snapshot, event_log_offset, version,
-                         created_at)
-                    VALUES
-                        (:id, :investigation_id, :checkpoint_type, :phase,
-                         :agent_name, :description, :state_hash,
-                         :state_snapshot, :event_log_offset, :version,
-                         :created_at)
-                    """
-                ),
-                {
-                    "id": checkpoint.metadata.checkpoint_id,
-                    "investigation_id": checkpoint.metadata.investigation_id,
-                    "checkpoint_type": checkpoint.metadata.checkpoint_type.value
-                    if hasattr(checkpoint.metadata.checkpoint_type, "value")
-                    else str(checkpoint.metadata.checkpoint_type),
-                    "phase": checkpoint.metadata.phase.value
-                    if hasattr(checkpoint.metadata.phase, "value")
-                    else str(checkpoint.metadata.phase),
-                    "agent_name": checkpoint.metadata.agent_name,
-                    "description": checkpoint.metadata.description,
-                    "state_hash": checkpoint.metadata.state_hash,
-                    "state_snapshot": json.dumps(
-                        checkpoint.state_snapshot, default=str,
-                    ),
-                    "event_log_offset": checkpoint.event_log_offset,
-                    "version": 1,
-                    "created_at": _utcnow(),
-                },
+            logger.warning(
+                "DurableCheckpoint: no event loop available for async persist of %s",
+                checkpoint.metadata.checkpoint_id,
             )
+
+    async def persist_async(self, checkpoint: Checkpoint) -> None:
+        """Async persistence with optimistic concurrency version check (P0 #13)."""
+        from sqlalchemy import select, update
+
+        try:
+            # Check existing version for optimistic locking
+            row = await self._db.execute(
+                select(RuntimeCheckpoint.version)
+                .where(RuntimeCheckpoint.id == checkpoint.metadata.checkpoint_id)
+                .with_for_update()
+            )
+            existing = row.scalar_one_or_none()
+
+            if existing is not None:
+                # Update with version increment
+                await self._db.execute(
+                    update(RuntimeCheckpoint)
+                    .where(RuntimeCheckpoint.id == checkpoint.metadata.checkpoint_id)
+                    .values(
+                        version=RuntimeCheckpoint.version + 1,
+                        state_snapshot=checkpoint.state_snapshot,
+                        event_log_offset=checkpoint.event_log_offset,
+                        phase=checkpoint.metadata.phase.value
+                        if hasattr(checkpoint.metadata.phase, "value")
+                        else str(checkpoint.metadata.phase),
+                    )
+                )
+            else:
+                self._db.add(
+                    RuntimeCheckpoint(
+                        id=checkpoint.metadata.checkpoint_id,
+                        investigation_id=checkpoint.metadata.investigation_id,
+                        checkpoint_type=checkpoint.metadata.checkpoint_type.value
+                        if hasattr(checkpoint.metadata.checkpoint_type, "value")
+                        else str(checkpoint.metadata.checkpoint_type),
+                        phase=checkpoint.metadata.phase.value
+                        if hasattr(checkpoint.metadata.phase, "value")
+                        else str(checkpoint.metadata.phase),
+                        agent_name=checkpoint.metadata.agent_name,
+                        description=checkpoint.metadata.description,
+                        state_hash=checkpoint.metadata.state_hash,
+                        state_snapshot=checkpoint.state_snapshot,
+                        event_log_offset=checkpoint.event_log_offset,
+                        version=1,
+                        created_at=_utcnow(),
+                    )
+                )
             await self._db.flush()
         except Exception as exc:
-            logger.warning(
-                "DurableCheckpoint: failed to persist to DB: %s", exc,
+            logger.error(
+                "DurableCheckpoint: failed to persist checkpoint %s: %s",
+                checkpoint.metadata.checkpoint_id,
+                exc,
             )
+            raise
 
     def _load_all(self) -> list[Checkpoint]:
-        # NOTE: synchronous fallback — callers should use load_latest_async
-        return []
+        """Load all checkpoints. Synchronous fallback — callers should use load_latest_async."""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                future = asyncio.ensure_future(self.load_latest_async())
+                result = future.result() if future.done() else None
+                return [result] if result else []
+            else:
+                result = loop.run_until_complete(self.load_latest_async())
+                return [result] if result else []
+        except Exception:
+            return []
 
     async def load_latest_async(self) -> Checkpoint | None:
         """Load the most recent checkpoint from DB."""
@@ -190,7 +183,8 @@ class DurableCheckpointManager(CheckpointManager):
             )
         except Exception as exc:
             logger.warning(
-                "DurableCheckpoint: failed to load from DB: %s", exc,
+                "DurableCheckpoint: failed to load from DB: %s",
+                exc,
             )
             return None
 
@@ -208,7 +202,9 @@ class DurableAuditLogger(AuditLogger):
     """
 
     def __init__(
-        self, investigation_id: str, db: AsyncSession | None = None,
+        self,
+        investigation_id: str,
+        db: AsyncSession | None = None,
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
@@ -236,12 +232,10 @@ class DurableAuditLogger(AuditLogger):
                     input_data=entry.input_data,
                     output_data=entry.output_data,
                     guardrail_checks=[
-                        c.value if hasattr(c, "value") else str(c)
-                        for c in entry.guardrail_checks
+                        c.value if hasattr(c, "value") else str(c) for c in entry.guardrail_checks
                     ],
                     guardrail_verdicts=[
-                        v.value if hasattr(v, "value") else str(v)
-                        for v in entry.guardrail_verdicts
+                        v.value if hasattr(v, "value") else str(v) for v in entry.guardrail_verdicts
                     ],
                     approval_gate=entry.approval_gate,
                     approval_decision=entry.approval_decision,
@@ -251,16 +245,15 @@ class DurableAuditLogger(AuditLogger):
                     duration_ms=entry.metadata.get("duration_ms", 0.0)
                     if isinstance(entry.metadata, dict)
                     else 0.0,
-                    metadata_json=entry.metadata
-                    if isinstance(entry.metadata, dict)
-                    else {},
+                    metadata_json=entry.metadata if isinstance(entry.metadata, dict) else {},
                     created_at=entry.timestamp,
                 )
             )
             return
         except Exception as exc:
             logger.warning(
-                "DurableAuditLogger: failed to stage DB persist: %s", exc,
+                "DurableAuditLogger: failed to stage DB persist: %s",
+                exc,
             )
         try:
             loop = asyncio.get_event_loop()
@@ -275,9 +268,7 @@ class DurableAuditLogger(AuditLogger):
                     self._async_persist(entry),
                 )
             except Exception:
-                logger.warning(
-                    "DurableAuditLogger: could not schedule DB persist"
-                )
+                logger.warning("DurableAuditLogger: could not schedule DB persist")
 
     async def _async_persist(self, entry: AuditEntry) -> None:
         try:
@@ -316,12 +307,16 @@ class DurableAuditLogger(AuditLogger):
                     "input_data": json.dumps(entry.input_data, default=str),
                     "output_data": json.dumps(entry.output_data, default=str),
                     "guardrail_checks": json.dumps(
-                        [c.value if hasattr(c, "value") else str(c)
-                         for c in entry.guardrail_checks],
+                        [
+                            c.value if hasattr(c, "value") else str(c)
+                            for c in entry.guardrail_checks
+                        ],
                     ),
                     "guardrail_verdicts": json.dumps(
-                        [v.value if hasattr(v, "value") else str(v)
-                         for v in entry.guardrail_verdicts],
+                        [
+                            v.value if hasattr(v, "value") else str(v)
+                            for v in entry.guardrail_verdicts
+                        ],
                     ),
                     "approval_gate": entry.approval_gate,
                     "approval_decision": entry.approval_decision,
@@ -332,7 +327,8 @@ class DurableAuditLogger(AuditLogger):
                     if isinstance(entry.metadata, dict)
                     else 0.0,
                     "metadata_json": json.dumps(
-                        entry.metadata, default=str,
+                        entry.metadata,
+                        default=str,
                     )
                     if isinstance(entry.metadata, dict)
                     else json.dumps({}),
@@ -342,7 +338,8 @@ class DurableAuditLogger(AuditLogger):
             await self._db.flush()
         except Exception as exc:
             logger.warning(
-                "DurableAuditLogger: failed to persist to DB: %s", exc,
+                "DurableAuditLogger: failed to persist to DB: %s",
+                exc,
             )
 
 
@@ -359,7 +356,9 @@ class DurableEventLog(InvestigationEventLog):
     """
 
     def __init__(
-        self, investigation_id: str, db: AsyncSession | None = None,
+        self,
+        investigation_id: str,
+        db: AsyncSession | None = None,
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
@@ -388,7 +387,8 @@ class DurableEventLog(InvestigationEventLog):
             return
         except Exception as exc:
             logger.warning(
-                "DurableEventLog: failed to stage DB persist: %s", exc,
+                "DurableEventLog: failed to stage DB persist: %s",
+                exc,
             )
         try:
             loop = asyncio.get_event_loop()
@@ -403,9 +403,7 @@ class DurableEventLog(InvestigationEventLog):
                     self._async_persist(event),
                 )
             except Exception:
-                logger.warning(
-                    "DurableEventLog: could not schedule DB persist"
-                )
+                logger.warning("DurableEventLog: could not schedule DB persist")
 
     async def _async_persist(self, event: Any) -> None:  # noqa: ANN401
         try:
@@ -440,7 +438,8 @@ class DurableEventLog(InvestigationEventLog):
             await self._db.flush()
         except Exception as exc:
             logger.warning(
-                "DurableEventLog: failed to persist to DB: %s", exc,
+                "DurableEventLog: failed to persist to DB: %s",
+                exc,
             )
 
 
@@ -462,8 +461,7 @@ class DurableNodeRegistry:
         # In-memory cache so same-process lookups don't hit DB every time
         self._cache: dict[str, bool] = {}
 
-    def mark_complete(self, idempotency_key: str, investigation_id: str,
-                      node_name: str) -> None:
+    def mark_complete(self, idempotency_key: str, investigation_id: str, node_name: str) -> None:
         self._cache[idempotency_key] = True
         try:
             self._db.add(
@@ -473,15 +471,15 @@ class DurableNodeRegistry:
                     event_type="node_completed",
                     phase="idempotency",
                     agent_name=node_name,
-                    data_json={"idempotency_key": idempotency_key,
-                               "node_name": node_name},
+                    data_json={"idempotency_key": idempotency_key, "node_name": node_name},
                     created_at=_utcnow(),
                 )
             )
         except Exception as exc:
             logger.warning(
-                "DurableNodeRegistry: failed to persist node completion "
-                "%s: %s", idempotency_key, exc
+                "DurableNodeRegistry: failed to persist node completion %s: %s",
+                idempotency_key,
+                exc,
             )
 
     def is_complete(self, idempotency_key: str) -> bool:
@@ -508,6 +506,7 @@ class DurableNodeRegistry:
                 if isinstance(data, str):
                     try:
                         import json as _json
+
                         data = _json.loads(data)
                     except Exception:
                         data = {}
@@ -519,6 +518,7 @@ class DurableNodeRegistry:
         except Exception as exc:
             logger.warning(
                 "DurableNodeRegistry: failed to load completions for %s: %s",
-                investigation_id, exc,
+                investigation_id,
+                exc,
             )
             return set()

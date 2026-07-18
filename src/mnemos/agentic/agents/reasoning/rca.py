@@ -131,9 +131,7 @@ class RCAAgent(_BaseReasoningAgent):
                 ),
                 ConfidenceSignal(
                     signal_name="best_hypothesis_confidence",
-                    signal_value=max(
-                        (h.confidence_score for h in hypotheses), default=0.0
-                    ),
+                    signal_value=max((h.confidence_score for h in hypotheses), default=0.0),
                     weight=2.0,
                     reasoning="Confidence of the strongest hypothesis",
                 ),
@@ -145,14 +143,8 @@ class RCAAgent(_BaseReasoningAgent):
                 ),
             ],
             next_actions=next_actions,
-            next_recommended_agents=(
-                ["lessons_learned_agent"]
-                if similar
-                else []
-            ),
-            reasoning_summary=self._build_summary(
-                hypotheses, timeline, test_recs, confidence
-            ),
+            next_recommended_agents=(["lessons_learned_agent"] if similar else []),
+            reasoning_summary=self._build_summary(hypotheses, timeline, test_recs, confidence),
             metadata={
                 "timeline": [t.model_dump() for t in timeline],
                 "hypotheses": [h.model_dump() for h in hypotheses],
@@ -180,9 +172,7 @@ class RCAAgent(_BaseReasoningAgent):
     # Timeline generation
     # ------------------------------------------------------------------
 
-    def _build_timeline(
-        self, evidence: list[EvidenceSource]
-    ) -> list[TimelineEvent]:
+    def _build_timeline(self, evidence: list[EvidenceSource]) -> list[TimelineEvent]:
         """Build chronological timeline from evidence with temporal data."""
         events: list[TimelineEvent] = []
 
@@ -264,7 +254,9 @@ class RCAAgent(_BaseReasoningAgent):
 
             for cond in condition_events:
                 if cond.timestamp <= symptom.timestamp:
-                    supporting.append(cond.source_evidence_ids[0] if cond.source_evidence_ids else "")
+                    supporting.append(
+                        cond.source_evidence_ids[0] if cond.source_evidence_ids else ""
+                    )
                     causal_chain.append(f"Condition: {cond.description[:80]}")
 
             for act in action_events:
@@ -274,9 +266,7 @@ class RCAAgent(_BaseReasoningAgent):
 
             causal_chain.append(f"Symptom: {symptom.description[:80]}")
 
-            support_ratio = (
-                len(supporting) / max(len(evidence), 1)
-            )
+            support_ratio = len(supporting) / max(len(evidence), 1)
 
             hypotheses.append(
                 Hypothesis(
@@ -316,17 +306,11 @@ class RCAAgent(_BaseReasoningAgent):
         evidence: list[EvidenceSource],
     ) -> list[Hypothesis]:
         """Compare hypotheses against evidence and update support status."""
-        evidence_ids = {
-            s.provenance.evidence_region_id for s in evidence
-        }
+        evidence_ids = {s.provenance.evidence_region_id for s in evidence}
 
         for hyp in hypotheses:
-            supporting = [
-                eid for eid in hyp.supporting_evidence_ids if eid in evidence_ids
-            ]
-            contradicting = [
-                eid for eid in hyp.contradicting_evidence_ids if eid in evidence_ids
-            ]
+            supporting = [eid for eid in hyp.supporting_evidence_ids if eid in evidence_ids]
+            contradicting = [eid for eid in hyp.contradicting_evidence_ids if eid in evidence_ids]
 
             hyp.supporting_evidence_ids = supporting
             hyp.contradicting_evidence_ids = contradicting
@@ -417,9 +401,7 @@ class RCAAgent(_BaseReasoningAgent):
             )
 
         if len(hypotheses) > 1:
-            contradicting = [
-                h for h in hypotheses if h.contradicting_evidence_ids
-            ]
+            contradicting = [h for h in hypotheses if h.contradicting_evidence_ids]
             if contradicting:
                 missing.append(
                     MissingEvidence(
@@ -524,7 +506,8 @@ class RCAAgent(_BaseReasoningAgent):
                 status = ClaimSupportStatus.NO_EVIDENCE
 
             sources = [
-                s for s in evidence
+                s
+                for s in evidence
                 if s.provenance.evidence_region_id in hyp.supporting_evidence_ids
             ]
 
@@ -547,9 +530,7 @@ class RCAAgent(_BaseReasoningAgent):
     # Citations
     # ------------------------------------------------------------------
 
-    def _build_citations(
-        self, evidence: list[EvidenceSource]
-    ) -> list[Citation]:
+    def _build_citations(self, evidence: list[EvidenceSource]) -> list[Citation]:
         citations: list[Citation] = []
         for source in evidence:
             p = source.provenance
@@ -583,18 +564,14 @@ class RCAAgent(_BaseReasoningAgent):
 
         best_conf = max(h.confidence_score for h in hypotheses)
         evidence_quality = (
-            sum(s.confidence_score for s in evidence) / len(evidence)
-            if evidence
-            else 0.0
+            sum(s.confidence_score for s in evidence) / len(evidence) if evidence else 0.0
         )
         has_supported = any(
             h.support_status in ("supported", "partially_supported") for h in hypotheses
         )
 
         confidence = (
-            0.5 * best_conf
-            + 0.3 * evidence_quality
-            + 0.2 * (1.0 if has_supported else 0.2)
+            0.5 * best_conf + 0.3 * evidence_quality + 0.2 * (1.0 if has_supported else 0.2)
         )
         return round(min(confidence, 1.0), 3)
 
@@ -602,9 +579,7 @@ class RCAAgent(_BaseReasoningAgent):
     # Decision
     # ------------------------------------------------------------------
 
-    def _decide(
-        self, hypotheses: list[Hypothesis], confidence: float
-    ) -> ReasoningDecision:
+    def _decide(self, hypotheses: list[Hypothesis], confidence: float) -> ReasoningDecision:
         if not hypotheses:
             return ReasoningDecision.ABSTAIN
 
@@ -668,9 +643,7 @@ class RCAAgent(_BaseReasoningAgent):
         ]
         if hypotheses:
             best = hypotheses[0]
-            parts.append(
-                f"Leading hypothesis ({best.confidence_score:.2f}): {best.text[:100]}"
-            )
+            parts.append(f"Leading hypothesis ({best.confidence_score:.2f}): {best.text[:100]}")
             parts.append(f"Support status: {best.support_status}")
         parts.append(f"Recommended {len(test_recs)} diagnostic tests.")
         parts.append(f"Overall confidence: {confidence:.2f}")

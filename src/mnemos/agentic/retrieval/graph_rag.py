@@ -113,9 +113,7 @@ class GraphRAGLayer:
     # Public API
     # ------------------------------------------------------------------
 
-    async def process_bundle(
-        self, bundle: EvidenceBundle, query: str
-    ) -> list[EvidenceSource]:
+    async def process_bundle(self, bundle: EvidenceBundle, query: str) -> list[EvidenceSource]:
         """Graph-Vector Fusion Pipeline:
         1. Collect candidate evidence IDs from graph traversal results
         2. Merge with vector retrieval candidates
@@ -166,9 +164,7 @@ class GraphRAGLayer:
             if res.score >= 0.4:
                 final_sources.append(source)
 
-        logger.info(
-            f"Fusion complete. Produced {len(final_sources)} reranked evidence sources."
-        )
+        logger.info(f"Fusion complete. Produced {len(final_sources)} reranked evidence sources.")
         return final_sources
 
     async def ground_evidence(
@@ -212,18 +208,20 @@ class GraphRAGLayer:
                 storage_key=version.storage_key,
             )
 
-            grounded_sources.append(EvidenceSource(
-                text_excerpt=region.text_excerpt or "",
-                provenance=provenance,
-                relevance_score=1.0,
-                confidence_score=0.9,
-                verification_status=VerificationStatus.PROVENANCE_VALIDATED,
-                metadata={
-                    **(region.metadata_json or {}),
-                    "is_latest_version": True,
-                    "document_id": doc.id,
-                },
-            ))
+            grounded_sources.append(
+                EvidenceSource(
+                    text_excerpt=region.text_excerpt or "",
+                    provenance=provenance,
+                    relevance_score=1.0,
+                    confidence_score=0.9,
+                    verification_status=VerificationStatus.PROVENANCE_VALIDATED,
+                    metadata={
+                        **(region.metadata_json or {}),
+                        "is_latest_version": True,
+                        "document_id": doc.id,
+                    },
+                )
+            )
 
         return grounded_sources
 
@@ -256,9 +254,7 @@ class GraphRAGLayer:
             ]
 
             # Fetch relationships between these nodes
-            relationships = await self._fetch_relationships(
-                [n["id"] for n in nodes]
-            )
+            relationships = await self._fetch_relationships([n["id"] for n in nodes])
 
             return {
                 "nodes": nodes,
@@ -316,13 +312,15 @@ class GraphRAGLayer:
                             rel.get("source_id", ""), bundle
                         )
                         if evidence_source:
-                            grounded_rels.append(GroundedRelationship(
-                                source_id=rec["source_id"],
-                                target_id=rec["target_id"],
-                                relationship_type=rec["rel_type"],
-                                evidence=evidence_source,
-                                confidence=0.8,
-                            ))
+                            grounded_rels.append(
+                                GroundedRelationship(
+                                    source_id=rec["source_id"],
+                                    target_id=rec["target_id"],
+                                    relationship_type=rec["rel_type"],
+                                    evidence=evidence_source,
+                                    confidence=0.8,
+                                )
+                            )
                 except Exception:
                     continue
 
@@ -332,9 +330,7 @@ class GraphRAGLayer:
     # Private helpers
     # ------------------------------------------------------------------
 
-    async def _fetch_relationships(
-        self, node_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def _fetch_relationships(self, node_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch relationships between a set of nodes."""
         if len(node_ids) < 2:
             return []
@@ -355,12 +351,14 @@ class GraphRAGLayer:
             try:
                 records = await self.graph_client.query(cypher)
                 for rec in records:
-                    relationships.append({
-                        "source_id": rec["source_id"],
-                        "target_id": rec["target_id"],
-                        "type": rec["type"],
-                        "properties": rec["properties"],
-                    })
+                    relationships.append(
+                        {
+                            "source_id": rec["source_id"],
+                            "target_id": rec["target_id"],
+                            "type": rec["type"],
+                            "properties": rec["properties"],
+                        }
+                    )
             except Exception:
                 continue
 

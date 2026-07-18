@@ -43,6 +43,7 @@ from mnemos.agentic.schemas.base import (
     MCPToolName,
     MCPToolResult,
 )
+from mnemos.agentic.services.llm import get_llm_telemetry
 from mnemos.agentic.utils.guardrails import MnemosGuardrails
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -56,78 +57,100 @@ logger = StructuredLogger("mcp.dispatch")
 # ---------------------------------------------------------------------------
 
 _AGENT_TOOL_ALLOWLISTS: dict[str, frozenset[str]] = {
-    "query_router": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-    }),
-    "retrieval_planner": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.REVISION_CHECK,
-        MCPToolName.EVIDENCE_RULES,
-    }),
-    "evidence_retrieval": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.GRAPH_TRAVERSAL,
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.TIMELINE,
-        MCPToolName.SIMILAR_FAILURES,
-        MCPToolName.REVISION_CHECK,
-        MCPToolName.EVIDENCE_RULES,
-        MCPToolName.GET_CURRENT_PROCEDURE,
-        MCPToolName.GENERATE_SOURCE_PREVIEW,
-    }),
-    "evidence_verification": frozenset({
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.REVISION_CHECK,
-        MCPToolName.EVIDENCE_RULES,
-        MCPToolName.GENERATE_SOURCE_PREVIEW,
-    }),
-    "retrieval_reflection": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.EVIDENCE_RULES,
-    }),
-    "rca_agent": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.GRAPH_TRAVERSAL,
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.TIMELINE,
-        MCPToolName.SIMILAR_FAILURES,
-        MCPToolName.GET_CURRENT_PROCEDURE,
-        MCPToolName.EVIDENCE_RULES,
-        MCPToolName.ACTION_CREATION,
-        MCPToolName.REPORT_GENERATION,
-    }),
-    "compliance_agent": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.EVIDENCE_RULES,
-        MCPToolName.REVISION_CHECK,
-        MCPToolName.REPORT_GENERATION,
-    }),
-    "asset_intelligence": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.GRAPH_TRAVERSAL,
-        MCPToolName.TIMELINE,
-        MCPToolName.GET_CURRENT_PROCEDURE,
-        MCPToolName.SIMILAR_FAILURES,
-    }),
-    "lessons_learned_agent": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.SIMILAR_FAILURES,
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.TIMELINE,
-    }),
-    "expert_knowledge_agent": frozenset({
-        MCPToolName.RESOLVE_ASSET_TAG,
-        MCPToolName.DOCUMENT_RETRIEVAL,
-        MCPToolName.GRAPH_TRAVERSAL,
-        MCPToolName.GET_CURRENT_PROCEDURE,
-        MCPToolName.EVIDENCE_RULES,
-    }),
-    "report_composer": frozenset({
-        MCPToolName.GENERATE_SOURCE_PREVIEW,
-        MCPToolName.REPORT_GENERATION,
-        MCPToolName.APPROVAL_RECORDING,
-    }),
+    "query_router": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+        }
+    ),
+    "retrieval_planner": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.REVISION_CHECK,
+            MCPToolName.EVIDENCE_RULES,
+        }
+    ),
+    "evidence_retrieval": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.GRAPH_TRAVERSAL,
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.TIMELINE,
+            MCPToolName.SIMILAR_FAILURES,
+            MCPToolName.REVISION_CHECK,
+            MCPToolName.EVIDENCE_RULES,
+            MCPToolName.GET_CURRENT_PROCEDURE,
+            MCPToolName.GENERATE_SOURCE_PREVIEW,
+        }
+    ),
+    "evidence_verification": frozenset(
+        {
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.REVISION_CHECK,
+            MCPToolName.EVIDENCE_RULES,
+            MCPToolName.GENERATE_SOURCE_PREVIEW,
+        }
+    ),
+    "retrieval_reflection": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.EVIDENCE_RULES,
+        }
+    ),
+    "rca_agent": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.GRAPH_TRAVERSAL,
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.TIMELINE,
+            MCPToolName.SIMILAR_FAILURES,
+            MCPToolName.GET_CURRENT_PROCEDURE,
+            MCPToolName.EVIDENCE_RULES,
+            MCPToolName.ACTION_CREATION,
+            MCPToolName.REPORT_GENERATION,
+        }
+    ),
+    "compliance_agent": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.EVIDENCE_RULES,
+            MCPToolName.REVISION_CHECK,
+            MCPToolName.REPORT_GENERATION,
+        }
+    ),
+    "asset_intelligence": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.GRAPH_TRAVERSAL,
+            MCPToolName.TIMELINE,
+            MCPToolName.GET_CURRENT_PROCEDURE,
+            MCPToolName.SIMILAR_FAILURES,
+        }
+    ),
+    "lessons_learned_agent": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.SIMILAR_FAILURES,
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.TIMELINE,
+        }
+    ),
+    "expert_knowledge_agent": frozenset(
+        {
+            MCPToolName.RESOLVE_ASSET_TAG,
+            MCPToolName.DOCUMENT_RETRIEVAL,
+            MCPToolName.GRAPH_TRAVERSAL,
+            MCPToolName.GET_CURRENT_PROCEDURE,
+            MCPToolName.EVIDENCE_RULES,
+        }
+    ),
+    "report_composer": frozenset(
+        {
+            MCPToolName.GENERATE_SOURCE_PREVIEW,
+            MCPToolName.REPORT_GENERATION,
+            MCPToolName.APPROVAL_RECORDING,
+        }
+    ),
     # Supervisor / system agents are allowed all tools
     "supervisor": frozenset(t.value for t in MCPToolName),
     "unknown": frozenset(t.value for t in MCPToolName),  # fallback for tests
@@ -161,15 +184,24 @@ _APPROVAL_REQUIRED_TOOLS: dict[str, str] = {
 _TOOL_GUARDRAILS: dict[str, list[GuardrailCheckType]] = {
     MCPToolName.RESOLVE_ASSET_TAG: [GuardrailCheckType.PERMISSION],
     MCPToolName.GRAPH_TRAVERSAL: [GuardrailCheckType.PERMISSION],
-    MCPToolName.DOCUMENT_RETRIEVAL: [GuardrailCheckType.PERMISSION, GuardrailCheckType.UNAPPROVED_PROCEDURE],
+    MCPToolName.DOCUMENT_RETRIEVAL: [
+        GuardrailCheckType.PERMISSION,
+        GuardrailCheckType.UNAPPROVED_PROCEDURE,
+    ],
     MCPToolName.TIMELINE: [GuardrailCheckType.PERMISSION, GuardrailCheckType.FAKE_SENSOR_DATA],
     MCPToolName.SIMILAR_FAILURES: [GuardrailCheckType.PERMISSION],
     MCPToolName.REVISION_CHECK: [GuardrailCheckType.UNAPPROVED_PROCEDURE],
     MCPToolName.EVIDENCE_RULES: [],
     MCPToolName.APPROVAL_RECORDING: [GuardrailCheckType.PERMISSION],
     MCPToolName.ACTION_CREATION: [GuardrailCheckType.PERMISSION],
-    MCPToolName.REPORT_GENERATION: [GuardrailCheckType.HALLUCINATED_CITATION, GuardrailCheckType.PERMISSION],
-    MCPToolName.GET_CURRENT_PROCEDURE: [GuardrailCheckType.PERMISSION, GuardrailCheckType.UNAPPROVED_PROCEDURE],
+    MCPToolName.REPORT_GENERATION: [
+        GuardrailCheckType.HALLUCINATED_CITATION,
+        GuardrailCheckType.PERMISSION,
+    ],
+    MCPToolName.GET_CURRENT_PROCEDURE: [
+        GuardrailCheckType.PERMISSION,
+        GuardrailCheckType.UNAPPROVED_PROCEDURE,
+    ],
     MCPToolName.GENERATE_SOURCE_PREVIEW: [GuardrailCheckType.PERMISSION],
 }
 
@@ -191,9 +223,7 @@ class MCPToolDispatch:
         self._policy_engine = GuardrailPolicyEngine()
         self._tool_handlers: dict[str, Callable[..., Awaitable[Any]]] = {}
 
-    def register_handler(
-        self, tool_name: str, handler: Callable[..., Awaitable[Any]]
-    ) -> None:
+    def register_handler(self, tool_name: str, handler: Callable[..., Awaitable[Any]]) -> None:
         """Register a tool handler function."""
         self._tool_handlers[tool_name] = handler
 
@@ -231,10 +261,7 @@ class MCPToolDispatch:
                 tool_name=tool_name,
                 resource_type="tool_allowlist",
                 success=False,
-                error=(
-                    f"Agent '{agent_name}' has no tool allowlist — "
-                    "all tool calls denied"
-                ),
+                error=(f"Agent '{agent_name}' has no tool allowlist — all tool calls denied"),
             )
             return MCPToolResult(
                 tool_name=tool_name,
@@ -254,10 +281,7 @@ class MCPToolDispatch:
                 tool_name=tool_name,
                 resource_type="tool_allowlist",
                 success=False,
-                error=(
-                    f"Agent '{agent_name}' is not allowed to call "
-                    f"tool '{tool_name}'"
-                ),
+                error=(f"Agent '{agent_name}' is not allowed to call tool '{tool_name}'"),
             )
             return MCPToolResult(
                 tool_name=tool_name,
@@ -298,9 +322,7 @@ class MCPToolDispatch:
 
         # 3. Run policy engine checks (P0 #16) — explicit policy outcomes
         ctx = user_context or {}
-        policy_decisions = self._policy_engine.evaluate_tool_call(
-            tool_name, arguments, ctx
-        )
+        policy_decisions = self._policy_engine.evaluate_tool_call(tool_name, arguments, ctx)
         for decision in policy_decisions:
             if not decision.auditable:
                 continue
@@ -311,9 +333,11 @@ class MCPToolDispatch:
                 trace_id=trace_id,
                 tool_name=tool_name,
                 resource_type="policy",
-                input_data={"policy": decision.policy_name,
-                            "outcome": decision.outcome.value,
-                            "reason": decision.reason},
+                input_data={
+                    "policy": decision.policy_name,
+                    "outcome": decision.outcome.value,
+                    "reason": decision.reason,
+                },
                 success=not decision.blocks_execution,
             )
             if decision.outcome == PolicyOutcome.BLOCK:
@@ -439,6 +463,16 @@ class MCPToolDispatch:
                 duration_ms=elapsed,
             )
 
+            get_llm_telemetry().record(
+                model="mcp_tool",
+                provider="internal",
+                task_type=f"tool_call:{tool_name}",
+                model_tier="internal",
+                latency_ms=round(elapsed, 1),
+                agent_name=agent_name,
+                success=True,
+            )
+
             return MCPToolResult(
                 tool_name=tool_name,
                 success=True,
@@ -449,6 +483,9 @@ class MCPToolDispatch:
 
         except Exception as exc:
             elapsed = (time.time() - start) * 1000
+            # Safe error: do not expose raw exception details (P0 #14, P0 #19)
+            safe_code = getattr(exc, "code", "TOOL_EXECUTION_FAILED")
+            safe_msg = f"Tool '{tool_name}' failed: {type(exc).__name__}"
             self.audit_logger.log(
                 action=AuditAction.TOOL_FAILED,
                 agent_name=agent_name,
@@ -458,13 +495,28 @@ class MCPToolDispatch:
                 resource_type="tool_call",
                 resource_id=audit_entry.audit_id if audit_entry else None,
                 success=False,
-                error=str(exc),
+                error=safe_msg,
                 duration_ms=elapsed,
+            )
+
+            get_llm_telemetry().record(
+                model="mcp_tool",
+                provider="internal",
+                task_type=f"tool_call:{tool_name}",
+                model_tier="internal",
+                latency_ms=round(elapsed, 1),
+                agent_name=agent_name,
+                success=False,
+                error=safe_code,
+            )
+
+            logger.debug(
+                f"MCP dispatch suppressed exception for {tool_name}: {exc}",
             )
             return MCPToolResult(
                 tool_name=tool_name,
                 success=False,
-                error=str(exc),
+                error=safe_msg,
                 audit_id=audit_entry.audit_id if audit_entry else None,
                 duration_ms=elapsed,
             )
@@ -532,7 +584,9 @@ class MCPToolDispatch:
                     passed=False,
                     reason=f"Organisation mismatch: tool requests org {org_id} but user has {user_org}",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Permission check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Permission check passed"
+            )
 
         if check_type == GuardrailCheckType.HALLUCINATED_CITATION:
             doc_id = arguments.get("document_id", "")
@@ -542,7 +596,9 @@ class MCPToolDispatch:
                     passed=False,
                     reason="Empty document_id may indicate hallucinated citation",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Citation check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Citation check passed"
+            )
 
         if check_type == GuardrailCheckType.UNAPPROVED_PROCEDURE:
             status = arguments.get("status", "")
@@ -552,7 +608,9 @@ class MCPToolDispatch:
                     passed=False,
                     reason=f"Procedure is in '{status}' status -- not approved for use",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Procedure approval check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Procedure approval check passed"
+            )
 
         if check_type == GuardrailCheckType.FAKE_SENSOR_DATA:
             source = arguments.get("source", "")
@@ -562,7 +620,9 @@ class MCPToolDispatch:
                     passed=False,
                     reason="Simulated sensor data detected -- not suitable for analysis",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Sensor data source check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Sensor data source check passed"
+            )
 
         if check_type == GuardrailCheckType.COMPLIANCE_WITHOUT_EVIDENCE:
             evidence_ids = arguments.get("evidence_ids", [])
@@ -572,7 +632,9 @@ class MCPToolDispatch:
                     passed=False,
                     reason="Compliance check without supporting evidence",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Compliance evidence check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Compliance evidence check passed"
+            )
 
         if check_type == GuardrailCheckType.UNSAFE_RECOMMENDATION:
             priority = arguments.get("priority", "medium")
@@ -583,6 +645,8 @@ class MCPToolDispatch:
                     passed=False,
                     reason="Critical repair/procedure actions require explicit safety review",
                 )
-            return GuardrailVerdict(check_type=check_type, passed=True, reason="Safety check passed")
+            return GuardrailVerdict(
+                check_type=check_type, passed=True, reason="Safety check passed"
+            )
 
         return GuardrailVerdict(check_type=check_type, passed=True, reason="Check not implemented")

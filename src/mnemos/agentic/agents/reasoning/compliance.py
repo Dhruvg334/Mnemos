@@ -127,9 +127,7 @@ class ComplianceAgent(_BaseReasoningAgent):
             ],
             next_actions=next_actions,
             next_recommended_agents=(
-                ["expert_knowledge_agent"]
-                if any(c.status == "fail" for c in checks)
-                else []
+                ["expert_knowledge_agent"] if any(c.status == "fail" for c in checks) else []
             ),
             reasoning_summary=self._build_summary(checks, confidence),
             metadata={
@@ -171,9 +169,7 @@ class ComplianceAgent(_BaseReasoningAgent):
         checks.extend(self._check_workflow(state))
         return checks
 
-    def _check_revisions(
-        self, evidence: list[EvidenceSource]
-    ) -> list[ComplianceCheckResult]:
+    def _check_revisions(self, evidence: list[EvidenceSource]) -> list[ComplianceCheckResult]:
         """Check document revision currency."""
         checks: list[ComplianceCheckResult] = []
         seen_docs: dict[str, list[EvidenceSource]] = {}
@@ -185,9 +181,7 @@ class ComplianceAgent(_BaseReasoningAgent):
         for doc_id, sources in seen_docs.items():
             versions = [s.provenance.document_version for s in sources]
             latest = max(versions)
-            is_latest = all(
-                s.metadata.get("is_latest_version", True) for s in sources
-            )
+            is_latest = all(s.metadata.get("is_latest_version", True) for s in sources)
 
             status = "pass" if is_latest else "warning"
             if any(v < latest for v in versions):
@@ -201,21 +195,20 @@ class ComplianceAgent(_BaseReasoningAgent):
                     details=(
                         f"Document {doc_id}: latest version is {latest}. "
                         f"Found versions {sorted(set(versions))}. "
-                        + ("All sources reference latest version." if is_latest
-                           else "Some sources reference older versions.")
+                        + (
+                            "All sources reference latest version."
+                            if is_latest
+                            else "Some sources reference older versions."
+                        )
                     ),
-                    evidence_source_ids=[
-                        s.provenance.evidence_region_id for s in sources
-                    ],
+                    evidence_source_ids=[s.provenance.evidence_region_id for s in sources],
                     metadata={"document_id": doc_id, "versions": sorted(set(versions))},
                 )
             )
 
         return checks
 
-    def _check_dates(
-        self, evidence: list[EvidenceSource]
-    ) -> list[ComplianceCheckResult]:
+    def _check_dates(self, evidence: list[EvidenceSource]) -> list[ComplianceCheckResult]:
         """Check date-related compliance: recency, validity windows."""
         checks: list[ComplianceCheckResult] = []
         now = datetime.now(UTC)
@@ -252,8 +245,11 @@ class ComplianceAgent(_BaseReasoningAgent):
                     details=(
                         f"Evidence from {source.provenance.source_filename} "
                         f"is {age_days} days old (dated {doc_date.date()}). "
-                        + ("Within acceptable range." if status == "pass"
-                           else f"Exceeds {'warning' if status == 'warning' else 'critical'} age threshold.")
+                        + (
+                            "Within acceptable range."
+                            if status == "pass"
+                            else f"Exceeds {'warning' if status == 'warning' else 'critical'} age threshold."
+                        )
                     ),
                     evidence_source_ids=[source.provenance.evidence_region_id],
                     metadata={
@@ -266,9 +262,7 @@ class ComplianceAgent(_BaseReasoningAgent):
 
         return checks
 
-    def _check_requirements(
-        self, evidence: list[EvidenceSource]
-    ) -> list[ComplianceCheckResult]:
+    def _check_requirements(self, evidence: list[EvidenceSource]) -> list[ComplianceCheckResult]:
         """Check evidence-to-requirement mapping coverage."""
         checks: list[ComplianceCheckResult] = []
 
@@ -282,10 +276,7 @@ class ComplianceAgent(_BaseReasoningAgent):
         }
 
         for keyword, req_name in req_keywords.items():
-            matching = [
-                s for s in evidence
-                if keyword in s.text_excerpt.lower()
-            ]
+            matching = [s for s in evidence if keyword in s.text_excerpt.lower()]
 
             if matching:
                 checks.append(
@@ -298,9 +289,7 @@ class ComplianceAgent(_BaseReasoningAgent):
                             f"Requirement '{req_name}' has {len(matching)} "
                             f"supporting evidence sources."
                         ),
-                        evidence_source_ids=[
-                            s.provenance.evidence_region_id for s in matching
-                        ],
+                        evidence_source_ids=[s.provenance.evidence_region_id for s in matching],
                     )
                 )
             else:
@@ -316,9 +305,7 @@ class ComplianceAgent(_BaseReasoningAgent):
 
         return checks
 
-    def _check_expiry(
-        self, evidence: list[EvidenceSource]
-    ) -> list[ComplianceCheckResult]:
+    def _check_expiry(self, evidence: list[EvidenceSource]) -> list[ComplianceCheckResult]:
         """Check for expiry-related compliance."""
         checks: list[ComplianceCheckResult] = []
         now = datetime.now(UTC)
@@ -341,7 +328,11 @@ class ComplianceAgent(_BaseReasoningAgent):
                         if expiry_date.tzinfo is None:
                             expiry_date = expiry_date.replace(tzinfo=UTC)
                     elif isinstance(expiry_date_str, datetime):
-                        expiry_date = expiry_date_str if expiry_date_str.tzinfo else expiry_date_str.replace(tzinfo=UTC)
+                        expiry_date = (
+                            expiry_date_str
+                            if expiry_date_str.tzinfo
+                            else expiry_date_str.replace(tzinfo=UTC)
+                        )
                     else:
                         expiry_date = None
 
@@ -370,9 +361,7 @@ class ComplianceAgent(_BaseReasoningAgent):
 
         return checks
 
-    def _check_workflow(
-        self, state: AgentState
-    ) -> list[ComplianceCheckResult]:
+    def _check_workflow(self, state: AgentState) -> list[ComplianceCheckResult]:
         """Check workflow/approval status."""
         checks: list[ComplianceCheckResult] = []
         ctx = state.get("context", {})
@@ -390,9 +379,7 @@ class ComplianceAgent(_BaseReasoningAgent):
             return checks
 
         verified = evidence_bundle.verified_evidence
-        human_reviewed = [
-            s for s in verified if s.verification_status == "human_reviewed"
-        ]
+        human_reviewed = [s for s in verified if s.verification_status == "human_reviewed"]
         provenance_validated = [
             s for s in verified if s.verification_status == "provenance_validated"
         ]
@@ -407,9 +394,7 @@ class ComplianceAgent(_BaseReasoningAgent):
                         f"{len(human_reviewed)} evidence items have been human-reviewed. "
                         "Workflow approval chain verified."
                     ),
-                    evidence_source_ids=[
-                        s.provenance.evidence_region_id for s in human_reviewed
-                    ],
+                    evidence_source_ids=[s.provenance.evidence_region_id for s in human_reviewed],
                 )
             )
 
@@ -428,10 +413,7 @@ class ComplianceAgent(_BaseReasoningAgent):
                 )
             )
 
-        unverified = [
-            s for s in verified
-            if s.verification_status in ("unverified", "stale")
-        ]
+        unverified = [s for s in verified if s.verification_status in ("unverified", "stale")]
         if unverified:
             checks.append(
                 ComplianceCheckResult(
@@ -441,9 +423,7 @@ class ComplianceAgent(_BaseReasoningAgent):
                     details=(
                         f"{len(unverified)} evidence items lack proper workflow verification."
                     ),
-                    evidence_source_ids=[
-                        s.provenance.evidence_region_id for s in unverified
-                    ],
+                    evidence_source_ids=[s.provenance.evidence_region_id for s in unverified],
                 )
             )
 
@@ -453,9 +433,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Claims from checks
     # ------------------------------------------------------------------
 
-    def _build_claims(
-        self, checks: list[ComplianceCheckResult]
-    ) -> list[GroundedClaim]:
+    def _build_claims(self, checks: list[ComplianceCheckResult]) -> list[GroundedClaim]:
         claims: list[GroundedClaim] = []
 
         pass_count = sum(1 for c in checks if c.status == "pass")
@@ -498,9 +476,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Citations
     # ------------------------------------------------------------------
 
-    def _build_citations(
-        self, evidence: list[EvidenceSource]
-    ) -> list[Citation]:
+    def _build_citations(self, evidence: list[EvidenceSource]) -> list[Citation]:
         citations: list[Citation] = []
         for source in evidence:
             p = source.provenance
@@ -524,9 +500,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Confidence
     # ------------------------------------------------------------------
 
-    def _calculate_confidence(
-        self, checks: list[ComplianceCheckResult]
-    ) -> float:
+    def _calculate_confidence(self, checks: list[ComplianceCheckResult]) -> float:
         if not checks:
             return 0.0
         return round(self._pass_rate(checks), 3)
@@ -565,9 +539,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Actions
     # ------------------------------------------------------------------
 
-    def _build_actions(
-        self, checks: list[ComplianceCheckResult]
-    ) -> list[RecommendedAction]:
+    def _build_actions(self, checks: list[ComplianceCheckResult]) -> list[RecommendedAction]:
         actions: list[RecommendedAction] = []
 
         failed = [c for c in checks if c.status == "fail"]
@@ -600,9 +572,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Decision
     # ------------------------------------------------------------------
 
-    def _decide(
-        self, checks: list[ComplianceCheckResult], confidence: float
-    ) -> ReasoningDecision:
+    def _decide(self, checks: list[ComplianceCheckResult], confidence: float) -> ReasoningDecision:
         failed = sum(1 for c in checks if c.status == "fail")
         if failed > 0:
             return ReasoningDecision.NEEDS_HUMAN_REVIEW
@@ -614,9 +584,7 @@ class ComplianceAgent(_BaseReasoningAgent):
     # Summary
     # ------------------------------------------------------------------
 
-    def _build_summary(
-        self, checks: list[ComplianceCheckResult], confidence: float
-    ) -> str:
+    def _build_summary(self, checks: list[ComplianceCheckResult], confidence: float) -> str:
         passed = sum(1 for c in checks if c.status == "pass")
         failed = sum(1 for c in checks if c.status == "fail")
         warnings = sum(1 for c in checks if c.status == "warning")

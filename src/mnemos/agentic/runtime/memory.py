@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 class MemoryType(StrEnum):
     """Types of memory entries agents can record."""
+
     OBSERVATION = "observation"
     DECISION = "decision"
     HYPOTHESIS = "hypothesis"
@@ -37,6 +38,7 @@ class MemoryType(StrEnum):
 
 class MemoryEntry(BaseModel):
     """A single memory entry recorded by an agent."""
+
     memory_id: str = Field(default_factory=lambda: f"mem_{uuid.uuid4().hex[:10]}")
     agent_name: str
     memory_type: MemoryType
@@ -51,6 +53,7 @@ class MemoryEntry(BaseModel):
 
 class MemoryQuery(BaseModel):
     """Query parameters for searching memory."""
+
     agent_name: str | None = None
     memory_type: MemoryType | None = None
     text_search: str | None = None
@@ -113,7 +116,8 @@ class ConversationBuffer:
         if q.text_search:
             search_lower = q.text_search.lower()
             results = [
-                e for e in results
+                e
+                for e in results
                 if search_lower in e.content.lower()
                 or any(search_lower in str(v).lower() for v in e.metadata.values())
             ]
@@ -164,10 +168,7 @@ class ConversationBuffer:
     def _auto_prune(self) -> None:
         """Remove entries that exceed max count or max age."""
         now = time.time()
-        self._entries = [
-            e for e in self._entries
-            if (now - e.timestamp) < self._max_age_seconds
-        ]
+        self._entries = [e for e in self._entries if (now - e.timestamp) < self._max_age_seconds]
         if len(self._entries) > self._max_entries:
             excess = len(self._entries) - self._max_entries
             self._entries = self._entries[excess:]
@@ -401,10 +402,6 @@ class AgentMemory:
     def from_state_dict(cls, data: dict[str, Any]) -> AgentMemory:
         """Deserialize from InvestigationState storage."""
         mem = cls(investigation_id=data.get("investigation_id", ""))
-        mem.conversation = ConversationBuffer.from_list(
-            data.get("conversation_entries", [])
-        )
-        mem.working = WorkingMemory.from_dict(
-            data.get("working_entries", {})
-        )
+        mem.conversation = ConversationBuffer.from_list(data.get("conversation_entries", []))
+        mem.working = WorkingMemory.from_dict(data.get("working_entries", {}))
         return mem

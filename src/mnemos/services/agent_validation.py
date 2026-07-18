@@ -25,10 +25,13 @@ async def validate_agent_result(
     if result.claims:
         for claim in result.claims:
             claim_dict = claim.model_dump()
-            decisions = _policy_engine.evaluate_claim(claim_dict, {
-                "org_id": query.organisation_id,
-                "site_id": query.site_id,
-            })
+            decisions = _policy_engine.evaluate_claim(
+                claim_dict,
+                {
+                    "org_id": query.organisation_id,
+                    "site_id": query.site_id,
+                },
+            )
             for decision in decisions:
                 if decision.outcome == PolicyOutcome.BLOCK:
                     raise AppError(

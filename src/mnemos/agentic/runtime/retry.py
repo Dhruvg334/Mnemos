@@ -67,6 +67,7 @@ class RetryPolicy:
 
         if self.jitter:
             import random
+
             delay *= 0.5 + random.random() * 0.5
 
         return delay
@@ -102,9 +103,7 @@ class TimeoutManager:
         try:
             return await asyncio.wait_for(coro, timeout=timeout_seconds)
         except TimeoutError:
-            raise AgentTimeoutError(
-                f"Agent exceeded timeout of {timeout_seconds}s"
-            ) from None
+            raise AgentTimeoutError(f"Agent exceeded timeout of {timeout_seconds}s") from None
 
 
 class AgentTimeoutError(Exception):
@@ -119,7 +118,7 @@ async def execute_with_retry(
     timeout_seconds: float | None = None,
     on_retry: Callable[[int, Exception], Awaitable[None]] | None = None,
     **kwargs: Any,
-) -> tuple[T, AgentStatus, int]:
+) -> tuple[T | None, AgentStatus, int]:
     """Execute an async function with retry and timeout logic.
 
     Returns:
@@ -144,16 +143,14 @@ async def execute_with_retry(
             return result, AgentStatus.COMPLETED, attempt
 
         except AgentTimeoutError:
-            last_error = AgentTimeoutError(
-                f"Timeout on attempt {attempt}/{max_attempts}"
-            )
+            last_error = AgentTimeoutError(f"Timeout on attempt {attempt}/{max_attempts}")
             if attempt < max_attempts and retry_policy.should_retry:
                 delay = retry_policy.get_delay(attempt)
                 if on_retry:
                     await on_retry(attempt, last_error)
                 await asyncio.sleep(delay)
                 continue
-            return None, AgentStatus.TIMEOUT, attempt  # type: ignore[return-value]
+            return None, AgentStatus.TIMEOUT, attempt
 
         except Exception as exc:
             last_error = exc
@@ -163,6 +160,6 @@ async def execute_with_retry(
                     await on_retry(attempt, exc)
                 await asyncio.sleep(delay)
                 continue
-            return None, AgentStatus.FAILED, attempt  # type: ignore[return-value]
+            return None, AgentStatus.FAILED, attempt
 
-    return None, AgentStatus.FAILED, max_attempts  # type: ignore[return-value]
+    return None, AgentStatus.FAILED, max_attempts

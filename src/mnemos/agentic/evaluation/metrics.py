@@ -42,7 +42,9 @@ class ProductionMetrics:
             reasoning = "Router produced no intent prediction."
         elif predicted_intent.lower().strip() == expected_intent.lower().strip():
             score = 1.0
-            reasoning = f"Predicted intent '{predicted_intent}' matches expected '{expected_intent}'."
+            reasoning = (
+                f"Predicted intent '{predicted_intent}' matches expected '{expected_intent}'."
+            )
         else:
             score = 0.0
             reasoning = (
@@ -95,9 +97,7 @@ class ProductionMetrics:
         score = len(found) / len(expected_set)
 
         missing = expected_set - retrieved_set
-        reasoning = (
-            f"Retrieved {len(found)} of {len(expected_set)} expected documents."
-        )
+        reasoning = f"Retrieved {len(found)} of {len(expected_set)} expected documents."
         if missing:
             reasoning += f" Missing: {sorted(missing)}."
 
@@ -140,10 +140,7 @@ class ProductionMetrics:
         score = len(found) / len(expected_set)
 
         missing = expected_set - node_set
-        reasoning = (
-            f"Graph traversal found {len(found)} of {len(expected_set)} "
-            f"expected entities."
-        )
+        reasoning = f"Graph traversal found {len(found)} of {len(expected_set)} expected entities."
         if missing:
             reasoning += f" Missing entities: {sorted(missing)}."
 
@@ -247,8 +244,7 @@ class ProductionMetrics:
         score = len(grounded) / len(supported)
 
         reasoning = (
-            f"{len(grounded)} of {len(supported)} SUPPORTED claims have "
-            f"verified evidence sources."
+            f"{len(grounded)} of {len(supported)} SUPPORTED claims have verified evidence sources."
         )
         ungrounded_ids = [c.claim_id for c in supported if not c.sources]
         if ungrounded_ids:
@@ -300,7 +296,9 @@ class ProductionMetrics:
             reasoning = "Unnecessarily abstained despite ground truth being available."
         else:
             score = 0.25
-            reasoning = "Produced an answer without ground truth available; partial credit for attempting."
+            reasoning = (
+                "Produced an answer without ground truth available; partial credit for attempting."
+            )
 
         return MetricResult(
             name="abstention_quality",
@@ -339,10 +337,7 @@ class ProductionMetrics:
         final_failures = len(failed_tool_calls)
         score = (total - final_failures) / total
 
-        reasoning = (
-            f"{total - final_failures} of {total} tool calls succeeded "
-            f"after retries."
-        )
+        reasoning = f"{total - final_failures} of {total} tool calls succeeded after retries."
         if final_failures > 0:
             failed_names = [fc.get("tool_name", "unknown") for fc in failed_tool_calls]
             reasoning += f" Permanently failed: {failed_names}."
@@ -377,10 +372,7 @@ class ProductionMetrics:
         score = 1.0 if matched else 0.0
 
         if matched:
-            reasoning = (
-                f"Workflow completion matches expectation "
-                f"(complete={is_complete})."
-            )
+            reasoning = f"Workflow completion matches expectation (complete={is_complete})."
         else:
             reasoning = (
                 f"Workflow completion mismatch: expected complete={expected_complete}, "
@@ -501,16 +493,10 @@ class ProductionMetrics:
             expected_lower = expected_compliance.lower().strip()
             if expected_lower == "pass":
                 score = pass_count / total
-                reasoning = (
-                    f"Expected compliance 'pass': {pass_count}/{total} "
-                    f"checks passed."
-                )
+                reasoning = f"Expected compliance 'pass': {pass_count}/{total} checks passed."
             elif expected_lower == "fail":
                 score = fail_count / total if total else 0.0
-                reasoning = (
-                    f"Expected compliance 'fail': {fail_count}/{total} "
-                    f"checks failed."
-                )
+                reasoning = f"Expected compliance 'fail': {fail_count}/{total} checks failed."
             else:
                 score = 1.0
                 reasoning = (

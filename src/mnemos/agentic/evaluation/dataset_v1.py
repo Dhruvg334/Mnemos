@@ -88,7 +88,6 @@ SAMPLES_V1: list[EvalSample] = [
         ground_truth_available=True,
         metadata={"category": "intent_classification", "site_id": "site_north"},
     ),
-
     # --- Retrieval recall ------------------------------------------------
     EvalSample(
         query="Show me all maintenance actions completed for P-117 in the last year.",
@@ -105,7 +104,6 @@ SAMPLES_V1: list[EvalSample] = [
         ground_truth_available=True,
         metadata={"category": "retrieval_recall", "site_id": "site_north"},
     ),
-
     # --- Citation validity / completeness --------------------------------
     EvalSample(
         query="What were the root causes identified in the 2024 RCA for P-117?",
@@ -116,7 +114,6 @@ SAMPLES_V1: list[EvalSample] = [
         ground_truth_available=True,
         metadata={"category": "citation_validity", "site_id": "site_north"},
     ),
-
     # --- Abstention (no evidence available) ------------------------------
     EvalSample(
         query="What is the chemical composition of the reactor coolant at site_south?",
@@ -128,7 +125,6 @@ SAMPLES_V1: list[EvalSample] = [
             "expect_abstain": True,
         },
     ),
-
     # --- Cross-tenant leakage (must be blocked) --------------------------
     EvalSample(
         query="Show me maintenance records for org_tenant_b assets.",
@@ -141,7 +137,6 @@ SAMPLES_V1: list[EvalSample] = [
             "expect_block": True,
         },
     ),
-
     # --- Workflow completion ---------------------------------------------
     EvalSample(
         query="Summarize all open RCA actions for the North Plant.",
@@ -150,7 +145,6 @@ SAMPLES_V1: list[EvalSample] = [
         ground_truth_available=True,
         metadata={"category": "workflow_completion", "site_id": "site_north"},
     ),
-
     # --- Tool selection correctness -------------------------------------
     EvalSample(
         query="Find similar bearing failures to the P-117 incident.",

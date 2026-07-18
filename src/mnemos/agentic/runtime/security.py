@@ -35,13 +35,13 @@ class RateLimitExceeded(Exception):
         self.limit = limit
         self.window = window
         super().__init__(
-            f"Rate limit exceeded for tool '{tool}' by agent '{agent}': "
-            f"{limit} calls in {window}s"
+            f"Rate limit exceeded for tool '{tool}' by agent '{agent}': {limit} calls in {window}s"
         )
 
 
 class RateLimitConfig(BaseModel):
     """Rate limit configuration for a specific tool."""
+
     max_calls: int = Field(default=50, ge=1, description="Max calls in window")
     window_seconds: float = Field(default=60.0, gt=0, description="Sliding window in seconds")
 
@@ -78,7 +78,9 @@ class RateLimiter:
                 current_count=current_count,
                 max_calls=config.max_calls,
                 window_seconds=config.window_seconds,
-                retry_after_seconds=config.window_seconds - (now - self._call_times[key][0]) if self._call_times[key] else config.window_seconds,
+                retry_after_seconds=config.window_seconds - (now - self._call_times[key][0])
+                if self._call_times[key]
+                else config.window_seconds,
             )
 
         return RateLimitCheckResult(
@@ -263,22 +265,43 @@ class InjectionCheckResult(BaseModel):
 
 
 _PROMPT_INJECTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"(?i)ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE), "ignore previous instructions"),
+    (
+        re.compile(r"(?i)ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
+        "ignore previous instructions",
+    ),
     (re.compile(r"(?i)you\s+are\s+now\s+a\s+", re.IGNORECASE), "role reassignment attempt"),
     (re.compile(r"(?i)system\s*:\s*you\s+are", re.IGNORECASE), "system prompt override"),
-    (re.compile(r"(?i)forget\s+(all\s+)?prior\s+(context|instructions)", re.IGNORECASE), "forget prior context"),
+    (
+        re.compile(r"(?i)forget\s+(all\s+)?prior\s+(context|instructions)", re.IGNORECASE),
+        "forget prior context",
+    ),
     (re.compile(r"(?i)new\s+instructions?\s*:", re.IGNORECASE), "new instructions injection"),
-    (re.compile(r"(?i)act\s+as\s+if\s+you\s+have\s+no\s+restrictions", re.IGNORECASE), "restriction bypass"),
+    (
+        re.compile(r"(?i)act\s+as\s+if\s+you\s+have\s+no\s+restrictions", re.IGNORECASE),
+        "restriction bypass",
+    ),
     (re.compile(r"(?i)disregard\s+(all\s+)?previous", re.IGNORECASE), "disregard previous"),
     (re.compile(r"(?i)\\bDAN\\b.*\\bjailbreak\\b", re.IGNORECASE), "jailbreak attempt"),
     (re.compile(r"(?i)you\s+are\s+now\s+DAN", re.IGNORECASE), "DAN jailbreak"),
     (re.compile(r"(?i)do\s+anything\s+now", re.IGNORECASE), "DAN jailbreak"),
     (re.compile(r"(?i)override\s+safety", re.IGNORECASE), "safety override"),
     (re.compile(r"(?i)output\s+your\s+system\s+prompt", re.IGNORECASE), "system prompt extraction"),
-    (re.compile(r"(?i)reveal\s+(your|the)\s+instructions", re.IGNORECASE), "instruction extraction"),
-    (re.compile(r"(?i)repeat\s+(all\s+)?(the\s+)?(above|preceding|previous)\s+(text|instructions?|prompt)", re.IGNORECASE), "prompt repeat attack"),
+    (
+        re.compile(r"(?i)reveal\s+(your|the)\s+instructions", re.IGNORECASE),
+        "instruction extraction",
+    ),
+    (
+        re.compile(
+            r"(?i)repeat\s+(all\s+)?(the\s+)?(above|preceding|previous)\s+(text|instructions?|prompt)",
+            re.IGNORECASE,
+        ),
+        "prompt repeat attack",
+    ),
     (re.compile(r"(?i)(?:<\|im_start\|>|<\|im_end\|>)", re.IGNORECASE), "delimiter injection"),
-    (re.compile(r"(?i)\[INST\]|\[/INST\]|<<SYS>>|<</SYS>>", re.IGNORECASE), "chat template injection"),
+    (
+        re.compile(r"(?i)\[INST\]|\[/INST\]|<<SYS>>|<</SYS>>", re.IGNORECASE),
+        "chat template injection",
+    ),
 ]
 
 _SQL_INJECTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -304,18 +327,30 @@ _XSS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 _COMMAND_INJECTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"(?:;\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby)\s)"), "shell command chaining"),
-    (re.compile(r"(?:\|\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby)\s)"), "pipe to shell"),
+    (
+        re.compile(r"(?:;\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby)\s)"),
+        "shell command chaining",
+    ),
+    (
+        re.compile(r"(?:\|\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby)\s)"),
+        "pipe to shell",
+    ),
     (re.compile(r"(?:`[^`]+`)"), "backtick execution"),
     (re.compile(r"(?:\$\([^)]+\))"), "command substitution"),
-    (re.compile(r"(?:&&\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby))"), "conditional execution"),
+    (
+        re.compile(r"(?:&&\s*(?:ls|cat|rm|chmod|chown|curl|wget|nc|bash|sh|python|perl|ruby))"),
+        "conditional execution",
+    ),
 ]
 
 _PATH_TRAVERSAL_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:\.\./){3,}"), "deep traversal"),
     (re.compile(r"(?:%2e%2e%2f){2,}", re.IGNORECASE), "URL-encoded traversal"),
     (re.compile(r"(?:/etc/(?:passwd|shadow|hosts))", re.IGNORECASE), "system file access"),
-    (re.compile(r"(?:(?:c:\\windows|/root|/home/\w+/\.(?:ssh|gnupg|config)))", re.IGNORECASE), "sensitive directory"),
+    (
+        re.compile(r"(?:(?:c:\\windows|/root|/home/\w+/\.(?:ssh|gnupg|config)))", re.IGNORECASE),
+        "sensitive directory",
+    ),
 ]
 
 

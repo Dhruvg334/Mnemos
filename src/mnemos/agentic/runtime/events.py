@@ -129,9 +129,7 @@ class InvestigationEventLog:
         return [e.model_dump(mode="json") for e in self._events]
 
     @classmethod
-    def from_dicts(
-        cls, investigation_id: str, data: list[dict[str, Any]]
-    ) -> InvestigationEventLog:
+    def from_dicts(cls, investigation_id: str, data: list[dict[str, Any]]) -> InvestigationEventLog:
         log = cls(investigation_id)
         log._events = [InvestigationEvent(**d) for d in data]
         return log

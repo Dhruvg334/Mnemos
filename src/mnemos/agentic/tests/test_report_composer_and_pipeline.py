@@ -91,9 +91,7 @@ def _citation(citation_id: str = "cit_001", **overrides: Any) -> Any:
     return Citation(**defaults)
 
 
-def _contradiction(
-    contradiction_id: str = "contra_001", **overrides: Any
-) -> Contradiction:
+def _contradiction(contradiction_id: str = "contra_001", **overrides: Any) -> Contradiction:
     """Build a Contradiction for testing."""
     defaults: dict[str, Any] = {
         "contradiction_id": contradiction_id,
@@ -335,8 +333,7 @@ class TestReportComposerMergeClaims:
             status=ClaimSupportStatus.REFUTED,
         )
         merged = composer._merge_claims(
-            [_reasoning_output(claims=[claim_no_ev]),
-             _reasoning_output(claims=[claim_refuted])]
+            [_reasoning_output(claims=[claim_no_ev]), _reasoning_output(claims=[claim_refuted])]
         )
         assert len(merged) == 1
         assert merged[0].status == ClaimSupportStatus.REFUTED
@@ -403,12 +400,8 @@ class TestReportComposerMergeRecommendations:
 
     def test_report_composer_merge_recommendations_dedup(self, composer):
         """Actions with identical description text must be deduplicated."""
-        action_a = _recommended_action(
-            "a1", "Replace seal on P-101", priority="high"
-        )
-        action_b = _recommended_action(
-            "a2", "Replace seal on P-101", priority="critical"
-        )
+        action_a = _recommended_action("a1", "Replace seal on P-101", priority="high")
+        action_b = _recommended_action("a2", "Replace seal on P-101", priority="critical")
         out_a = _reasoning_output(next_actions=[action_a])
         out_b = _reasoning_output(next_actions=[action_b])
 
@@ -420,15 +413,12 @@ class TestReportComposerMergeRecommendations:
         assert merged[0].action_id == "a1"
 
     def test_report_composer_merge_recommendations_dedup_case_insensitive(
-        self, composer,
+        self,
+        composer,
     ):
         """Dedup must be case-insensitive after strip+lower."""
-        action_a = _recommended_action(
-            "a1", "Replace Seal On P-101", priority="high"
-        )
-        action_b = _recommended_action(
-            "a2", " replace seal on p-101 ", priority="low"
-        )
+        action_a = _recommended_action("a1", "Replace Seal On P-101", priority="high")
+        action_b = _recommended_action("a2", " replace seal on p-101 ", priority="low")
         out_a = _reasoning_output(next_actions=[action_a])
         out_b = _reasoning_output(next_actions=[action_b])
 
@@ -779,9 +769,7 @@ class TestBackwardCompatibility:
         registry = AgentRegistry()
         agent_functions: dict[str, Any] = {}
 
-        with _patch(
-            "mnemos.agentic.runtime.workflow.SupervisorAgent"
-        ) as MockSupervisor:
+        with _patch("mnemos.agentic.runtime.workflow.SupervisorAgent") as MockSupervisor:
             MockSupervisor.return_value = MagicMock()
             MockSupervisor.return_value.decide_next = MagicMock()
             graph = create_investigation_workflow(
@@ -800,9 +788,7 @@ class TestBackwardCompatibility:
         registry = AgentRegistry()
 
         # Just verify it doesn't raise with all parameters
-        with patch(
-            "mnemos.agentic.runtime.workflow.SupervisorAgent"
-        ) as MockSupervisor:
+        with patch("mnemos.agentic.runtime.workflow.SupervisorAgent") as MockSupervisor:
             MockSupervisor.return_value = MagicMock()
             graph = create_investigation_workflow(
                 agent_registry=registry,
@@ -871,15 +857,9 @@ class TestEdgeCases:
     def test_multiple_outputs_same_claim_different_statuses(self, composer):
         """When multiple agents produce the same claim with different
         statuses, the best-supported version must be selected."""
-        c_uncertain = _grounded_claim(
-            "c1", "text", status=ClaimSupportStatus.UNCERTAIN
-        )
-        c_refuted = _grounded_claim(
-            "c1", "text", status=ClaimSupportStatus.REFUTED
-        )
-        c_no_ev = _grounded_claim(
-            "c1", "text", status=ClaimSupportStatus.NO_EVIDENCE
-        )
+        c_uncertain = _grounded_claim("c1", "text", status=ClaimSupportStatus.UNCERTAIN)
+        c_refuted = _grounded_claim("c1", "text", status=ClaimSupportStatus.REFUTED)
+        c_no_ev = _grounded_claim("c1", "text", status=ClaimSupportStatus.NO_EVIDENCE)
 
         outputs = [
             _reasoning_output(claims=[c_no_ev]),
@@ -898,9 +878,7 @@ class TestEdgeCases:
             _recommended_action("a_high", "High task", priority="high"),
             _recommended_action("a_crit", "Crit task", priority="critical"),
         ]
-        merged = composer._merge_recommendations(
-            [_reasoning_output(next_actions=actions)]
-        )
+        merged = composer._merge_recommendations([_reasoning_output(next_actions=actions)])
         priorities = [a.priority for a in merged]
         assert priorities == ["critical", "high", "medium", "low"]
 

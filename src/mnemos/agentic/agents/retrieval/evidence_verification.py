@@ -100,9 +100,7 @@ class EvidenceVerificationAgent(_BaseRetrievalAgent):
         )
 
         # 1. Graph-Vector Fusion: ground + rerank
-        verified: list[EvidenceSource] = await rag_layer.process_bundle(
-            bundle, query_text
-        )
+        verified: list[EvidenceSource] = await rag_layer.process_bundle(bundle, query_text)
         bundle.verified_evidence = verified
 
         # 2. Detect contradictions
@@ -138,15 +136,17 @@ class EvidenceVerificationAgent(_BaseRetrievalAgent):
         # 8. Update the shared evidence list with verified items
         evidence_list: list[dict[str, Any]] = list(state.get("evidence", []))
         for source in verified:
-            evidence_list.append({
-                "source": "verified",
-                "content": source.text_excerpt,
-                "relevance_score": source.relevance_score,
-                "confidence_score": source.confidence_score,
-                "verification_status": source.verification_status.value,
-                "document_id": source.provenance.document_id,
-                "page": source.provenance.page_number,
-            })
+            evidence_list.append(
+                {
+                    "source": "verified",
+                    "content": source.text_excerpt,
+                    "relevance_score": source.relevance_score,
+                    "confidence_score": source.confidence_score,
+                    "verification_status": source.verification_status.value,
+                    "document_id": source.provenance.document_id,
+                    "page": source.provenance.page_number,
+                }
+            )
 
         state["evidence"] = evidence_list
 

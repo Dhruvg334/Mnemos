@@ -22,6 +22,7 @@ logger = StructuredLogger("contradiction_detector")
 
 class ContradictionCandidate(BaseModel):
     """A detected contradiction between evidence sources."""
+
     source_a_idx: int
     source_b_idx: int
     summary: str
@@ -40,9 +41,7 @@ class ContradictionDetector:
     4. Entity conflict (different claims about same entity)
     """
 
-    async def detect(
-        self, bundle: EvidenceBundle
-    ) -> list[Contradiction]:
+    async def detect(self, bundle: EvidenceBundle) -> list[Contradiction]:
         """Detect contradictions across all verified evidence."""
         evidence = bundle.verified_evidence
         if len(evidence) < 2:
@@ -140,7 +139,9 @@ class ContradictionDetector:
         """Detect conflicting numeric values in similar contexts."""
         import re
 
-        pattern = r'(\d+(?:\.\d+)?)\s*(bar|psi|°[CcFf]|°[Kk]|rpm|mm|cm|m|kg|ton|MW|kW|kPa|MPa|°C|°F)'
+        pattern = (
+            r"(\d+(?:\.\d+)?)\s*(bar|psi|°[CcFf]|°[Kk]|rpm|mm|cm|m|kg|ton|MW|kW|kPa|MPa|°C|°F)"
+        )
         nums_a = re.findall(pattern, text_a)
         nums_b = re.findall(pattern, text_b)
 
@@ -151,17 +152,12 @@ class ContradictionDetector:
         for unit in units_a:
             if unit in units_b:
                 if abs(units_a[unit] - units_b[unit]) > 0.01 * max(units_a[unit], units_b[unit]):
-                    return (
-                        f"Numeric conflict on {unit}: "
-                        f"{units_a[unit]} vs {units_b[unit]}"
-                    )
+                    return f"Numeric conflict on {unit}: {units_a[unit]} vs {units_b[unit]}"
 
         return None
 
     @staticmethod
-    def _detect_temporal_conflict(
-        src_a: EvidenceSource, src_b: EvidenceSource
-    ) -> str | None:
+    def _detect_temporal_conflict(src_a: EvidenceSource, src_b: EvidenceSource) -> str | None:
         """Detect temporal inconsistency between sources."""
         ver_a = src_a.provenance.document_version
         ver_b = src_b.provenance.document_version
@@ -186,8 +182,10 @@ class ContradictionDetector:
         contradictions: list[Contradiction] = []
 
         for cand in candidates:
-            pair = (min(cand.source_a_idx, cand.source_b_idx),
-                    max(cand.source_a_idx, cand.source_b_idx))
+            pair = (
+                min(cand.source_a_idx, cand.source_b_idx),
+                max(cand.source_a_idx, cand.source_b_idx),
+            )
             if pair in seen_pairs:
                 continue
             seen_pairs.add(pair)
@@ -195,12 +193,14 @@ class ContradictionDetector:
             pair_key = f"{pair[0]}_{pair[1]}"
             hash_val = hashlib.md5(pair_key.encode()).hexdigest()[:8]
 
-            contradictions.append(Contradiction(
-                contradiction_id=f"contr_{hash_val}",
-                summary=cand.summary,
-                description=cand.description,
-                involved_evidence_ids=[str(cand.source_a_idx), str(cand.source_b_idx)],
-                severity=cand.severity,
-            ))
+            contradictions.append(
+                Contradiction(
+                    contradiction_id=f"contr_{hash_val}",
+                    summary=cand.summary,
+                    description=cand.description,
+                    involved_evidence_ids=[str(cand.source_a_idx), str(cand.source_b_idx)],
+                    severity=cand.severity,
+                )
+            )
 
         return contradictions

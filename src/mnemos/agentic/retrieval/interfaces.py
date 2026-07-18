@@ -28,13 +28,3 @@ class BaseRetriever(ABC):
     async def retrieve(self, query: RetrievalQuery) -> list[RetrievalResult]:
         """Retrieve relevant information based on the query."""
         pass
-
-
-class HybridRetriever(BaseRetriever):
-    """
-    Interface for a retriever that combines multiple sources.
-    """
-    @abstractmethod
-    async def rerank(self, results: list[RetrievalResult], query: str) -> list[RetrievalResult]:
-        """Rerank results using a cross-encoder or similar logic."""
-        pass

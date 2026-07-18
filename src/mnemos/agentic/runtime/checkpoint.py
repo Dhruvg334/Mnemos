@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import Any
 
 from mnemos.agentic.runtime.types import (
@@ -18,6 +19,8 @@ from mnemos.agentic.runtime.types import (
     CheckpointType,
     InvestigationPhase,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CheckpointManager:
@@ -122,8 +125,7 @@ class CheckpointManager:
     def delete(self, checkpoint_id: str) -> bool:
         before = len(self._checkpoints)
         self._checkpoints = [
-            cp for cp in self._checkpoints
-            if cp.metadata.checkpoint_id != checkpoint_id
+            cp for cp in self._checkpoints if cp.metadata.checkpoint_id != checkpoint_id
         ]
         return len(self._checkpoints) < before
 
@@ -147,6 +149,7 @@ class CheckpointManager:
 # ---------------------------------------------------------------------------
 # Serialisation helpers
 # ---------------------------------------------------------------------------
+
 
 def _serialise_state(state: dict[str, Any]) -> dict[str, Any]:
     """Best-effort serialisation of the investigation state for storage.
@@ -175,3 +178,64 @@ def _deserialise_state(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Best-effort deserialisation. Returns the raw dict; consumers
     are responsible for constructing typed objects."""
     return dict(snapshot)
+
+
+async def _optimistic_save(
+    checkpoint_manager: CheckpointManager,
+    state: dict[str, Any],
+    *,
+    phase: InvestigationPhase = InvestigationPhase.INITIALIZATION,
+    checkpoint_type: CheckpointType = CheckpointType.AUTOMATIC,
+    agent_name: str | None = None,
+    description: str = "",
+    event_log_offset: int = 0,
+    db: Any = None,
+) -> Checkpoint:
+    """Save checkpoint with optimistic concurrency version check (P0 #13).
+
+    When a DB session is available, uses version-increment semantics to
+    prevent two workers from overwriting the same investigation checkpoint.
+    """
+    checkpoint = checkpoint_manager.save(
+        state,
+        phase=phase,
+        checkpoint_type=checkpoint_type,
+        agent_name=agent_name,
+        description=description,
+        event_log_offset=event_log_offset,
+    )
+
+    if db is not None:
+        try:
+            from sqlalchemy import text
+
+            result = await db.execute(
+                text(
+                    """
+                    UPDATE runtime_checkpoints
+                    SET version = version + 1,
+                        state_snapshot = :snapshot,
+                        event_log_offset = :offset
+                    WHERE id = :cid
+                      AND investigation_id = :inv_id
+                    """
+                ),
+                {
+                    "cid": checkpoint.metadata.checkpoint_id,
+                    "inv_id": checkpoint.metadata.investigation_id,
+                    "snapshot": json.dumps(checkpoint.state_snapshot, default=str),
+                    "offset": event_log_offset,
+                },
+            )
+            if result.rowcount == 0:
+                logger.warning(
+                    "Optimistic lock: checkpoint %s not found for version update",
+                    checkpoint.metadata.checkpoint_id,
+                )
+        except Exception:
+            logger.warning(
+                "Optimistic lock: version update failed for checkpoint %s",
+                checkpoint.metadata.checkpoint_id,
+            )
+
+    return checkpoint

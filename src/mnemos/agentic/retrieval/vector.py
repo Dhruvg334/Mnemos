@@ -64,9 +64,7 @@ class VectorRetriever:
             "MNEMOS_HF_EMBEDDING_MODEL",
             "sentence-transformers/all-mpnet-base-v2",
         )
-        self.openai_model = os.getenv(
-            "MNEMOS_OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
-        )
+        self.openai_model = os.getenv("MNEMOS_OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
         self.ollama_model = os.getenv("MNEMOS_OLLAMA_EMBEDDING_MODEL", "bge-mini")
         self._hf_client: SentenceTransformer | None = None
         self._executor = ThreadPoolExecutor(max_workers=2)
@@ -99,14 +97,10 @@ class VectorRetriever:
 
         if self.provider == "huggingface":
             if SentenceTransformer is None:
-                raise RuntimeError(
-                    "sentence-transformers not available for HuggingFace embeddings"
-                )
+                raise RuntimeError("sentence-transformers not available for HuggingFace embeddings")
             await self._ensure_hf()
             loop = asyncio.get_event_loop()
-            emb = await loop.run_in_executor(
-                self._executor, self._hf_client.encode, text, True
-            )
+            emb = await loop.run_in_executor(self._executor, self._hf_client.encode, text, True)
             return list(map(float, emb.tolist() if hasattr(emb, "tolist") else emb))
 
         if self.provider == "openai":
@@ -177,19 +171,13 @@ class VectorRetriever:
         if asset_id := filters.get("asset_id"):
             conditions.append(DocumentChunk.asset_id == asset_id)
         if revision_id := filters.get("revision_id"):
-            conditions.append(
-                DocumentChunk.revision_id == revision_id
-            )
+            conditions.append(DocumentChunk.revision_id == revision_id)
 
         metadata_filter = filters.get("metadata")
         if metadata_filter:
-            conditions.append(
-                DocumentChunk.metadata_json.contains(metadata_filter)
-            )
+            conditions.append(DocumentChunk.metadata_json.contains(metadata_filter))
 
-        distance = ChunkEmbedding.embedding.cosine_distance(
-            query_embedding
-        )
+        distance = ChunkEmbedding.embedding.cosine_distance(query_embedding)
         statement = (
             select(
                 DocumentChunk.id.label("chunk_id"),
@@ -219,8 +207,7 @@ class VectorRetriever:
         except ValueError as exc:
             raise AppError(
                 "EMBEDDING_DIMENSION_MISMATCH",
-                "The embedding configuration is incompatible "
-                "with the vector index.",
+                "The embedding configuration is incompatible with the vector index.",
                 500,
             ) from exc
 

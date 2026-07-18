@@ -105,7 +105,11 @@ class ObservabilityDashboard:
 
             audit_info = agent_audit_status.get(name)
             if audit_info:
-                info["last_audit_action"] = audit_info["last_action"].value if hasattr(audit_info["last_action"], "value") else str(audit_info["last_action"])
+                info["last_audit_action"] = (
+                    audit_info["last_action"].value
+                    if hasattr(audit_info["last_action"], "value")
+                    else str(audit_info["last_action"])
+                )
                 info["last_audit_success"] = audit_info["success"]
                 info["last_duration_ms"] = audit_info["duration_ms"]
 
@@ -124,13 +128,15 @@ class ObservabilityDashboard:
         for entry in self.audit_logger.entries:
             if entry.tool_name is None:
                 continue
-            tool_calls[entry.tool_name].append({
-                "action": entry.action,
-                "success": entry.success,
-                "duration_ms": entry.metadata.get("duration_ms", 0.0),
-                "timestamp": entry.timestamp.isoformat(),
-                "error": entry.error,
-            })
+            tool_calls[entry.tool_name].append(
+                {
+                    "action": entry.action,
+                    "success": entry.success,
+                    "duration_ms": entry.metadata.get("duration_ms", 0.0),
+                    "timestamp": entry.timestamp.isoformat(),
+                    "error": entry.error,
+                }
+            )
 
         if not tool_calls:
             return {
@@ -193,16 +199,20 @@ class ObservabilityDashboard:
                 from_phase = current_phase
                 to_phase = phase_str
                 current_phase = to_phase
-                edges.append({
-                    "from": from_phase,
-                    "to": to_phase,
-                    "timestamp": event.timestamp.isoformat(),
-                })
-                phase_transitions.append({
-                    "from": from_phase,
-                    "to": to_phase,
-                    "timestamp": event.timestamp.isoformat(),
-                })
+                edges.append(
+                    {
+                        "from": from_phase,
+                        "to": to_phase,
+                        "timestamp": event.timestamp.isoformat(),
+                    }
+                )
+                phase_transitions.append(
+                    {
+                        "from": from_phase,
+                        "to": to_phase,
+                        "timestamp": event.timestamp.isoformat(),
+                    }
+                )
 
             if event.event_type == EventType.SUPERVISOR_DECISION:
                 current_phase = phase_str
@@ -306,31 +316,40 @@ class ObservabilityDashboard:
                 if confidence is None:
                     # Try to find confidence from agent metadata in the most recent audit entries
                     for entry in reversed(self.audit_logger.entries):
-                        if entry.agent_name == event.agent_name and entry.action == AuditAction.AGENT_COMPLETED:
+                        if (
+                            entry.agent_name == event.agent_name
+                            and entry.action == AuditAction.AGENT_COMPLETED
+                        ):
                             confidence = entry.output_data.get("confidence", 0.0)
                             break
 
                 if confidence is not None:
-                    evolution.append({
-                        "iteration": iteration,
-                        "agent_name": event.agent_name,
-                        "confidence": float(confidence),
-                        "phase": event.phase if isinstance(event.phase, str) else event.phase.value,
-                        "timestamp": event.timestamp.isoformat(),
-                    })
+                    evolution.append(
+                        {
+                            "iteration": iteration,
+                            "agent_name": event.agent_name,
+                            "confidence": float(confidence),
+                            "phase": event.phase
+                            if isinstance(event.phase, str)
+                            else event.phase.value,
+                            "timestamp": event.timestamp.isoformat(),
+                        }
+                    )
 
             if event.event_type == EventType.REFLECTION_COMPLETED:
                 data = event.data if isinstance(event.data, dict) else {}
                 quality = data.get("quality", None)
                 if quality is not None:
-                    evolution.append({
-                        "iteration": iteration,
-                        "agent_name": "reflection_agent",
-                        "confidence": float(quality),
-                        "phase": InvestigationPhase.REFLECTION,
-                        "timestamp": event.timestamp.isoformat(),
-                        "metric": "overall_quality",
-                    })
+                    evolution.append(
+                        {
+                            "iteration": iteration,
+                            "agent_name": "reflection_agent",
+                            "confidence": float(quality),
+                            "phase": InvestigationPhase.REFLECTION,
+                            "timestamp": event.timestamp.isoformat(),
+                            "metric": "overall_quality",
+                        }
+                    )
 
         # Scan agent_outputs from audit entries for confidence signals
         seen = {(e["agent_name"], e["timestamp"]) for e in evolution}
@@ -342,13 +361,15 @@ class ObservabilityDashboard:
             if conf is not None and entry.agent_name:
                 key = (entry.agent_name, entry.timestamp.isoformat())
                 if key not in seen:
-                    evolution.append({
-                        "iteration": iteration,
-                        "agent_name": entry.agent_name,
-                        "confidence": float(conf),
-                        "phase": "unknown",
-                        "timestamp": entry.timestamp.isoformat(),
-                    })
+                    evolution.append(
+                        {
+                            "iteration": iteration,
+                            "agent_name": entry.agent_name,
+                            "confidence": float(conf),
+                            "phase": "unknown",
+                            "timestamp": entry.timestamp.isoformat(),
+                        }
+                    )
 
         return evolution
 
@@ -501,7 +522,9 @@ class ObservabilityDashboard:
         for event in reversed(self.event_log.events):
             if event.event_type == EventType.INVESTIGATION_COMPLETED:
                 is_complete = True
-                termination_reason = event.data.get("reason") if isinstance(event.data, dict) else None
+                termination_reason = (
+                    event.data.get("reason") if isinstance(event.data, dict) else None
+                )
                 break
             if event.event_type == EventType.INVESTIGATION_FAILED:
                 is_complete = True
@@ -539,6 +562,7 @@ class ObservabilityDashboard:
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def _percentile(sorted_values: list[float], percentile: float) -> float:
     """Compute a percentile from a pre-sorted list of values."""

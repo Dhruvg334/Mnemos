@@ -12,6 +12,7 @@ Zero business logic — only reusable observability architecture.
 from __future__ import annotations
 
 import json
+import logging
 import time
 import uuid
 from collections.abc import Callable
@@ -20,9 +21,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+logger = logging.getLogger(__name__)
+
 
 class SpanStatus(StrEnum):
     """Span completion status."""
+
     OK = "ok"
     ERROR = "error"
     TIMEOUT = "timeout"
@@ -31,6 +35,7 @@ class SpanStatus(StrEnum):
 
 class SpanEvent(BaseModel):
     """An event within a span (e.g., log message, milestone)."""
+
     name: str
     timestamp: float = Field(default_factory=time.time)
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -38,6 +43,7 @@ class SpanEvent(BaseModel):
 
 class Span(BaseModel):
     """A single tracing span representing an operation."""
+
     span_id: str = Field(default_factory=lambda: f"spn_{uuid.uuid4().hex[:12]}")
     trace_id: str = ""
     parent_span_id: str | None = None
@@ -117,14 +123,14 @@ class SpanExporter:
             try:
                 cb(span)
             except Exception:
-                pass
+                logger.warning("Span export callback failed", exc_info=True)
 
         if self._file_path:
             try:
                 with open(self._file_path, "a") as f:
                     f.write(json.dumps(span.to_export_dict(), default=str) + "\n")
             except Exception:
-                pass
+                logger.warning("Span file export failed for %s", self._file_path, exc_info=True)
 
     @property
     def exported_count(self) -> int:

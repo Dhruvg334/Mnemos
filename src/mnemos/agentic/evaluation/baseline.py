@@ -17,22 +17,25 @@ class BaselineVectorRetrievalNode(EvidenceRetrievalNode):
     Overrides the standard retrieval node to strictly use vector search only.
     Bypasses Knowledge Graph traversal and Metadata filtering.
     """
+
     async def execute(self, state: AgentState) -> AgentState:
         # Force the plan to vector-only
         state["retrieval_plan"] = RetrievalPlan(
             intent=QueryIntent.GENERAL,
             strategies=[RetrievalStrategy.VECTOR_SEARCH],
             target_entities=[],
-            reasoning="Evaluation Baseline: Vector-only retrieval."
+            reasoning="Evaluation Baseline: Vector-only retrieval.",
         )
         # Execute standard retrieval which will now only run the vector task
         return await super().execute(state)
+
 
 class BaselineVectorRAGOrchestrator:
     """
     A baseline pipeline implementing standard 'Document -> Chunk -> Answer' RAG.
     Used to measure the performance improvement of the Mnemos Asset-Centric approach.
     """
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.workflow = self._build_baseline_workflow()
@@ -71,7 +74,7 @@ class BaselineVectorRAGOrchestrator:
             "claims": [],
             "final_response": None,
             "steps_completed": [],
-            "errors": []
+            "errors": [],
         }
 
         final_state = await self.workflow.ainvoke(initial_state)

@@ -68,9 +68,7 @@ class _BaseRetrievalAgent(CollaborativeAgent, ABC):
                 "site_id": ctx.get("site_id", ""),
                 "user_id": ctx.get("user_id", ""),
                 "role": ctx.get("role", "engineer"),
-                "access_classifications": ctx.get(
-                    "access_classifications", ["internal"]
-                ),
+                "access_classifications": ctx.get("access_classifications", ["internal"]),
                 "asset_ids": ctx.get("asset_ids", []),
                 "document_ids": ctx.get("document_ids", []),
             }
@@ -93,6 +91,7 @@ class _BaseRetrievalAgent(CollaborativeAgent, ABC):
         """Return tools this agent is allowed to call (P0 #13)."""
         try:
             from mnemos.agentic.mcp.dispatch import _AGENT_TOOL_ALLOWLISTS
+
             return _AGENT_TOOL_ALLOWLISTS.get(self.name, frozenset())
         except ImportError:
             return frozenset()
@@ -242,7 +241,6 @@ class _BaseRetrievalAgent(CollaborativeAgent, ABC):
     def required_dependencies(self) -> list[str]:
         return []
 
-    @abstractmethod
     def _capabilities(self) -> list[Any]:
         return []
 

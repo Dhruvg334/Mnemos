@@ -102,26 +102,26 @@ class SupervisorAgent:
         # ---- Termination checks -----------------------------------------
         if is_complete:
             return self._terminate(
-                phase, TerminationReason.SUFFICIENT_EVIDENCE,
-                "Investigation marked complete."
+                phase, TerminationReason.SUFFICIENT_EVIDENCE, "Investigation marked complete."
             )
 
         if should_abstain:
             return self._terminate(
-                phase, TerminationReason.ABSTENTION,
-                state.get("abstention_reason", "Abstention requested.")
+                phase,
+                TerminationReason.ABSTENTION,
+                state.get("abstention_reason", "Abstention requested."),
             )
 
         if iteration >= self.max_iterations:
             return self._terminate(
-                phase, TerminationReason.MAX_ITERATIONS,
-                f"Max iterations ({self.max_iterations}) reached."
+                phase,
+                TerminationReason.MAX_ITERATIONS,
+                f"Max iterations ({self.max_iterations}) reached.",
             )
 
         if self._all_agents_failed(errors):
             return self._terminate(
-                phase, TerminationReason.ALL_AGENTS_FAILED,
-                "All dispatched agents have failed."
+                phase, TerminationReason.ALL_AGENTS_FAILED, "All dispatched agents have failed."
             )
 
         # ---- Check for approval gate triggers from agent outputs -------
@@ -137,7 +137,11 @@ class SupervisorAgent:
 
         # ---- Approval gate ----------------------------------------------
         if approval_required:
-            gate_str = state.get("context", {}).get("approval_gate_type", "general") if isinstance(state.get("context"), dict) else "general"
+            gate_str = (
+                state.get("context", {}).get("approval_gate_type", "general")
+                if isinstance(state.get("context"), dict)
+                else "general"
+            )
             return SupervisorDecision(
                 phase=InvestigationPhase.APPROVAL,
                 agents_to_dispatch=[],
@@ -161,8 +165,9 @@ class SupervisorAgent:
             # No more agents to run -- check if we have enough evidence
             if self._has_sufficient_evidence(state):
                 return self._terminate(
-                    phase, TerminationReason.SUFFICIENT_EVIDENCE,
-                    "All available agents executed; sufficient evidence collected."
+                    phase,
+                    TerminationReason.SUFFICIENT_EVIDENCE,
+                    "All available agents executed; sufficient evidence collected.",
                 )
             # Try reflection to see if replanning is needed
             return SupervisorDecision(
@@ -200,7 +205,8 @@ class SupervisorAgent:
 
         # Filter out reflection and supervisor (they're invoked separately)
         dispatchable = [
-            reg for reg in executable
+            reg
+            for reg in executable
             if reg.role not in (AgentRole.SUPERVISOR, AgentRole.HUMAN_APPROVAL)
         ]
 
@@ -216,9 +222,9 @@ class SupervisorAgent:
             AgentRole.GENERIC,
         ]
 
-        dispatchable.sort(key=lambda r: (
-            priority_order.index(r.role) if r.role in priority_order else 99
-        ))
+        dispatchable.sort(
+            key=lambda r: (priority_order.index(r.role) if r.role in priority_order else 99)
+        )
 
         return [reg.name for reg in dispatchable]
 
@@ -329,7 +335,9 @@ class SupervisorAgent:
                         if isinstance(action, dict):
                             if action.get("priority") == "critical":
                                 return ApprovalGateType.HIGH_PRIORITY_ACTION
-                            if action.get("type") == "PROCEDURE_UPDATE" and action.get("priority") in ("high", "critical"):
+                            if action.get("type") == "PROCEDURE_UPDATE" and action.get(
+                                "priority"
+                            ) in ("high", "critical"):
                                 return ApprovalGateType.MAINTENANCE_STRATEGY
 
             # Check next_recommended_agents for gate hints
@@ -365,9 +373,7 @@ class SupervisorAgent:
             return False
         return all("INTERNAL_ERROR" in e or "AGENT_FAILED" in e for e in errors)
 
-    def _build_reasoning(
-        self, next_agents: list[str], state: dict[str, Any]
-    ) -> str:
+    def _build_reasoning(self, next_agents: list[str], state: dict[str, Any]) -> str:
         completed = state.get("completed_agents", [])
         iteration = state.get("iteration", 0)
         return (

@@ -17,7 +17,7 @@ from mnemos.api.v1 import (
     sites,
 )
 from mnemos.core.config import settings
-from mnemos.core.db import close_database
+from mnemos.core.db import SessionLocal, close_database
 from mnemos.core.errors import (
     AppError,
     app_error_handler,
@@ -73,10 +73,39 @@ app.include_router(knowledge.router, prefix=settings.api_v1_prefix)
 app.include_router(ingestion.router, prefix=settings.api_v1_prefix)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
 
+# Mount the approval router (P0 #7) — wired to the durable approval queue
+from mnemos.agentic.runtime.api.approvals import create_approval_router  # noqa: E402
+from mnemos.agentic.runtime.approval_queue import DurableApprovalQueue  # noqa: E402
+
+_approval_queue = DurableApprovalQueue(session_factory=SessionLocal)
+app.include_router(
+    create_approval_router(_approval_queue),
+    prefix=f"{settings.api_v1_prefix}/approvals",
+)
+
+# Initialize OpenTelemetry on startup (P0 #20, P0 #21)
+from mnemos.agentic.runtime.otel import _OTEL_AVAILABLE, get_tracer  # noqa: E402
+
 
 @app.on_event("startup")
 async def startup_resources() -> None:
     await init_neo4j()
+    _ = get_tracer()  # Initialize the tracer singleton
+
+    # Register auto-instrumentation when OTel is available (P0 #21)
+    if _OTEL_AVAILABLE:
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            FastAPIInstrumentor.instrument_app(app)
+        except Exception:
+            pass
+        try:
+            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+            SQLAlchemyInstrumentor().instrument()
+        except Exception:
+            pass
 
 
 @app.on_event("shutdown")

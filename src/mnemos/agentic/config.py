@@ -9,15 +9,18 @@ class LLMConfig(BaseModel):
     api_key: str | None = Field(default=None)
     base_url: str | None = Field(default="https://api.groq.com/openai/v1")
 
+
 class AgenticSettings(BaseModel):
     """
     Settings specific to the AI/Agentic layer.
     """
+
     primary_llm: LLMConfig = Field(default_factory=LLMConfig)
-    fast_llm: LLMConfig = Field(default_factory=lambda: LLMConfig(
-        model_name="llama3-8b-8192",
-        base_url="https://api.groq.com/openai/v1"
-    ))
+    fast_llm: LLMConfig = Field(
+        default_factory=lambda: LLMConfig(
+            model_name="llama3-8b-8192", base_url="https://api.groq.com/openai/v1"
+        )
+    )
 
     # Embedding configuration
     # Supported providers: openai | huggingface | ollama
@@ -27,7 +30,9 @@ class AgenticSettings(BaseModel):
 
     # Cross-Encoder for Reranking
     enable_reranking: bool = True
-    cross_encoder_url: str | None = Field(default=None, description="External BGE reranker endpoint")
+    cross_encoder_url: str | None = Field(
+        default=None, description="External BGE reranker endpoint"
+    )
 
     # Retrieval thresholds
     min_relevance_score: float = 0.4
@@ -47,17 +52,18 @@ class AgenticSettings(BaseModel):
             primary_llm=LLMConfig(
                 model_name=os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "llama3-70b-8192")),
                 api_key=os.getenv("GROQ_API_KEY", os.getenv("LLM_API_KEY")),
-                base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base))
+                base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base)),
             ),
             fast_llm=LLMConfig(
                 model_name=os.getenv("FAST_LLM_MODEL", "llama3-8b-8192"),
                 api_key=os.getenv("GROQ_API_KEY", os.getenv("LLM_API_KEY")),
-                base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base))
+                base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base)),
             ),
             embedding_provider=os.getenv("EMBEDDING_PROVIDER", "openai").lower(),
             embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
             cross_encoder_url=os.getenv("CROSS_ENCODER_URL"),
-            enable_reranking=os.getenv("ENABLE_RERANKING", "true").lower() == "true"
+            enable_reranking=os.getenv("ENABLE_RERANKING", "true").lower() == "true",
         )
+
 
 agent_settings = AgenticSettings.from_env()

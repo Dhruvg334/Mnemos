@@ -106,11 +106,18 @@ class TestObservabilityDashboard:
 
     def test_active_agents_with_events(self) -> None:
         """Agents with AGENT_INVOKED events show as 'running'."""
-        event_log = _make_event_log([
-            (EventType.AGENT_INVOKED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent", {}),
-            (EventType.AGENT_INVOKED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
-        ])
+        event_log = _make_event_log(
+            [
+                (
+                    EventType.AGENT_INVOKED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {},
+                ),
+                (EventType.AGENT_INVOKED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
+                (EventType.AGENT_COMPLETED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
+            ]
+        )
         audit = _make_audit_log()
         dash = ObservabilityDashboard(event_log, audit)
 
@@ -138,12 +145,35 @@ class TestObservabilityDashboard:
 
     def test_tool_usage_with_entries(self) -> None:
         """Tool calls in audit produce correct counts and success rates."""
-        audit = _make_audit_log([
-            {"tool_name": "web_search", "action": AuditAction.TOOL_CALLED, "success": True, "duration_ms": 100.0},
-            {"tool_name": "web_search", "action": AuditAction.TOOL_CALLED, "success": True, "duration_ms": 200.0},
-            {"tool_name": "web_search", "action": AuditAction.TOOL_CALLED, "success": False, "error": "timeout", "duration_ms": 300.0},
-            {"tool_name": "db_query", "action": AuditAction.TOOL_CALLED, "success": True, "duration_ms": 50.0},
-        ])
+        audit = _make_audit_log(
+            [
+                {
+                    "tool_name": "web_search",
+                    "action": AuditAction.TOOL_CALLED,
+                    "success": True,
+                    "duration_ms": 100.0,
+                },
+                {
+                    "tool_name": "web_search",
+                    "action": AuditAction.TOOL_CALLED,
+                    "success": True,
+                    "duration_ms": 200.0,
+                },
+                {
+                    "tool_name": "web_search",
+                    "action": AuditAction.TOOL_CALLED,
+                    "success": False,
+                    "error": "timeout",
+                    "duration_ms": 300.0,
+                },
+                {
+                    "tool_name": "db_query",
+                    "action": AuditAction.TOOL_CALLED,
+                    "success": True,
+                    "duration_ms": 50.0,
+                },
+            ]
+        )
         event_log = _make_event_log()
         dash = ObservabilityDashboard(event_log, audit)
 
@@ -172,12 +202,14 @@ class TestObservabilityDashboard:
 
     def test_workflow_graph_with_transitions(self) -> None:
         """Multiple phase changes produce correct DAG edges."""
-        event_log = _make_event_log([
-            (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
-            (EventType.PHASE_CHANGED, InvestigationPhase.EVIDENCE_GATHERING, None, {}),
-            (EventType.PHASE_CHANGED, InvestigationPhase.ANALYSIS, None, {}),
-            (EventType.PHASE_CHANGED, InvestigationPhase.VERIFICATION, None, {}),
-        ])
+        event_log = _make_event_log(
+            [
+                (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
+                (EventType.PHASE_CHANGED, InvestigationPhase.EVIDENCE_GATHERING, None, {}),
+                (EventType.PHASE_CHANGED, InvestigationPhase.ANALYSIS, None, {}),
+                (EventType.PHASE_CHANGED, InvestigationPhase.VERIFICATION, None, {}),
+            ]
+        )
         audit = _make_audit_log()
         dash = ObservabilityDashboard(event_log, audit)
 
@@ -202,14 +234,16 @@ class TestObservabilityDashboard:
     def test_agent_timings_with_data(self) -> None:
         """Agent metadata with execution times produces correct percentiles."""
         durations = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0]
-        audit = _make_audit_log([
-            {
-                "agent_name": "retrieval_agent",
-                "action": AuditAction.AGENT_COMPLETED,
-                "duration_ms": d,
-            }
-            for d in durations
-        ])
+        audit = _make_audit_log(
+            [
+                {
+                    "agent_name": "retrieval_agent",
+                    "action": AuditAction.AGENT_COMPLETED,
+                    "duration_ms": d,
+                }
+                for d in durations
+            ]
+        )
         event_log = _make_event_log()
         dash = ObservabilityDashboard(event_log, audit)
 
@@ -231,16 +265,34 @@ class TestObservabilityDashboard:
 
     def test_confidence_evolution_with_data(self) -> None:
         """Confidence values tracked over iterations from AGENT_COMPLETED events."""
-        event_log = _make_event_log([
-            (EventType.SUPERVISOR_DECISION, InvestigationPhase.EVIDENCE_GATHERING, None,
-             {"from_iteration": 1}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent",
-             {"confidence": 0.6}),
-            (EventType.SUPERVISOR_DECISION, InvestigationPhase.ANALYSIS, None,
-             {"from_iteration": 2}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.ANALYSIS, "analysis_agent",
-             {"confidence": 0.85}),
-        ])
+        event_log = _make_event_log(
+            [
+                (
+                    EventType.SUPERVISOR_DECISION,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    None,
+                    {"from_iteration": 1},
+                ),
+                (
+                    EventType.AGENT_COMPLETED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {"confidence": 0.6},
+                ),
+                (
+                    EventType.SUPERVISOR_DECISION,
+                    InvestigationPhase.ANALYSIS,
+                    None,
+                    {"from_iteration": 2},
+                ),
+                (
+                    EventType.AGENT_COMPLETED,
+                    InvestigationPhase.ANALYSIS,
+                    "analysis_agent",
+                    {"confidence": 0.85},
+                ),
+            ]
+        )
         audit = _make_audit_log()
         dash = ObservabilityDashboard(event_log, audit)
 
@@ -266,22 +318,57 @@ class TestObservabilityDashboard:
 
     def test_dashboard_snapshot(self) -> None:
         """Complete snapshot includes all sections."""
-        event_log = _make_event_log([
-            (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
-            (EventType.AGENT_INVOKED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent", {}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent",
-             {"confidence": 0.7}),
-            (EventType.EVIDENCE_COLLECTED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent",
-             {"count": 5, "strategies": ["semantic", "keyword"], "avg_confidence": 0.75}),
-            (EventType.PHASE_CHANGED, InvestigationPhase.ANALYSIS, None, {}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.ANALYSIS, "analysis_agent",
-             {"confidence": 0.9}),
-            (EventType.INVESTIGATION_COMPLETED, InvestigationPhase.COMPLETION, None, {"reason": "sufficient_evidence"}),
-        ])
-        audit = _make_audit_log([
-            {"tool_name": "web_search", "action": AuditAction.TOOL_CALLED, "success": True, "duration_ms": 120.0},
-            {"agent_name": "retrieval_agent", "action": AuditAction.AGENT_COMPLETED, "duration_ms": 500.0},
-        ])
+        event_log = _make_event_log(
+            [
+                (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
+                (
+                    EventType.AGENT_INVOKED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {},
+                ),
+                (
+                    EventType.AGENT_COMPLETED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {"confidence": 0.7},
+                ),
+                (
+                    EventType.EVIDENCE_COLLECTED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {"count": 5, "strategies": ["semantic", "keyword"], "avg_confidence": 0.75},
+                ),
+                (EventType.PHASE_CHANGED, InvestigationPhase.ANALYSIS, None, {}),
+                (
+                    EventType.AGENT_COMPLETED,
+                    InvestigationPhase.ANALYSIS,
+                    "analysis_agent",
+                    {"confidence": 0.9},
+                ),
+                (
+                    EventType.INVESTIGATION_COMPLETED,
+                    InvestigationPhase.COMPLETION,
+                    None,
+                    {"reason": "sufficient_evidence"},
+                ),
+            ]
+        )
+        audit = _make_audit_log(
+            [
+                {
+                    "tool_name": "web_search",
+                    "action": AuditAction.TOOL_CALLED,
+                    "success": True,
+                    "duration_ms": 120.0,
+                },
+                {
+                    "agent_name": "retrieval_agent",
+                    "action": AuditAction.AGENT_COMPLETED,
+                    "duration_ms": 500.0,
+                },
+            ]
+        )
         dash = ObservabilityDashboard(event_log, audit)
 
         snap = dash.get_dashboard_snapshot()
@@ -299,21 +386,49 @@ class TestObservabilityDashboard:
 
     def test_investigation_summary(self) -> None:
         """Summary includes phases, agents, errors."""
-        event_log = _make_event_log([
-            (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
-            (EventType.AGENT_INVOKED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent", {}),
-            (EventType.AGENT_COMPLETED, InvestigationPhase.EVIDENCE_GATHERING, "retrieval_agent", {}),
-            (EventType.AGENT_INVOKED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
-            (EventType.AGENT_FAILED, InvestigationPhase.ANALYSIS, "analysis_agent",
-             {"error": "LLM timeout"}),
-            (EventType.APPROVAL_REQUESTED, InvestigationPhase.APPROVAL, "supervisor_agent", {}),
-            (EventType.REFLECTION_COMPLETED, InvestigationPhase.REFLECTION, "reflection_agent", {}),
-            (EventType.INVESTIGATION_COMPLETED, InvestigationPhase.COMPLETION, None, {"reason": "done"}),
-        ])
-        audit = _make_audit_log([
-            {"action": AuditAction.APPROVAL_GRANTED},
-            {"action": AuditAction.APPROVAL_DENIED},
-        ])
+        event_log = _make_event_log(
+            [
+                (EventType.INVESTIGATION_STARTED, InvestigationPhase.INITIALIZATION, None, {}),
+                (
+                    EventType.AGENT_INVOKED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {},
+                ),
+                (
+                    EventType.AGENT_COMPLETED,
+                    InvestigationPhase.EVIDENCE_GATHERING,
+                    "retrieval_agent",
+                    {},
+                ),
+                (EventType.AGENT_INVOKED, InvestigationPhase.ANALYSIS, "analysis_agent", {}),
+                (
+                    EventType.AGENT_FAILED,
+                    InvestigationPhase.ANALYSIS,
+                    "analysis_agent",
+                    {"error": "LLM timeout"},
+                ),
+                (EventType.APPROVAL_REQUESTED, InvestigationPhase.APPROVAL, "supervisor_agent", {}),
+                (
+                    EventType.REFLECTION_COMPLETED,
+                    InvestigationPhase.REFLECTION,
+                    "reflection_agent",
+                    {},
+                ),
+                (
+                    EventType.INVESTIGATION_COMPLETED,
+                    InvestigationPhase.COMPLETION,
+                    None,
+                    {"reason": "done"},
+                ),
+            ]
+        )
+        audit = _make_audit_log(
+            [
+                {"action": AuditAction.APPROVAL_GRANTED},
+                {"action": AuditAction.APPROVAL_DENIED},
+            ]
+        )
         dash = ObservabilityDashboard(event_log, audit)
 
         summary = dash.get_investigation_summary()
@@ -688,9 +803,7 @@ class TestBatchRetrievalManager:
 
         # Add one request (won't flush because batch_size not met and wait is long)
         # Use ensure_future so we don't block
-        task = asyncio.ensure_future(
-            manager.add_request("r1", "q1", "semantic", {})
-        )
+        task = asyncio.ensure_future(manager.add_request("r1", "q1", "semantic", {}))
         await asyncio.sleep(0.01)
         assert manager.pending_count() == 1
 
@@ -727,10 +840,7 @@ class TestParallelExecutor:
         async def work(val):
             return val * 2
 
-        tasks = [
-            (f"task_{i}", work, (i,), {})
-            for i in range(5)
-        ]
+        tasks = [(f"task_{i}", work, (i,), {}) for i in range(5)]
         results = await executor.execute_parallel(tasks)
 
         for i in range(5):
@@ -771,11 +881,13 @@ class TestParallelExecutor:
             await asyncio.sleep(0.005)
             raise ValueError("boom")
 
-        await executor.execute_parallel([
-            ("s1", work, (), {}),
-            ("s2", work, (), {}),
-            ("f1", fail, (), {}),
-        ])
+        await executor.execute_parallel(
+            [
+                ("s1", work, (), {}),
+                ("s2", work, (), {}),
+                ("f1", fail, (), {}),
+            ]
+        )
 
         stats = executor.stats()
         assert stats["total_completed"] == 2

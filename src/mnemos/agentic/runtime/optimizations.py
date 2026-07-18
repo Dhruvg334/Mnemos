@@ -21,6 +21,7 @@ from mnemos.agentic.config import AgenticSettings
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _hash_cache_key(tool_name: str, arguments: dict[str, Any]) -> str:
     """Deterministic cache key from tool name + serialized arguments."""
     canonical = json.dumps(arguments, sort_keys=True, default=str)
@@ -31,6 +32,7 @@ def _hash_cache_key(tool_name: str, arguments: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 # ResponseCache
 # ---------------------------------------------------------------------------
+
 
 class ResponseCache:
     """LRU cache for MCP tool call results with TTL expiration.
@@ -113,9 +115,7 @@ class ResponseCache:
             self._store.clear()
             return count
 
-        keys_to_remove = [
-            k for k in self._store if k.startswith(f"{tool_name}:")
-        ]
+        keys_to_remove = [k for k in self._store if k.startswith(f"{tool_name}:")]
         for k in keys_to_remove:
             self._store.pop(k, None)
         return len(keys_to_remove)
@@ -135,10 +135,7 @@ class ResponseCache:
     def cleanup(self) -> int:
         """Remove expired entries.  Returns count of removed entries."""
         now = time.monotonic()
-        expired_keys = [
-            k for k, (_, expires_at) in self._store.items()
-            if now > expires_at
-        ]
+        expired_keys = [k for k, (_, expires_at) in self._store.items() if now > expires_at]
         for k in expired_keys:
             self._store.pop(k, None)
         return len(expired_keys)
@@ -147,6 +144,7 @@ class ResponseCache:
 # ---------------------------------------------------------------------------
 # BatchRetrievalManager
 # ---------------------------------------------------------------------------
+
 
 class _PendingRequest:
     """Internal bookkeeping for a single request waiting inside a batch."""
@@ -266,6 +264,7 @@ class BatchRetrievalManager:
 # ParallelExecutor
 # ---------------------------------------------------------------------------
 
+
 class ParallelExecutor:
     """Manages parallel agent execution with concurrency limits.
 
@@ -358,6 +357,7 @@ class ParallelExecutor:
 # TimeoutRecoveryManager
 # ---------------------------------------------------------------------------
 
+
 class _TimeoutRecord:
     __slots__ = ("agent_name", "timestamp", "partial_result")
 
@@ -421,9 +421,7 @@ class TimeoutRecoveryManager:
             )
             return state
 
-        state.setdefault("errors", []).append(
-            f"TIMEOUT_SKIPPED: {agent_name}"
-        )
+        state.setdefault("errors", []).append(f"TIMEOUT_SKIPPED: {agent_name}")
 
         pending = list(state.get("pending_agents", []))
         if agent_name in pending:
@@ -460,9 +458,9 @@ class TimeoutRecoveryManager:
         """
         now = time.monotonic()
         recent = [
-            rec for rec in self._history
-            if rec.agent_name == agent_name
-            and (now - rec.timestamp) < self._TIMEOUT_WINDOW_SECONDS
+            rec
+            for rec in self._history
+            if rec.agent_name == agent_name and (now - rec.timestamp) < self._TIMEOUT_WINDOW_SECONDS
         ]
         return len(recent) >= self._ESCALATION_THRESHOLD
 
@@ -470,6 +468,7 @@ class TimeoutRecoveryManager:
 # ---------------------------------------------------------------------------
 # ProductionOptimizer  (unified facade)
 # ---------------------------------------------------------------------------
+
 
 class ProductionOptimizer:
     """Unified production optimizer combining all optimization strategies.

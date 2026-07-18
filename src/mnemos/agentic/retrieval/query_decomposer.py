@@ -64,32 +64,39 @@ class QueryDecomposer:
             )
         except Exception as exc:
             logger.warning(f"LLM decomposition failed ({exc}), returning original query")
-            return [SubQuery(
-                original_query=query,
-                sub_query_text=query,
-                decomposition_reasoning="LLM decomposition failed, using original",
-                priority=0,
-            )]
+            return [
+                SubQuery(
+                    original_query=query,
+                    sub_query_text=query,
+                    decomposition_reasoning="LLM decomposition failed, using original",
+                    priority=0,
+                )
+            ]
 
         if not output.needs_decomposition or not output.sub_queries:
             logger.info("Query does not need decomposition")
-            return [SubQuery(
-                original_query=query,
-                sub_query_text=query,
-                decomposition_reasoning=output.reasoning or "Simple query, no decomposition needed",
-                priority=0,
-            )]
+            return [
+                SubQuery(
+                    original_query=query,
+                    sub_query_text=query,
+                    decomposition_reasoning=output.reasoning
+                    or "Simple query, no decomposition needed",
+                    priority=0,
+                )
+            ]
 
         sub_queries: list[SubQuery] = []
         for idx, sq_text in enumerate(output.sub_queries):
             deps = output.dependency_indices[idx] if idx < len(output.dependency_indices) else []
-            sub_queries.append(SubQuery(
-                original_query=query,
-                sub_query_text=sq_text,
-                decomposition_reasoning=output.reasoning,
-                priority=idx,
-                depends_on=deps,
-            ))
+            sub_queries.append(
+                SubQuery(
+                    original_query=query,
+                    sub_query_text=sq_text,
+                    decomposition_reasoning=output.reasoning,
+                    priority=idx,
+                    depends_on=deps,
+                )
+            )
 
         logger.info(
             f"Decomposed query into {len(sub_queries)} sub-queries: "
@@ -97,9 +104,7 @@ class QueryDecomposer:
         )
         return sub_queries
 
-    def _build_prompt(
-        self, query: str, intent: QueryIntent, entities: list[str]
-    ) -> str:
+    def _build_prompt(self, query: str, intent: QueryIntent, entities: list[str]) -> str:
         entity_str = ", ".join(entities) if entities else "none detected"
         return (
             "You are an industrial query decomposer. Analyse the query below "

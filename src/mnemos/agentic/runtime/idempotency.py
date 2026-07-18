@@ -40,8 +40,8 @@ logger = logging.getLogger(__name__)
 class RetryDecision(StrEnum):
     RETRY = "retry"
     ABORT = "abort"
-    SKIP = "skip"           # skip this node, continue pipeline
-    ESCALATE = "escalate"   # route to dead-letter / human review
+    SKIP = "skip"  # skip this node, continue pipeline
+    ESCALATE = "escalate"  # route to dead-letter / human review
 
 
 # Error types that are retryable (transient)
@@ -136,11 +136,9 @@ class NodeCompletionRegistry:
         # Also persist durably when a DB-backed registry is available
         if self._durable is not None:
             try:
-                self._durable.mark_complete(
-                    idempotency_key, investigation_id, node_name
-                )
+                self._durable.mark_complete(idempotency_key, investigation_id, node_name)
             except Exception:
-                pass
+                logger.warning("Durable mark_complete failed for key '%s'", idempotency_key)
         return record
 
     def is_complete(self, idempotency_key: str) -> bool:
@@ -150,10 +148,7 @@ class NodeCompletionRegistry:
         return self._completed.get(idempotency_key)
 
     def clear_investigation(self, investigation_id: str) -> int:
-        keys = [
-            k for k, v in self._completed.items()
-            if v.investigation_id == investigation_id
-        ]
+        keys = [k for k, v in self._completed.items() if v.investigation_id == investigation_id]
         for k in keys:
             del self._completed[k]
         return len(keys)
@@ -252,7 +247,8 @@ class IdempotentNodeExecutor:
                 node_name,
                 idem_key,
                 datetime.fromtimestamp(record.completed_at, tz=UTC).isoformat()
-                if record else "unknown",
+                if record
+                else "unknown",
             )
             return record.output if record else None, True  # cached
 
@@ -278,14 +274,17 @@ class IdempotentNodeExecutor:
                 if decision == RetryDecision.ABORT:
                     logger.warning(
                         "Node '%s' non-retryable error (attempt %d): %s",
-                        node_name, attempt + 1, type(exc).__name__,
+                        node_name,
+                        attempt + 1,
+                        type(exc).__name__,
                     )
                     raise
 
                 if decision == RetryDecision.ESCALATE:
                     logger.error(
                         "Node '%s' exhausted retries (%d) — escalating",
-                        node_name, self._max_retries,
+                        node_name,
+                        self._max_retries,
                     )
                     raise
 
@@ -294,11 +293,14 @@ class IdempotentNodeExecutor:
                     return None, False
 
                 # RETRY — exponential backoff
-                delay = self._base_delay * (2 ** attempt)
+                delay = self._base_delay * (2**attempt)
                 logger.warning(
                     "Node '%s' attempt %d/%d failed (%s) — retrying in %.1fs",
-                    node_name, attempt + 1, self._max_retries + 1,
-                    type(exc).__name__, delay,
+                    node_name,
+                    attempt + 1,
+                    self._max_retries + 1,
+                    type(exc).__name__,
+                    delay,
                 )
                 await asyncio.sleep(delay)
 
@@ -317,7 +319,7 @@ class DeadLetterEntry:
     investigation_id: str
     node_name: str
     error_type: str
-    error_message: str     # sanitized — no stack traces
+    error_message: str  # sanitized — no stack traces
     attempt_count: int
     recorded_at: float = field(default_factory=time.time)
 
@@ -345,7 +347,10 @@ class DeadLetterQueue:
         self._entries.append(entry)
         logger.error(
             "Dead-letter: investigation=%s node=%s error=%s attempts=%d",
-            investigation_id, node_name, entry.error_type, attempt_count,
+            investigation_id,
+            node_name,
+            entry.error_type,
+            attempt_count,
         )
         return entry
 

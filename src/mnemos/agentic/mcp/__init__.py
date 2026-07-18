@@ -47,7 +47,7 @@ Tools provided (all wired to real backend services):
 """
 
 from mnemos.agentic.mcp.dispatch import MCPToolDispatch
-from mnemos.agentic.mcp.interfaces import BaseMCPClient, MCPResource, ToolDefinition
+from mnemos.agentic.mcp.interfaces import MCPResource, ToolDefinition
 from mnemos.agentic.mcp.server import MnemosMCPServer
 from mnemos.agentic.mcp.tools import (
     ActionCreationInput,
@@ -79,7 +79,6 @@ from mnemos.agentic.mcp.tools import (
 __all__ = [
     "MCPToolDispatch",
     "MnemosMCPServer",
-    "BaseMCPClient",
     "MCPResource",
     "ToolDefinition",
     # Input schemas

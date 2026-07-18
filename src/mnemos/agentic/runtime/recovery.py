@@ -174,10 +174,7 @@ class FailureRecoveryManager:
             "consecutive_failures": self._consecutive_failures,
             "max_consecutive_failures": self.max_consecutive_failures,
             "should_abort": self.should_abort(),
-            "agent_failures": {
-                name: len(errors)
-                for name, errors in self._agent_failures.items()
-            },
+            "agent_failures": {name: len(errors) for name, errors in self._agent_failures.items()},
         }
 
 

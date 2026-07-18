@@ -109,9 +109,11 @@ class ToolCallingAgent(BaseAgent):
         """Return the set of tools this agent is permitted to call (P0 #13)."""
         try:
             from mnemos.agentic.mcp.dispatch import _AGENT_TOOL_ALLOWLISTS
+
             return _AGENT_TOOL_ALLOWLISTS.get(self.name, frozenset())
         except ImportError:
             return frozenset()
+
 
 class CollaborativeAgent(BaseAgent):
     """Interface for agents that participate in collaborative execution."""

@@ -1,4 +1,3 @@
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.providers import get_llm_service
@@ -20,16 +19,31 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
     4. Graph <-> Chunk Mapping
     """
     logger.info(f"Starting production ingestion pipeline for document {document.id}")
-    
+
     # 1. Chunking & Metadata Extraction (Simulated Layout Parser & Semantic Chunking)
     # In a real scenario, this would call the unstructured.io parser or similar.
     # Here we simulate the extraction of semantic chunks for the sake of the pipeline architecture.
     chunks_data = [
-        {"index": 0, "content": f"Title page of {document.filename}. Asset: P-101 is a centrifugal pump.", "page": 1, "asset_id": "P-101"},
-        {"index": 1, "content": "P-101 operates at 3600 RPM. Routine maintenance procedure requires shutdown.", "page": 2, "asset_id": "P-101"},
-        {"index": 2, "content": "Failure mode: Excessive vibration on P-101 caused by bearing wear.", "page": 3, "asset_id": "P-101"}
+        {
+            "index": 0,
+            "content": f"Title page of {document.filename}. Asset: P-101 is a centrifugal pump.",
+            "page": 1,
+            "asset_id": "P-101",
+        },
+        {
+            "index": 1,
+            "content": "P-101 operates at 3600 RPM. Routine maintenance procedure requires shutdown.",
+            "page": 2,
+            "asset_id": "P-101",
+        },
+        {
+            "index": 2,
+            "content": "Failure mode: Excessive vibration on P-101 caused by bearing wear.",
+            "page": 3,
+            "asset_id": "P-101",
+        },
     ]
-    
+
     chunks_created = 0
     entities_created = 0
     rels_created = 0
@@ -43,7 +57,7 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
             document_id=document.id,
             page_or_sheet=str(data["page"]),
             text_excerpt=data["content"],
-            metadata_json={"source": "ingestion_pipeline"}
+            metadata_json={"source": "ingestion_pipeline"},
         )
         db.add(evidence)
         await db.flush()
@@ -58,7 +72,7 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
             metadata_json={"filename": document.filename},
             asset_id=data["asset_id"],
             site_id=document.site_id,
-            tenant_id=document.organisation_id
+            tenant_id=document.organisation_id,
         )
         db.add(chunk)
         await db.flush()
@@ -66,12 +80,9 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
 
         # 3. Embedding Generation (Only if revision changed, but this is a new run)
         embedding_vector = await llm.embed_text(chunk.content)
-        
+
         # 4. Store Embedding in pgvector
-        chunk_embedding = ChunkEmbedding(
-            chunk_id=chunk.id,
-            embedding=embedding_vector
-        )
+        chunk_embedding = ChunkEmbedding(chunk_id=chunk.id, embedding=embedding_vector)
         db.add(chunk_embedding)
         await db.flush()
 
@@ -88,12 +99,12 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
         """
         async with neo4j_driver.session() as session:
             result = await session.run(
-                cypher, 
-                asset_id=asset_id, 
-                site_id=document.site_id, 
+                cypher,
+                asset_id=asset_id,
+                site_id=document.site_id,
                 evidence_id=evidence.id,
                 content=chunk.content,
-                page=chunk.page_number
+                page=chunk.page_number,
             )
             record = await result.single()
             if record:
@@ -107,22 +118,24 @@ async def run_production_ingestion_pipeline(db: AsyncSession, document: Document
                     node_id=a_node_id,
                     node_label="Asset",
                     evidence_region_id=evidence.id,
-                    chunk_id=chunk.id
+                    chunk_id=chunk.id,
                 )
                 mapping2 = GraphNodeMapping(
                     node_id=e_node_id,
                     node_label="Evidence",
                     evidence_region_id=evidence.id,
-                    chunk_id=chunk.id
+                    chunk_id=chunk.id,
                 )
                 db.add_all([mapping1, mapping2])
                 await db.flush()
 
     await db.commit()
-    logger.info(f"Ingestion completed. Chunks: {chunks_created}, Entities: {entities_created}, Rels: {rels_created}")
-    
+    logger.info(
+        f"Ingestion completed. Chunks: {chunks_created}, Entities: {entities_created}, Rels: {rels_created}"
+    )
+
     return {
         "chunks_created": chunks_created,
         "entities_created": entities_created,
-        "relationships_created": rels_created
+        "relationships_created": rels_created,
     }

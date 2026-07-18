@@ -148,7 +148,7 @@ class GuardrailPolicyEngine:
         decisions: list[PolicyDecision] = []
         decisions.append(self._policy_prompt_injection(query, source="query"))
         decisions.append(self._policy_sensitive_data_in_query(query))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_retrieved_document(
         self,
@@ -158,19 +158,11 @@ class GuardrailPolicyEngine:
     ) -> list[PolicyDecision]:
         """Evaluate policies for a retrieved document chunk."""
         decisions: list[PolicyDecision] = []
-        decisions.append(
-            self._policy_indirect_injection(doc_text, doc_metadata)
-        )
-        decisions.append(
-            self._policy_obsolete_evidence(doc_metadata, user_context)
-        )
-        decisions.append(
-            self._policy_restricted_document(doc_metadata, user_context)
-        )
-        decisions.append(
-            self._policy_tenant_site_leakage(doc_metadata, user_context)
-        )
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        decisions.append(self._policy_indirect_injection(doc_text, doc_metadata))
+        decisions.append(self._policy_obsolete_evidence(doc_metadata, user_context))
+        decisions.append(self._policy_restricted_document(doc_metadata, user_context))
+        decisions.append(self._policy_tenant_site_leakage(doc_metadata, user_context))
+        return decisions
 
     def evaluate_claim(
         self,
@@ -182,7 +174,7 @@ class GuardrailPolicyEngine:
         decisions.append(self._policy_unsupported_claim(claim))
         decisions.append(self._policy_missing_citation(claim))
         decisions.append(self._policy_compliance_overclaim(claim))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_recommended_action(
         self,
@@ -193,7 +185,7 @@ class GuardrailPolicyEngine:
         decisions: list[PolicyDecision] = []
         decisions.append(self._policy_unsafe_operational(action))
         decisions.append(self._policy_autonomous_control(action))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_output(
         self,
@@ -203,10 +195,8 @@ class GuardrailPolicyEngine:
         """Evaluate policies for a final agent output."""
         decisions: list[PolicyDecision] = []
         output_str = str(output)
-        decisions.append(
-            self._policy_sensitive_data_in_output(output_str)
-        )
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        decisions.append(self._policy_sensitive_data_in_output(output_str))
+        return decisions
 
     def evaluate_tool_call(
         self,
@@ -217,20 +207,16 @@ class GuardrailPolicyEngine:
         """Evaluate policies for a tool call before dispatch."""
         decisions: list[PolicyDecision] = []
         args_str = str(arguments)
-        decisions.append(
-            self._policy_prompt_injection(args_str, source=f"tool:{tool_name}")
-        )
+        decisions.append(self._policy_prompt_injection(args_str, source=f"tool:{tool_name}"))
         decisions.append(self._policy_tenant_site_leakage(arguments, user_context))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     # ------------------------------------------------------------------
     # Individual policy methods
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _policy_prompt_injection(
-        text: str, source: str = "input"
-    ) -> PolicyDecision:
+    def _policy_prompt_injection(text: str, source: str = "input") -> PolicyDecision:
         if _check_prompt_injection(text):
             return PolicyDecision(
                 policy_name="prompt_injection",
@@ -246,9 +232,7 @@ class GuardrailPolicyEngine:
         )
 
     @staticmethod
-    def _policy_indirect_injection(
-        doc_text: str, doc_metadata: dict[str, Any]
-    ) -> PolicyDecision:
+    def _policy_indirect_injection(doc_text: str, doc_metadata: dict[str, Any]) -> PolicyDecision:
         if _check_prompt_injection(doc_text):
             doc_id = doc_metadata.get("document_id", "unknown")
             return PolicyDecision(
@@ -278,9 +262,7 @@ class GuardrailPolicyEngine:
                 policy_name="tenant_site_leakage",
                 outcome=PolicyOutcome.BLOCK,
                 reason="Cross-tenant data access attempt",
-                detail=(
-                    f"User org={user_org}, data org={data_org}"
-                ),
+                detail=(f"User org={user_org}, data org={data_org}"),
             )
         if user_site and data_site and data_site != user_site:
             return PolicyDecision(
@@ -330,19 +312,17 @@ class GuardrailPolicyEngine:
             "secret": 4,
         }
         doc_level = _classification_levels.get(str(doc_classification).lower(), 1)
-        user_level = max(
-            _classification_levels.get(str(c).lower(), 0)
-            for c in user_classifications
-        ) if user_classifications else 0
+        user_level = (
+            max(_classification_levels.get(str(c).lower(), 0) for c in user_classifications)
+            if user_classifications
+            else 0
+        )
 
         if doc_level > user_level:
             return PolicyDecision(
                 policy_name="restricted_document",
                 outcome=PolicyOutcome.BLOCK,
-                reason=(
-                    f"Document classification '{doc_classification}' "
-                    f"exceeds user clearance"
-                ),
+                reason=(f"Document classification '{doc_classification}' exceeds user clearance"),
                 detail=f"Document: {doc_metadata.get('document_id', 'unknown')}",
             )
         return PolicyDecision(
@@ -396,14 +376,15 @@ class GuardrailPolicyEngine:
         priority = action.get("priority", "medium")
 
         if priority in ("high", "critical") and action_type in (
-            "REPAIR", "PROCEDURE_UPDATE", "SHUTDOWN", "BYPASS"
+            "REPAIR",
+            "PROCEDURE_UPDATE",
+            "SHUTDOWN",
+            "BYPASS",
         ):
             return PolicyDecision(
                 policy_name="unsafe_operational_recommendation",
                 outcome=PolicyOutcome.REQUIRE_HUMAN_APPROVAL,
-                reason=(
-                    f"High-priority {action_type} action requires human approval"
-                ),
+                reason=(f"High-priority {action_type} action requires human approval"),
                 detail=f"Priority={priority}, Type={action_type}",
             )
         return PolicyDecision(
@@ -416,8 +397,12 @@ class GuardrailPolicyEngine:
     @staticmethod
     def _policy_autonomous_control(action: dict[str, Any]) -> PolicyDecision:
         autonomous_keywords = [
-            "execute automatically", "no human needed", "bypass approval",
-            "self-execute", "autonomous action", "override safety",
+            "execute automatically",
+            "no human needed",
+            "bypass approval",
+            "self-execute",
+            "autonomous action",
+            "override safety",
         ]
         description = str(action.get("description", "")).lower()
         reasoning = str(action.get("reasoning", "")).lower()
@@ -441,8 +426,11 @@ class GuardrailPolicyEngine:
     def _policy_compliance_overclaim(claim: dict[str, Any]) -> PolicyDecision:
         text = str(claim.get("text", "")).lower()
         overclaim_phrases = [
-            "fully compliant", "completely meets all", "satisfies all requirements",
-            "zero compliance gaps", "100% compliant",
+            "fully compliant",
+            "completely meets all",
+            "satisfies all requirements",
+            "zero compliance gaps",
+            "100% compliant",
         ]
         if any(phrase in text for phrase in overclaim_phrases):
             sources = claim.get("sources", []) or claim.get("citation_ids", [])

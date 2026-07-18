@@ -96,8 +96,8 @@ def create_agent_workflow(db: AsyncSession):
             "compliance_agent": "compliance_agent",
             "lessons_learned_agent": "lessons_learned_agent",
             "expert_knowledge_agent": "expert_knowledge_agent",
-            "general_agent": "general_agent"
-        }
+            "general_agent": "general_agent",
+        },
     )
 
     # Convergence

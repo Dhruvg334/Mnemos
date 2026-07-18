@@ -62,9 +62,7 @@ class InvestigationEvaluator:
         # --- run metrics ---
         metrics: list[MetricResult] = []
 
-        metrics.append(
-            ProductionMetrics.routing_accuracy(predicted_intent, sample.expected_intent)
-        )
+        metrics.append(ProductionMetrics.routing_accuracy(predicted_intent, sample.expected_intent))
         metrics.append(
             ProductionMetrics.retrieval_recall(retrieved_docs, sample.expected_document_ids)
         )
@@ -75,36 +73,34 @@ class InvestigationEvaluator:
             ProductionMetrics.citation_precision(citations, sample.expected_citation_ids)
         )
         metrics.append(ProductionMetrics.grounded_answer_rate(claims))
-        metrics.append(
-            ProductionMetrics.abstention_quality(abstained, ground_truth_available)
-        )
+        metrics.append(ProductionMetrics.abstention_quality(abstained, ground_truth_available))
         metrics.append(ProductionMetrics.tool_recovery(tool_calls, failed_tool_calls))
         metrics.append(
             ProductionMetrics.workflow_completion(
                 is_complete,
                 termination_reason.value
                 if termination_reason is not None and hasattr(termination_reason, "value")
-                else str(termination_reason) if termination_reason is not None else None,
+                else str(termination_reason)
+                if termination_reason is not None
+                else None,
             )
         )
 
         rca_output = self._extract_rca_output(state)
-        metrics.append(
-            ProductionMetrics.rca_quality(rca_output, sample.expected_root_cause or "")
-        )
+        metrics.append(ProductionMetrics.rca_quality(rca_output, sample.expected_root_cause or ""))
 
         compliance_checks = self._extract_compliance_checks(state)
         metrics.append(
-            ProductionMetrics.compliance_quality(compliance_checks, sample.expected_compliance_status)
+            ProductionMetrics.compliance_quality(
+                compliance_checks, sample.expected_compliance_status
+            )
         )
 
         # --- build result ---
         ground_claim_count = sum(
             1 for c in claims if c.status.value == "supported" and len(c.sources) > 0
         )
-        hallucination = any(
-            c.status.value == "supported" and len(c.sources) == 0 for c in claims
-        )
+        hallucination = any(c.status.value == "supported" and len(c.sources) == 0 for c in claims)
 
         resolved_entities = self._extract_resolved_entities(state)
         retrieved_contexts = self._extract_retrieved_contexts(state)
@@ -266,7 +262,11 @@ class InvestigationEvaluator:
             if not isinstance(item, dict):
                 continue
             for cit in item.get("citations", []):
-                cit_id = cit.get("citation_id", "") if isinstance(cit, dict) else getattr(cit, "citation_id", "")
+                cit_id = (
+                    cit.get("citation_id", "")
+                    if isinstance(cit, dict)
+                    else getattr(cit, "citation_id", "")
+                )
                 if cit_id and cit_id not in seen:
                     seen.add(cit_id)
                     citations.append(cit)
@@ -280,7 +280,17 @@ class InvestigationEvaluator:
         parsed: list[Any] = []
         for c in raw_claims:
             if isinstance(c, dict):
-                parsed.append(type("_G", (), {"claim_id": c.get("claim_id", ""), "status": type("_S", (), {"value": c.get("status", "uncertain")})(), "sources": c.get("sources", [])})())
+                parsed.append(
+                    type(
+                        "_G",
+                        (),
+                        {
+                            "claim_id": c.get("claim_id", ""),
+                            "status": type("_S", (), {"value": c.get("status", "uncertain")})(),
+                            "sources": c.get("sources", []),
+                        },
+                    )()
+                )
             else:
                 parsed.append(c)
         return parsed

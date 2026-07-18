@@ -1,4 +1,5 @@
 import re
+from abc import ABC, abstractmethod
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -28,10 +29,12 @@ from mnemos.agentic.utils.logging import StructuredLogger
 logger = StructuredLogger("nodes")
 T = TypeVar("T", bound=BaseModel)
 
-class BaseNode:
+
+class BaseNode(ABC):
     """
     Optimized base node with structured logging and safety guardrails.
     """
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.prompt_manager = get_prompt_manager()
@@ -48,17 +51,19 @@ class BaseNode:
             updated_state = await self.execute(state)
             updated_state["steps_completed"].append(node_name)
             return updated_state
-        except GuardrailViolation as e:
-            logger.warning(f"Guardrail violation in {node_name}: {str(e)}")
-            state["errors"].append(f"SAFETY_VIOLATION: {str(e)}")
+        except GuardrailViolation:
+            safe_msg = f"Guardrail violation in {node_name}"
+            logger.warning(f"{safe_msg}: {node_name}")
+            state["errors"].append(f"SAFETY_VIOLATION: {node_name}")
             return state
-        except Exception as e:
-            logger.error(f"Execution failed in {node_name}: {str(e)}", exc_info=True)
-            state["errors"].append(f"INTERNAL_ERROR: {node_name}: {str(e)}")
+        except Exception:
+            logger.error(f"Execution failed in {node_name}", exc_info=True)
+            state["errors"].append(f"INTERNAL_ERROR: {node_name}")
             return state
 
-    async def execute(self, state: AgentState) -> AgentState:
-        raise NotImplementedError
+    @abstractmethod
+    async def execute(self, state: AgentState) -> AgentState: ...
+
 
 class QueryClassification(BaseModel):
     intent: QueryIntent
@@ -67,30 +72,32 @@ class QueryClassification(BaseModel):
     time_range: str | None = None
     site_context: str | None = None
 
+
 class QueryRouterNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         prompt = f"Analyze this industrial query: '{state['query']}'. Extract the primary intent, any entities/assets mentioned, your confidence (0.0 to 1.0), implied time range, and any site context."
-        
+
         classification = await self.llm.call_structured(prompt, QueryClassification)
-        
+
         state["intent"] = classification.intent
         # Pre-populate entities if found, EntityResolverNode will expand them
         if not state.get("resolved_entities"):
-             state["resolved_entities"] = []
-             
+            state["resolved_entities"] = []
+
         # Add a placeholder for now, EntityResolverNode handles full resolution
         # But we pass the extracted strings to it via context or a new field
         state["context"]["extracted_entities"] = classification.entities
         state["context"]["query_time_range"] = classification.time_range
         if classification.site_context and not state["context"].get("site_id"):
             state["context"]["site_id"] = classification.site_context
-            
+
         return state
+
 
 class EntityResolverNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         resolver = AssetIdentityResolver(self.db)
-        tag_pattern = r'\b[0-9]{0,3}[A-Z]{1,3}-[0-9]{1,4}[A-Z]?\b'
+        tag_pattern = r"\b[0-9]{0,3}[A-Z]{1,3}-[0-9]{1,4}[A-Z]?\b"
         mentions = re.findall(tag_pattern, state["query"].upper())
 
         resolved = []
@@ -100,6 +107,7 @@ class EntityResolverNode(BaseNode):
 
         state["resolved_entities"] = resolved
         return state
+
 
 class RetrievalPlannerNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -142,9 +150,10 @@ class RetrievalPlannerNode(BaseNode):
             intent=intent,
             strategies=strategies,
             target_entities=target_entities,
-            reasoning=f"Optimized strategy for {intent}"
+            reasoning=f"Optimized strategy for {intent}",
         )
         return state
+
 
 class EvidenceRetrievalNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -155,10 +164,11 @@ class EvidenceRetrievalNode(BaseNode):
             state["context"].get("query_id"),
             state["query"],
             state["retrieval_plan"],
-            state["context"]
+            state["context"],
         )
         state["evidence_bundle"] = bundle
         return state
+
 
 class EvidenceVerificationNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -171,6 +181,7 @@ class EvidenceVerificationNode(BaseNode):
         # Enforce security boundaries
         self.guardrails.check_permissions(state["context"], verified_evidence)
         return state
+
 
 class AssetAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -186,6 +197,7 @@ class AssetAgentNode(BaseNode):
         passport = await self.llm.call_structured(prompt, AssetPassport)
         state["context"]["asset_passport"] = passport.model_dump()
         return state
+
 
 class RCAAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -207,6 +219,7 @@ class RCAAgentNode(BaseNode):
         state["claims"].extend(report.hypotheses)
         return state
 
+
 class ComplianceAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         evidence = state["evidence_bundle"].verified_evidence
@@ -221,6 +234,7 @@ class ComplianceAgentNode(BaseNode):
         report = await self.llm.call_structured(prompt, ComplianceAuditPackage)
         state["context"]["compliance_package"] = report.model_dump()
         return state
+
 
 class LessonsLearnedAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -237,6 +251,7 @@ class LessonsLearnedAgentNode(BaseNode):
         state["context"]["lessons_learned"] = report.model_dump()
         return state
 
+
 class GeneralAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         evidence = state["evidence_bundle"].verified_evidence
@@ -252,6 +267,7 @@ class GeneralAgentNode(BaseNode):
         state["context"]["general_analysis"] = report
         return state
 
+
 class ExpertKnowledgeAgentNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
         evidence = state["evidence_bundle"].verified_evidence
@@ -266,6 +282,7 @@ class ExpertKnowledgeAgentNode(BaseNode):
         report = await self.llm.call_structured(prompt, dict)
         state["context"]["expert_knowledge"] = report
         return state
+
 
 class ResponseComposerNode(BaseNode):
     async def execute(self, state: AgentState) -> AgentState:
@@ -287,7 +304,7 @@ class ResponseComposerNode(BaseNode):
             asset_intelligence=ctx.get("asset_passport"),
             rca_analysis=ctx.get("rca_report"),
             compliance_package=ctx.get("compliance_package"),
-            lessons_learned=ctx.get("lessons_learned")
+            lessons_learned=ctx.get("lessons_learned"),
         )
 
         final_report = await self.llm.call_structured(prompt, FinalReport)
@@ -300,6 +317,6 @@ class ResponseComposerNode(BaseNode):
             contradictions=final_report.contradictions or [],
             recommended_actions=final_report.recommended_actions or [],
             graph_paths=graph_paths,
-            metadata={"trace_id": ctx.get("trace_id")}
+            metadata={"trace_id": ctx.get("trace_id")},
         )
         return state

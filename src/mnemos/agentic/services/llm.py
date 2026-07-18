@@ -15,6 +15,7 @@ T = TypeVar("T", bound=BaseModel)
 
 class LLMTelemetry:
     """Captures model and retrieval telemetry per call (P0 #18)."""
+
     def __init__(self) -> None:
         self.records: list[dict] = []
         self._export_sink: Callable[[dict], None] | None = None
@@ -29,7 +30,7 @@ class LLMTelemetry:
             try:
                 self._export_sink(entry)
             except Exception:
-                pass
+                logger.warning("LLMTelemetry export sink failed")
 
     def summary(self) -> list[dict]:
         return list(self.records)
@@ -48,6 +49,7 @@ class LLMService:
     Production-grade LLM client with structured output enforcement,
     model routing (P0 #23), and telemetry recording (P0 #18).
     """
+
     def __init__(self):
         self.config = agent_settings.primary_llm
         self.api_key = self.config.api_key
@@ -80,7 +82,9 @@ class LLMService:
         """
         model = self._model_for_task(task_type)
         tier = ModelTier.FAST if model == agent_settings.fast_llm.model_name else ModelTier.PRIMARY
-        logger.info(f"LLM request: generating {response_model.__name__} model={model} tier={tier.value}")
+        logger.info(
+            f"LLM request: generating {response_model.__name__} model={model} tier={tier.value}"
+        )
 
         start = time.perf_counter()
         async with httpx.AsyncClient(timeout=90.0) as client:
@@ -88,22 +92,20 @@ class LLMService:
                 "model": model,
                 "messages": [
                     {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 "response_format": {"type": "json_object"},
-                "temperature": self.config.temperature
+                "temperature": self.config.temperature,
             }
 
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             try:
                 response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    json=payload,
-                    headers=headers
+                    f"{self.base_url}/chat/completions", json=payload, headers=headers
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -151,8 +153,10 @@ class LLMService:
                     data = resp.json()
                     latency_ms = (time.perf_counter() - start) * 1000
                     self._telemetry.record(
-                        model=model, provider=provider,
-                        task_type="embedding", latency_ms=round(latency_ms, 1),
+                        model=model,
+                        provider=provider,
+                        task_type="embedding",
+                        latency_ms=round(latency_ms, 1),
                         input_length=len(text),
                     )
                     return data.get("data", [])[0].get("embedding", [])
@@ -191,7 +195,8 @@ class LLMService:
                     scores = resp.json().get("scores", [])
                     latency_ms = (time.perf_counter() - start) * 1000
                     self._telemetry.record(
-                        task_type="reranking", latency_ms=round(latency_ms, 1),
+                        task_type="reranking",
+                        latency_ms=round(latency_ms, 1),
                         candidate_count=len(documents),
                         result_count=len(scores),
                     )
@@ -201,7 +206,7 @@ class LLMService:
                 scores = []
                 for d in documents:
                     d_emb = await self.get_embeddings(d)
-                    denom = (sum(x*x for x in q_emb) ** 0.5) * (sum(x*x for x in d_emb) ** 0.5)
+                    denom = (sum(x * x for x in q_emb) ** 0.5) * (sum(x * x for x in d_emb) ** 0.5)
                     score = 0.0
                     if denom:
                         score = sum(x * y for x, y in zip(q_emb, d_emb, strict=False)) / denom

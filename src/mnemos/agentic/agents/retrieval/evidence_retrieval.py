@@ -88,19 +88,23 @@ class EvidenceRetrievalAgent(_BaseRetrievalAgent):
         # Populate the shared evidence list for downstream agents
         evidence_list: list[dict[str, Any]] = list(state.get("evidence", []))
         for vec in bundle.raw_vector_data:
-            evidence_list.append({
-                "source": "vector",
-                "content": vec.get("content", ""),
-                "metadata": vec.get("metadata", {}),
-                "score": vec.get("rerank_score", vec.get("score", 0.0)),
-            })
+            evidence_list.append(
+                {
+                    "source": "vector",
+                    "content": vec.get("content", ""),
+                    "metadata": vec.get("metadata", {}),
+                    "score": vec.get("rerank_score", vec.get("score", 0.0)),
+                }
+            )
         for entity_id, data in bundle.raw_graph_data.items():
-            evidence_list.append({
-                "source": "graph",
-                "entity_id": entity_id,
-                "nodes_count": len(data.get("nodes", [])),
-                "relationships_count": len(data.get("relationships", [])),
-            })
+            evidence_list.append(
+                {
+                    "source": "graph",
+                    "entity_id": entity_id,
+                    "nodes_count": len(data.get("nodes", [])),
+                    "relationships_count": len(data.get("relationships", [])),
+                }
+            )
 
         state["evidence"] = evidence_list
 

@@ -9,6 +9,7 @@ def get_agent_gateway() -> AgentGateway:
 
     if mode in ("langgraph", "production"):
         from mnemos.agentic.gateway import LangGraphAgentGateway
+
         return LangGraphAgentGateway()
 
     if mode == "http":

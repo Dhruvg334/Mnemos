@@ -115,10 +115,7 @@ class HumanApprovalNode:
         ctx["approval_gate_type"] = gate_type_str
         state["context"] = ctx
 
-        logger.info(
-            f"Approval gate [{gate_type_str}] requested by {triggered_by}: "
-            f"{summary[:100]}"
-        )
+        logger.info(f"Approval gate [{gate_type_str}] requested by {triggered_by}: {summary[:100]}")
 
         # Audit the request
         if self.audit_logger:
@@ -174,17 +171,13 @@ class HumanApprovalNode:
         elif decision == "reject":
             state["should_abstain"] = True
             state["abstention_reason"] = (
-                f"Rejected by {reviewer}: {comments}"
-                if comments
-                else f"Rejected by {reviewer}"
+                f"Rejected by {reviewer}: {comments}" if comments else f"Rejected by {reviewer}"
             )
             state["phase"] = InvestigationPhase.ABSTENTION
             logger.info(f"Rejected by {reviewer} [gate={gate_type_str}]")
         elif decision == "request_changes":
             state["phase"] = InvestigationPhase.PLANNING
-            logger.info(
-                f"Changes requested by {reviewer} [gate={gate_type_str}]: {comments}"
-            )
+            logger.info(f"Changes requested by {reviewer} [gate={gate_type_str}]: {comments}")
 
         # Audit the decision
         if self.audit_logger:
@@ -216,10 +209,7 @@ class HumanApprovalNode:
         return result.get("decision") == "reject"
 
     def is_pending(self, state: dict[str, Any]) -> bool:
-        return (
-            state.get("approval_required", False)
-            and state.get("approval_result") is None
-        )
+        return state.get("approval_required", False) and state.get("approval_result") is None
 
     def get_gate_type(self, state: dict[str, Any]) -> str | None:
         ctx = state.get("context", {})

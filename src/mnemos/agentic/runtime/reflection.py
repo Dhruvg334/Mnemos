@@ -58,9 +58,7 @@ class ReflectionAgent:
             )
 
             # ---- Identify gaps -------------------------------------------
-            gaps = self._identify_gaps(
-                evidence, claims, completed_agents, agent_outputs
-            )
+            gaps = self._identify_gaps(evidence, claims, completed_agents, agent_outputs)
 
             # ---- Identify contradictions ---------------------------------
             contradictions = self._identify_contradictions(claims)
@@ -71,23 +69,16 @@ class ReflectionAgent:
             )
 
             # ---- Recommend next agents -----------------------------------
-            next_agents = self._recommend_next_agents(
-                gaps, completed_agents, agent_outputs
-            )
+            next_agents = self._recommend_next_agents(gaps, completed_agents, agent_outputs)
 
             # ---- Should continue or abstain ------------------------------
-            should_continue = self._should_continue(
-                overall_quality, gaps, completed_agents
-            )
-            should_abstain = self._should_abstain(
-                overall_quality, gaps, errors
-            )
+            should_continue = self._should_continue(overall_quality, gaps, completed_agents)
+            should_abstain = self._should_abstain(overall_quality, gaps, errors)
 
             abstention_reason = None
             if should_abstain:
                 abstention_reason = (
-                    "Investigation has insufficient evidence and no viable "
-                    "paths to collect more."
+                    "Investigation has insufficient evidence and no viable paths to collect more."
                 )
 
             output = ReflectionOutput(
@@ -163,9 +154,7 @@ class ReflectionAgent:
         if not evidence:
             gaps.append("No evidence collected yet")
         elif len(evidence) < self.min_evidence_count:
-            gaps.append(
-                f"Insufficient evidence: {len(evidence)}/{self.min_evidence_count} minimum"
-            )
+            gaps.append(f"Insufficient evidence: {len(evidence)}/{self.min_evidence_count} minimum")
 
         if not claims:
             gaps.append("No claims have been produced")
@@ -186,7 +175,9 @@ class ReflectionAgent:
 
         for claim in claims:
             text = claim.get("text", "") if isinstance(claim, dict) else getattr(claim, "text", "")
-            status = claim.get("status", "") if isinstance(claim, dict) else getattr(claim, "status", "")
+            status = (
+                claim.get("status", "") if isinstance(claim, dict) else getattr(claim, "status", "")
+            )
 
             if status in ("refuted", "conflicting"):
                 contradictions.append(f"Refuted claim: {text[:100]}")
@@ -208,7 +199,8 @@ class ReflectionAgent:
 
         # Claim grounding
         grounded = sum(
-            1 for c in claims
+            1
+            for c in claims
             if (c.get("status") if isinstance(c, dict) else getattr(c, "status", "")) == "supported"
         )
         if claims:

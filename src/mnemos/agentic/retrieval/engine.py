@@ -18,6 +18,7 @@ Orchestrates the full retrieval intelligence pipeline:
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,7 @@ from mnemos.agentic.schemas.base import (
     RetrievalPlan,
     RetrievalStrategy,
 )
+from mnemos.agentic.services.llm import get_llm_telemetry
 from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("retrieval_engine")
@@ -99,6 +101,7 @@ class HybridRetrievalEngine:
         context: dict[str, Any],
     ) -> EvidenceBundle:
         """Execute a dynamic retrieval plan with full pipeline."""
+        _started = time.time()
         site_id = plan.site_id or context.get("site_id")
 
         # Budget setup
@@ -151,12 +154,8 @@ class HybridRetrievalEngine:
             logger.warning(f"Superseded detection failed: {exc}")
 
         # 4. Duplicate removal
-        bundle.raw_vector_data = self.dedup.remove_region_duplicates(
-            bundle.raw_vector_data
-        )
-        bundle.raw_vector_data = self.dedup.remove_duplicates(
-            bundle.raw_vector_data
-        )
+        bundle.raw_vector_data = self.dedup.remove_region_duplicates(bundle.raw_vector_data)
+        bundle.raw_vector_data = self.dedup.remove_duplicates(bundle.raw_vector_data)
 
         # 5. Cross-encoder reranking
         if plan.enable_reranking and bundle.raw_vector_data:
@@ -184,6 +183,26 @@ class HybridRetrievalEngine:
         # 11. Missing evidence detection
         bundle.missing_evidence = self._detect_missing_evidence(bundle, plan)
 
+        _elapsed_ms = (time.time() - _started) * 1000
+
+        get_llm_telemetry().record(
+            model="retrieval_engine",
+            provider="internal",
+            task_type="hybrid_retrieval",
+            model_tier="internal",
+            latency_ms=round(_elapsed_ms, 1),
+            query_id=query_id,
+            intent=str(plan.intent.value) if plan.intent else "unknown",
+            strategies=[s.value for s in plan.strategies],
+            vector_count=len(bundle.raw_vector_data),
+            graph_sources=len(bundle.raw_graph_data),
+            verified_count=len(bundle.verified_evidence),
+            contradictions=len(bundle.contradictions),
+            citations=len(bundle.citations),
+            confidence=round(confidence, 3),
+            budget_usage=budget.usage_summary if budget else {},
+        )
+
         logger.info(
             f"Retrieval complete for {query_id}: "
             f"{len(bundle.raw_vector_data)} vector, "
@@ -209,14 +228,16 @@ class HybridRetrievalEngine:
             if mention.startswith("ast_"):
                 specs = await self.structured_retriever.get_asset_specs(mention)
                 if specs:
-                    resolved_entities.append(ResolvedEntity(
-                        original_text=specs.get("asset_tag", ""),
-                        entity_id=mention,
-                        entity_type="ASSET",
-                        confidence=1.0,
-                        canonical_name=specs.get("name", ""),
-                        metadata=specs,
-                    ))
+                    resolved_entities.append(
+                        ResolvedEntity(
+                            original_text=specs.get("asset_tag", ""),
+                            entity_id=mention,
+                            entity_type="ASSET",
+                            confidence=1.0,
+                            canonical_name=specs.get("name", ""),
+                            metadata=specs,
+                        )
+                    )
             else:
                 resolved = await self.identity_resolver.resolve(mention, site_id)
                 resolved_entities.extend(resolved)
@@ -254,18 +275,14 @@ class HybridRetrievalEngine:
                 bundle.raw_graph_data[entity.entity_id] = graph_data
 
                 if bundle.intent == QueryIntent.RCA:
-                    failures = await self.graph_client.find_related_failures(
-                        entity.entity_id
-                    )
+                    failures = await self.graph_client.find_related_failures(entity.entity_id)
                     bundle.raw_graph_data[entity.entity_id]["related_failures"] = [
                         f.model_dump() for f in failures
                     ]
             except Exception as exc:
                 logger.error(f"Graph error for {entity.entity_id}: {exc}")
 
-    async def _traverse_graph_types(
-        self, asset_id: str, graph_types: list
-    ) -> dict[str, Any]:
+    async def _traverse_graph_types(self, asset_id: str, graph_types: list) -> dict[str, Any]:
         """Traverse multiple graph types."""
         from mnemos.agentic.retrieval.graph_rag import GraphRAGLayer
 
@@ -323,15 +340,17 @@ class HybridRetrievalEngine:
                 document_ids=plan.document_ids,
             )
             for res in results:
-                bundle.raw_vector_data.append({
-                    "content": res["text"],
-                    "metadata": {
-                        **res["metadata"],
-                        "evidence_region_id": res["id"],
-                        "type": "lexical",
-                    },
-                    "score": res.get("score", 1.0),
-                })
+                bundle.raw_vector_data.append(
+                    {
+                        "content": res["text"],
+                        "metadata": {
+                            **res["metadata"],
+                            "evidence_region_id": res["id"],
+                            "type": "lexical",
+                        },
+                        "score": res.get("score", 1.0),
+                    }
+                )
         except Exception as exc:
             logger.error(f"Lexical search failed: {exc}")
 
@@ -339,9 +358,7 @@ class HybridRetrievalEngine:
     # Structured / SQL
     # ------------------------------------------------------------------
 
-    async def _execute_structured(
-        self, bundle: EvidenceBundle, plan: RetrievalPlan
-    ) -> None:
+    async def _execute_structured(self, bundle: EvidenceBundle, plan: RetrievalPlan) -> None:
         for entity in bundle.resolved_entities:
             try:
                 history, cards = await asyncio.gather(
@@ -357,15 +374,17 @@ class HybridRetrievalEngine:
                 bundle.metadata[f"expert_memory_{entity.entity_id}"] = cards
 
                 for card in cards:
-                    bundle.raw_vector_data.append({
-                        "content": f"EXPERT MEMORY: {card['title']}\n{card['content']}",
-                        "metadata": {
-                            "type": "knowledge_card",
-                            "id": card["card_id"],
-                            "version": card["version"],
-                        },
-                        "score": 0.9,
-                    })
+                    bundle.raw_vector_data.append(
+                        {
+                            "content": f"EXPERT MEMORY: {card['title']}\n{card['content']}",
+                            "metadata": {
+                                "type": "knowledge_card",
+                                "id": card["card_id"],
+                                "version": card["version"],
+                            },
+                            "score": 0.9,
+                        }
+                    )
             except Exception as exc:
                 logger.error(f"Structured query failed for {entity.entity_id}: {exc}")
 
@@ -382,9 +401,7 @@ class HybridRetrievalEngine:
     # Reranking
     # ------------------------------------------------------------------
 
-    async def _rerank(
-        self, bundle: EvidenceBundle, query: str, plan: RetrievalPlan
-    ) -> None:
+    async def _rerank(self, bundle: EvidenceBundle, query: str, plan: RetrievalPlan) -> None:
         texts = [v.get("content", "") for v in bundle.raw_vector_data]
         if not texts:
             return
@@ -395,11 +412,7 @@ class HybridRetrievalEngine:
             logger.error(f"Reranking failed: {exc}")
             return
 
-        scored = [
-            (r.index, r.score)
-            for r in rerank_results
-            if r.score >= plan.min_relevance_score
-        ]
+        scored = [(r.index, r.score) for r in rerank_results if r.score >= plan.min_relevance_score]
         scored.sort(key=lambda x: x[1], reverse=True)
 
         keep_indices = {idx for idx, _ in scored[: plan.top_k_per_strategy]}
@@ -425,63 +438,74 @@ class HybridRetrievalEngine:
         # Check if we got graph data when graph traversal was requested
         if RetrievalStrategy.GRAPH_TRAVERSAL in plan.strategies:
             if not bundle.raw_graph_data:
-                missing.append(MissingEvidence(
-                    evidence_type="graph_traversal",
-                    description="No graph traversal results returned",
-                    suggested_action="Check graph connectivity or expand search scope",
-                    priority="high",
-                ))
+                missing.append(
+                    MissingEvidence(
+                        evidence_type="graph_traversal",
+                        description="No graph traversal results returned",
+                        suggested_action="Check graph connectivity or expand search scope",
+                        priority="high",
+                    )
+                )
 
         # Check if we got vector results when vector search was requested
         if RetrievalStrategy.VECTOR_SEARCH in plan.strategies:
             vector_results = [
-                v for v in bundle.raw_vector_data
+                v
+                for v in bundle.raw_vector_data
                 if v.get("metadata", {}).get("type") != "knowledge_card"
             ]
             if not vector_results:
-                missing.append(MissingEvidence(
-                    evidence_type="vector_search",
-                    description="No vector search results returned",
-                    suggested_action="Check embedding generation or expand query terms",
-                    priority="high",
-                ))
+                missing.append(
+                    MissingEvidence(
+                        evidence_type="vector_search",
+                        description="No vector search results returned",
+                        suggested_action="Check embedding generation or expand query terms",
+                        priority="high",
+                    )
+                )
 
         # Check if entity resolution failed when entities were expected
         if plan.target_entities and not bundle.resolved_entities:
-            missing.append(MissingEvidence(
-                evidence_type="entity_resolution",
-                description=f"Failed to resolve {len(plan.target_entities)} entity mentions",
-                suggested_action="Check entity names or provide alternative identifiers",
-                priority="high",
-            ))
+            missing.append(
+                MissingEvidence(
+                    evidence_type="entity_resolution",
+                    description=f"Failed to resolve {len(plan.target_entities)} entity mentions",
+                    suggested_action="Check entity names or provide alternative identifiers",
+                    priority="high",
+                )
+            )
 
         # Check if compliance docs are missing for compliance intent
         if plan.intent == QueryIntent.COMPLIANCE:
             has_compliance = any(
-                v.get("metadata", {}).get("type") == "compliance"
-                for v in bundle.raw_vector_data
+                v.get("metadata", {}).get("type") == "compliance" for v in bundle.raw_vector_data
             )
             if not has_compliance:
-                missing.append(MissingEvidence(
-                    evidence_type="compliance_document",
-                    description="No compliance-specific evidence found",
-                    suggested_action="Check compliance document index or expand date range",
-                    priority="medium",
-                ))
+                missing.append(
+                    MissingEvidence(
+                        evidence_type="compliance_document",
+                        description="No compliance-specific evidence found",
+                        suggested_action="Check compliance document index or expand date range",
+                        priority="medium",
+                    )
+                )
 
         # Check if RCA-specific evidence is missing
         if plan.intent == QueryIntent.RCA:
             has_incident = any(
-                "incident" in v.get("content", "").lower() or "failure" in v.get("content", "").lower()
+                "incident" in v.get("content", "").lower()
+                or "failure" in v.get("content", "").lower()
                 for v in bundle.raw_vector_data
             )
             if not has_incident:
-                missing.append(MissingEvidence(
-                    evidence_type="incident_history",
-                    description="No incident or failure history found",
-                    suggested_action="Check incident database or expand time range",
-                    priority="medium",
-                ))
+                missing.append(
+                    MissingEvidence(
+                        evidence_type="incident_history",
+                        description="No incident or failure history found",
+                        suggested_action="Check incident database or expand time range",
+                        priority="medium",
+                    )
+                )
 
         return missing
 

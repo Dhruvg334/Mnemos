@@ -57,4 +57,5 @@ async def vector_health_check() -> str:
 
 async def graph_health_check() -> str:
     from mnemos.core.neo4j import check_neo4j_health
+
     return await check_neo4j_health()

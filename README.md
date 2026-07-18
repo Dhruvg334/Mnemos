@@ -140,26 +140,30 @@ sequenceDiagram
 
 ```text
 mnemos/
-├── apps/
-│   ├── web/                 # Next.js operations and field interface
-│   └── api/                 # FastAPI application
-├── services/
-│   ├── ingestion/           # Parsing, OCR, extraction, provenance
-│   ├── retrieval/           # Hybrid search and reranking
-│   ├── graph/               # Ontology, identity resolution, graph writes
-│   └── agents/              # RCA, compliance, lessons, copilot workflows
-├── packages/
-│   ├── contracts/           # Shared schemas and API contracts
-│   └── ui/                  # Shared interface components
-├── infrastructure/
-│   ├── docker/
-│   └── migrations/
-├── datasets/
-│   ├── synthetic-plant/
-│   └── evaluation/
-├── docs/
-├── tests/
+├── src/
+│   └── mnemos/
+│       ├── agentic/             # AI orchestration — runtime, agents, MCP, retrieval
+│       │   ├── agents/          # Retrieval + reasoning agents (11 production agents)
+│       │   ├── runtime/         # Pipeline, state, idempotency, checkpoints, OTel
+│       │   ├── mcp/             # Internal governed tool dispatch layer
+│       │   ├── retrieval/       # Hybrid retrieval engine, reranking, citation
+│       │   ├── evaluation/      # Evaluation harness + CI gate tests
+│       │   ├── graph/           # Knowledge graph interfaces + Neo4j client
+│       │   ├── services/        # LLM service, resource pool, model router
+│       │   ├── utils/           # StructuredLogger, config, helpers
+│       │   ├── schemas/         # Pydantic models for agents, base, state
+│       │   ├── tests/           # Unit + integration tests for agentic layer
+│       │   └── runtime/tests/   # Runtime-specific tests
+│       ├── core/                # Base config, DB session factory, error types
+│       ├── integrations/        # Agent gateway factory (langgraph, http, mock)
+│       ├── models/              # SQLAlchemy ORM models
+│       ├── schemas/             # API-level pydantic schemas
+│       └── services/            # Backend services (query execution, validation)
+├── alembic/                    # Database migrations
+├── scripts/                    # Utility scripts (seed.py)
+├── tests/                      # Project-level tests
 ├── docker-compose.yml
+├── docker-compose.production.yml
 ├── .env.example
 └── README.md
 ```
@@ -203,18 +207,10 @@ MinIO console      http://localhost:9001
 
 ### Run services separately
 
-Frontend:
-
-```bash
-cd apps/web
-pnpm install
-pnpm dev
-```
-
 Backend:
 
 ```bash
-cd apps/api
+cd src
 python -m venv .venv
 
 # Windows PowerShell
@@ -224,28 +220,25 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn mnemos.main:app --reload --port 8000
 ```
 
 ### Database migrations
 
 ```bash
-cd apps/api
 alembic upgrade head
 ```
 
 ### Load the synthetic demonstration dataset
 
 ```bash
-python scripts/seed_demo_data.py
-python scripts/ingest_demo_corpus.py
+python scripts/seed.py
 ```
 
 ### Run tests
 
 ```bash
 pytest
-pnpm --dir apps/web test
 ```
 
 ## Evaluation
@@ -273,11 +266,6 @@ Mnemos is evaluated against explicit, reproducible criteria:
 - Private-cloud, on-premise, and local-model deployment paths.
 - No autonomous plant control or maintenance approval.
 
-## Differentiation
-
-<<<<<<< Updated upstream
-Most knowledge systems follow:
-=======
 ## Implementation status
 
 The table below documents which capabilities are production-ready, which are integrated but need real configuration, and which are scaffolded or planned.
@@ -287,33 +275,35 @@ The table below documents which capabilities are production-ready, which are int
 | Backend API (auth, queries, RCA, compliance, documents, audit) | **Implemented & tested** | All routes operational with full lifecycle |
 | Query execution pipeline | **Implemented & tested** | Single persistence transaction in `query_execution.py` |
 | Agentic orchestrator boundary | **Implemented** | Orchestrator does no persistence; backend owns all writes |
-| Canonical workflow (`InvestigationPipeline`) | **Implemented** | 11-stage pipeline with bounded reflection loop |
+| Canonical workflow (`InvestigationPipeline`) | **Implemented** | 11-stage pipeline with bounded reflection loop — canonical production path |
 | Intent-selective agent dispatch | **Implemented** | Query router classifies intent; only relevant agents run |
 | Bounded reflection loop | **Implemented** | Max 3 cycles; forces continue on exhaustion |
-| Human approval gates | **Implemented** | Raises `_ApprovalPendingError`; never auto-approves |
-| Durable checkpoints (PostgreSQL) | **Implemented** | `DurableCheckpointManager` writes to `runtime_checkpoints` |
+| Human approval gates | **Implemented & connected** | Raises `_ApprovalPendingError`; never auto-approves; API mounted in FastAPI |
+| Durable checkpoints (PostgreSQL) | **Implemented with optimistic concurrency** | `DurableCheckpointManager` with version-based locks (P0 #13) |
 | Durable audit log (PostgreSQL) | **Implemented** | `DurableAuditLogger` writes to `runtime_audit_entries` |
 | Durable event log (PostgreSQL) | **Implemented** | `DurableEventLog` writes to `runtime_investigation_events` |
-| Durable approval queue (PostgreSQL) | **Implemented** | `DurableApprovalQueue` writes to `runtime_approval_requests` |
-| Approval REST API | **Implemented** | `/approvals` router with decision, cancel, list, summary |
+| Durable approval queue (PostgreSQL) | **Implemented — fail closed** | DB errors raise; no in-memory fallback for production (P0 #9) |
+| Approval REST API | **Implemented & authorized** | Reviewer identity from JWT principal (P0 #8) |
 | Error sanitization | **Implemented** | No raw exceptions, SQL, paths, or stack traces in persisted errors |
-| E2E production-path tests | **Implemented** | 11 tests in `test_e2e_production_path.py` |
-| MCP tool layer (12 tools, real backends) | **Implemented** | Wired to PostgreSQL, Neo4j, asset resolver — see note below |
+| Real E2E production-path tests | **Implemented** | `test_real_e2e_pipeline.py` — real gateway, orchestrator, pipeline, agents |
+| Dead-letter queue for permanently failed runs | **Implemented** | `DeadLetterQueue` in idempotency.py (P0 #14) |
+| Tool layer (12 tools, real backends) | **Implemented** | Governed internal dispatch layer with per-agent allowlists |
 | Specialist agents (RCA, compliance, asset intel, etc.) | **Integrated** | Require real LLM API key (`OPENAI_API_KEY` or configured provider) |
+| All production agents registered | **Registered** | Registered in `MnemosAIOrchestrator._register_all_agents()` |
 | Vector retrieval (pgvector) | **Integrated** | Requires `DATABASE_URL` pointing to a pgvector-enabled PostgreSQL |
 | Graph retrieval (Neo4j) | **Integrated** | Requires `NEO4J_URI` and populated graph |
-| OpenTelemetry tracing | **Scaffolded** | Span definitions exist in `runtime/spans.py`; no exporter configured |
-| Model routing / fallback / cost budgets | **Scaffolded** | `model_router.py` present; not wired to production routing |
-| CI evaluation gates | **Scaffolded** | `evaluation/` directory present; not wired to CI |
+| OpenTelemetry tracing | **Implemented** | OTLP exporter, FastAPI + SQLAlchemy instrumentation (P0 #20, P0 #21) |
+| Model routing / fallback / cost budgets | **Implemented** | Routed in `LLMService.call_structured()` via `ModelRouter`; fast/primary tier; fallback on unhealthy |
+| CI evaluation gates | **Implemented & tested** | Runs in `backend-ci.yml` as `evaluation-gates` job; 8 threshold gate tests pass |
+| Retrieval budget optimiser | **Implemented** | `RetrievalBudgetOptimiser` enforces per-strategy candidate/token budgets in retrieval engine |
 | Reproducible evaluation report | **Scaffolded** | Requires real seeded corpus and LLM configuration |
 | Frontend–backend integration | **In progress** | Auth forms present; token lifecycle integration ongoing |
 
-### MCP note
+### Tool layer note
 
-`MnemosMCPServer` is an **internal governed tool dispatch layer**, not a protocol-compliant Model Context Protocol server. It does not implement the MCP specification (streamable-HTTP transport, JSON-RPC sessions, capability negotiation, cancellation). If protocol-compliant MCP is required, the `mcp` Python SDK and a full transport layer would need to be added. See `src/mnemos/agentic/mcp/__init__.py` for the full status.
+`MnemosMCPServer` is an **internal governed tool dispatch layer**, not a protocol-compliant Model Context Protocol server. Despite the "MCP" naming (a historical artifact), it does not implement the MCP specification. If protocol-compliant MCP is required, the `mcp` Python SDK and a full transport layer would need to be added in a separate service. See `src/mnemos/agentic/mcp/__init__.py` for the full status.
 
-## Current status
->>>>>>> Stashed changes
+## Differentiation
 
 ```text
 Document → Chunk → Answer

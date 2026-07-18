@@ -109,7 +109,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
-    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token_version: Mapped[int] = mapped_column(nullable=False, default=0)
     failed_login_count: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -139,7 +141,9 @@ class EmailVerificationToken(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("evt"))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -651,7 +655,9 @@ class RuntimeCheckpoint(Base):
     state_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     event_log_offset: Mapped[int] = mapped_column(default=0)
     version: Mapped[int] = mapped_column(default=1)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
 
 
 class RuntimeAuditEntry(Base):
@@ -682,7 +688,9 @@ class RuntimeAuditEntry(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[float] = mapped_column(default=0.0)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
 
 
 class RuntimeInvestigationEvent(Base):
@@ -700,7 +708,9 @@ class RuntimeInvestigationEvent(Base):
     agent_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     data_json: Mapped[dict] = mapped_column(JSON, default=dict)
     correlation_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
 
 
 class RuntimeApprovalRequest(Base):
@@ -735,6 +745,8 @@ class RuntimeApprovalRequest(Base):
     # Frozen investigation state for workflow resume
     state_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

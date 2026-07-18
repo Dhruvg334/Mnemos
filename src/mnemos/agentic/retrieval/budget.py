@@ -54,21 +54,14 @@ class RetrievalBudgetOptimiser:
             budget_tokens=plan.budget_tokens,
         )
 
-    def allocate_per_strategy(
-        self, plan: RetrievalPlan
-    ) -> dict[str, int]:
+    def allocate_per_strategy(self, plan: RetrievalPlan) -> dict[str, int]:
         """Allocate candidate budget per strategy."""
-        active_strategies = [
-            s for s in plan.strategies
-            if s != RetrievalStrategy.RERANKING
-        ]
+        active_strategies = [s for s in plan.strategies if s != RetrievalStrategy.RERANKING]
         if not active_strategies:
             return {}
 
         # Weight strategies by their typical cost
-        total_weight = sum(
-            STRATEGY_TOKEN_COSTS.get(s.value, 100) for s in active_strategies
-        )
+        total_weight = sum(STRATEGY_TOKEN_COSTS.get(s.value, 100) for s in active_strategies)
         allocation: dict[str, int] = {}
         remaining = self.max_total_candidates
 
