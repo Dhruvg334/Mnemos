@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from mnemos.agentic.agents.retrieval._base import _BaseRetrievalAgent
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
-from mnemos.agentic.schemas.base import QueryIntent
+from mnemos.agentic.schemas.base import MCPToolName, QueryIntent, ResolvedEntity
 from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -83,7 +83,10 @@ class QueryRouterAgent(_BaseRetrievalAgent):
 
     async def execute(self, state: AgentState) -> AgentState:
         query = state.get("query", "")
-        ctx = dict(state.get("context", {}))
+        ctx = state.get("context")
+        if not isinstance(ctx, dict):
+            ctx = {}
+            state["context"] = ctx
 
         self.guardrails.detect_injection(query)
 
@@ -109,6 +112,48 @@ class QueryRouterAgent(_BaseRetrievalAgent):
         ctx["intent"] = classification.intent
         ctx["extracted_entities"] = classification.entities
         ctx["query_time_range"] = classification.time_range
+
+        # Resolve a bounded number of extracted asset mentions through the
+        # governed tool layer. Ambiguous results become clarification prompts
+        # instead of guessed asset IDs.
+        resolved_entities: list[ResolvedEntity] = []
+        ambiguity_messages: list[str] = []
+        if self._mcp_server is not None:
+            for mention in classification.entities[:3]:
+                result = await self.call_tool(
+                    MCPToolName.RESOLVE_ASSET_TAG,
+                    {
+                        "mention": mention,
+                        "site_id": ctx.get("site_id"),
+                        "organisation_id": ctx.get("org_id"),
+                    },
+                    state=state,
+                )
+                if not isinstance(result, dict):
+                    continue
+                if result.get("resolved"):
+                    for entity in result.get("entities", [])[:3]:
+                        resolved_entities.append(
+                            ResolvedEntity(
+                                original_text=mention,
+                                entity_id=str(entity.get("entity_id", "")),
+                                entity_type=str(entity.get("entity_type", "asset")),
+                                confidence=float(entity.get("confidence", 0.0)),
+                                canonical_name=str(
+                                    entity.get("canonical_name") or entity.get("entity_id", mention)
+                                ),
+                                metadata=dict(entity.get("metadata", {})),
+                            )
+                        )
+                elif result.get("ambiguity_reason"):
+                    ambiguity_messages.append(str(result["ambiguity_reason"]))
+
+        if resolved_entities:
+            ctx["resolved_entities"] = resolved_entities
+            state["resolved_entities"] = resolved_entities
+        if ambiguity_messages:
+            classification.clarification_needed = True
+            classification.clarification_questions.extend(ambiguity_messages)
 
         if classification.site_context and not ctx.get("site_id"):
             ctx["site_id"] = classification.site_context

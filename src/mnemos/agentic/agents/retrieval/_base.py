@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.agents.interfaces import CollaborativeAgent
+from mnemos.agentic.agents.tool_runtime import execute_governed_tool
 from mnemos.agentic.deps import get_llm_service, get_prompt_manager
 from mnemos.agentic.runtime.types import AgentRegistration, AgentRole
 from mnemos.agentic.schemas.state import AgentState
@@ -52,40 +53,14 @@ class _BaseRetrievalAgent(CollaborativeAgent, ABC):
         *,
         state: dict[str, Any] | None = None,
     ) -> Any:
-        """Execute a tool via the MCP dispatch layer (P0 #13)."""
-        if self._mcp_server is None:
-            return {"success": False, "error": "MCP server not injected"}
-
-        investigation_id = ""
-        trace_id = None
-        user_context: dict[str, Any] = {}
-        if state:
-            investigation_id = state.get("investigation_id", "")
-            trace_id = state.get("trace_id")
-            ctx = state.get("context", {})
-            user_context = {
-                "org_id": ctx.get("org_id", ""),
-                "site_id": ctx.get("site_id", ""),
-                "user_id": ctx.get("user_id", ""),
-                "role": ctx.get("role", "engineer"),
-                "access_classifications": ctx.get("access_classifications", ["internal"]),
-                "asset_ids": ctx.get("asset_ids", []),
-                "document_ids": ctx.get("document_ids", []),
-            }
-
-        result = await self._mcp_server.call(
+        """Execute a bounded, scoped tool call and record its trajectory."""
+        return await execute_governed_tool(
+            agent_name=self.name,
+            server=self._mcp_server,
             tool_name=tool_name,
             arguments=arguments,
-            agent_name=self.name,
-            investigation_id=investigation_id,
-            trace_id=trace_id,
-            user_context=user_context,
+            state=state,
         )
-        if hasattr(result, "data") and getattr(result, "success", False):
-            return result.data
-        if hasattr(result, "error"):
-            return {"success": False, "error": result.error}
-        return result
 
     def discover_permitted_tools(self) -> frozenset[str]:
         """Return tools this agent is allowed to call (P0 #13)."""

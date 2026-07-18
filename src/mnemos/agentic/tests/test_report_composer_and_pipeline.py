@@ -31,6 +31,10 @@ from mnemos.agentic.schemas.base import (
 )
 from mnemos.agentic.schemas.specialized import FinalReport
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:create_investigation_workflow is deprecated:DeprecationWarning"
+)
+
 # ======================================================================
 # Helpers: realistic mock data builders
 # ======================================================================

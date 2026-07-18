@@ -18,7 +18,7 @@ class AgentMessage(BaseModel):
     name: str | None = None
     tool_call_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class VerificationStatus(StrEnum):
@@ -360,7 +360,7 @@ class EvidenceBundle(BaseModel):
     missing_evidence: list[MissingEvidence] = Field(default_factory=list)
     confidence_signals: list[ConfidenceSignal] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgentResponse(BaseModel):

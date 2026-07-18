@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -70,7 +70,7 @@ class LessonsLearnedSummary(BaseModel):
 class FinalReport(BaseModel):
     title: str
     summary: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     sections: dict[str, Any]  # Contains AssetPassport, RCACaseReport, etc.
     grounded_claims: list[GroundedClaim] = Field(default_factory=list)
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)

@@ -14,7 +14,12 @@ from mnemos.agentic.agents.retrieval._base import _BaseRetrievalAgent
 from mnemos.agentic.deps import get_graph_client
 from mnemos.agentic.retrieval.engine import HybridRetrievalEngine
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
-from mnemos.agentic.schemas.base import EvidenceBundle, RetrievalPlan
+from mnemos.agentic.schemas.base import (
+    EvidenceBundle,
+    MCPToolName,
+    RetrievalPlan,
+    RetrievalStrategy,
+)
 from mnemos.agentic.schemas.state import AgentState
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -54,7 +59,10 @@ class EvidenceRetrievalAgent(_BaseRetrievalAgent):
         return ["retrieval_planner"]
 
     async def execute(self, state: AgentState) -> AgentState:
-        ctx = dict(state.get("context", {}))
+        ctx = state.get("context")
+        if not isinstance(ctx, dict):
+            ctx = {}
+            state["context"] = ctx
         plan: RetrievalPlan | None = ctx.get("retrieval_plan")
 
         if plan is None:
@@ -81,6 +89,42 @@ class EvidenceRetrievalAgent(_BaseRetrievalAgent):
 
         # Apply agent-level permission filtering
         bundle = self._filter_by_permissions(bundle, ctx)
+
+        # Enrich the hybrid retrieval result with governed tool calls. The
+        # tool budget is bounded in the shared base class, and only assets
+        # already permitted by the retrieval plan are used.
+        if self._mcp_server is not None:
+            asset_ids = list(dict.fromkeys(plan.asset_ids))[:2]
+            if RetrievalStrategy.GRAPH_TRAVERSAL in plan.strategies:
+                for asset_id in asset_ids:
+                    graph_result = await self.call_tool(
+                        MCPToolName.GRAPH_TRAVERSAL,
+                        {
+                            "start_node_id": asset_id,
+                            "graph_type": "failure_graph",
+                            "depth": min(plan.max_hops, 3),
+                            "limit": min(plan.top_k_per_strategy * 5, 50),
+                        },
+                        state=state,
+                    )
+                    if isinstance(graph_result, dict) and not graph_result.get("error"):
+                        bundle.raw_graph_data.setdefault(asset_id, graph_result)
+
+            if plan.intent.value in {"asset_info", "rca", "lessons_learned"}:
+                timelines = bundle.metadata.setdefault("tool_timelines", {})
+                for asset_id in asset_ids:
+                    timeline_result = await self.call_tool(
+                        MCPToolName.TIMELINE,
+                        {
+                            "asset_id": asset_id,
+                            "date_from": plan.date_from,
+                            "date_to": plan.date_to,
+                            "limit": min(plan.top_k_per_strategy * 10, 100),
+                        },
+                        state=state,
+                    )
+                    if isinstance(timeline_result, dict) and not timeline_result.get("error"):
+                        timelines[asset_id] = timeline_result
 
         ctx["evidence_bundle"] = bundle
         state["context"] = ctx

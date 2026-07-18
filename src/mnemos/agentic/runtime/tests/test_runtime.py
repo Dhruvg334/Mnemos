@@ -47,6 +47,10 @@ from mnemos.agentic.runtime.supervisor import SupervisorAgent
 from mnemos.agentic.runtime.types import SupervisorDecision
 from mnemos.agentic.runtime.workflow import create_investigation_workflow
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:create_investigation_workflow is deprecated:DeprecationWarning"
+)
+
 # ======================================================================
 # Fixtures
 # ======================================================================
