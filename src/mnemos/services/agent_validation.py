@@ -3,11 +3,11 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 from mnemos.core.config import settings
 from mnemos.core.errors import AppError
 from mnemos.models import Document, EvidenceRegion, Query
 from mnemos.schemas.agent import AgentQueryResult
-from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 
 _policy_engine = GuardrailPolicyEngine()
 

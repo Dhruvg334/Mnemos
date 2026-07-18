@@ -18,7 +18,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.agents.interfaces import CollaborativeAgent, ToolCallingAgent
+from mnemos.agentic.agents.interfaces import CollaborativeAgent
 from mnemos.agentic.deps import get_llm_service, get_prompt_manager
 from mnemos.agentic.runtime.types import AgentRegistration, AgentRole
 from mnemos.agentic.schemas.base import EvidenceBundle, ReasoningOutput

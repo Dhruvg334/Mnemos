@@ -37,7 +37,6 @@ from mnemos.agentic.evaluation.evaluator import InvestigationEvaluator
 from mnemos.agentic.evaluation.metrics import MetricAggregator
 from mnemos.agentic.evaluation.models import EvalSample, SampleResult
 
-
 # ---------------------------------------------------------------------------
 # Synthetic state builder — deterministic, no LLM required (P0 #21)
 # ---------------------------------------------------------------------------

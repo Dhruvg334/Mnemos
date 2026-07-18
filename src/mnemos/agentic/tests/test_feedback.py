@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import time
-
-import pytest
-
 from mnemos.agentic.runtime.feedback import (
     AgentPerformanceTracker,
     FeedbackAnalyzer,
@@ -98,7 +94,7 @@ class TestFeedbackStore:
 
     def test_count_by_agent(self):
         store = FeedbackStore()
-        for i in range(5):
+        for _ in range(5):
             store.add(FeedbackEntry(
                 investigation_id="inv_001",
                 agent_name="rca",
@@ -140,7 +136,7 @@ class TestFeedbackStore:
 
     def test_get_for_agent_limit(self):
         store = FeedbackStore()
-        for i in range(10):
+        for _ in range(10):
             store.add(FeedbackEntry(
                 investigation_id="inv_001",
                 agent_name="rca",

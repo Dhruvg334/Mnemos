@@ -44,8 +44,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -53,15 +54,11 @@ logger = logging.getLogger(__name__)
 # Try to import OpenTelemetry; fall back to no-ops if not installed
 # ---------------------------------------------------------------------------
 
-_OTEL_AVAILABLE = False
+_OTEL_AVAILABLE: bool = False
 _TRACER: Any = None
 
 try:
-    from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
+    import opentelemetry  # noqa: F401
     _OTEL_AVAILABLE = True
 except ImportError:
     logger.debug("opentelemetry-sdk not installed; using no-op tracer")
@@ -78,7 +75,7 @@ def _build_tracer() -> Any:
         return _NoOpTracer()
 
     from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
@@ -181,7 +178,7 @@ class _NoOpSpan:
     def set_status(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def __enter__(self) -> "_NoOpSpan":
+    def __enter__(self) -> _NoOpSpan:
         return self
 
     def __exit__(self, *args: Any) -> None:

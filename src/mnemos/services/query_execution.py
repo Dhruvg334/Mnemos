@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine
 from mnemos.core.db import SessionLocal
 from mnemos.core.errors import AppError
 from mnemos.integrations.agents import get_agent_gateway

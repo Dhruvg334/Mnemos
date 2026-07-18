@@ -30,21 +30,29 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mnemos.agentic.mcp.server import MnemosMCPServer
 from mnemos.agentic.runtime.approval import HumanApprovalNode
 from mnemos.agentic.runtime.audit import AuditLogger
 from mnemos.agentic.runtime.checkpoint import CheckpointManager
 from mnemos.agentic.runtime.events import InvestigationEventLog
+from mnemos.agentic.runtime.idempotency import IdempotentNodeExecutor
 from mnemos.agentic.runtime.observability import ObservabilityDashboard
+from mnemos.agentic.runtime.otel import (
+    SpanName,
+    get_tracer,
+    record_span_attrs,
+)
 from mnemos.agentic.runtime.recovery import FailureRecoveryManager
 from mnemos.agentic.runtime.reflection import ReflectionAgent
 from mnemos.agentic.runtime.registry import AgentCapabilityRegistry, AgentRegistry
 from mnemos.agentic.runtime.retry import RetryPolicy, TimeoutManager, execute_with_retry
+from mnemos.agentic.runtime.spans import SpanExporter, SpanStatus, TracingManager
 from mnemos.agentic.runtime.state import InvestigationState, create_initial_state
 from mnemos.agentic.runtime.supervisor import SupervisorAgent
 from mnemos.agentic.runtime.types import (
@@ -58,16 +66,6 @@ from mnemos.agentic.runtime.types import (
 )
 from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.agentic.schemas.specialized import FinalReport
-from mnemos.agentic.runtime.otel import (
-    get_tracer,
-    record_span_attrs,
-    record_span_event,
-    set_span_error,
-    SpanName,
-)
-from mnemos.agentic.runtime.idempotency import IdempotentNodeExecutor
-from mnemos.agentic.runtime.spans import SpanExporter, SpanStatus, TracingManager
-from mnemos.agentic.mcp.server import MnemosMCPServer
 from mnemos.agentic.services.llm import get_llm_telemetry
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -201,7 +199,7 @@ def _safe_runtime_error(
     exc: BaseException | None = None,
 ) -> dict[str, Any]:
     """Return a controlled, persistable runtime error payload."""
-    retryable = isinstance(exc, (TimeoutError, ConnectionError))
+    retryable = isinstance(exc, TimeoutError | ConnectionError)
     return {
         "error_code": "AGENTIC_RUNTIME_COMPONENT_FAILED",
         "message": f"{component} failed during workflow execution.",
@@ -322,7 +320,7 @@ def _create_tracing_manager(
 
 
 async def _execute_stage(
-    pipeline: "InvestigationPipeline",
+    pipeline: InvestigationPipeline,
     state: InvestigationState,
     event_log: InvestigationEventLog,
     stage_name: str,
@@ -476,7 +474,6 @@ class InvestigationPipeline:
         if self.db is not None:
             try:
                 from mnemos.agentic.runtime.persistence import DurableNodeRegistry
-                from mnemos.agentic.runtime.idempotency import NodeCompletionRegistry
                 durable_reg = DurableNodeRegistry(self.db)
                 # Populate in-memory cache from DB on resume
                 import asyncio as _asyncio

@@ -239,7 +239,6 @@ class FeedbackAnalyzer:
 
     def all_agent_summaries(self) -> dict[str, dict[str, Any]]:
         """Get summaries for all agents with feedback."""
-        agents = set(e.agent_name for e in self._store.to_list().__class__())
         agent_names = set()
         for entry_data in self._store.to_list():
             agent_names.add(entry_data.get("agent_name", ""))

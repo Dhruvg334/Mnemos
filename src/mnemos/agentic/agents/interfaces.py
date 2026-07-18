@@ -113,13 +113,6 @@ class ToolCallingAgent(BaseAgent):
         except ImportError:
             return frozenset()
 
-    @abstractmethod
-    async def call_tool(  # type: ignore[override]
-        self, tool_name: str, arguments: dict[str, Any],
-        *, state: dict[str, Any] | None = None,
-    ) -> Any: ...
-
-
 class CollaborativeAgent(BaseAgent):
     """Interface for agents that participate in collaborative execution."""
 

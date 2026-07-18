@@ -19,8 +19,6 @@ assertions are verifiable without requiring a live PostgreSQL server.
 """
 from __future__ import annotations
 
-import asyncio
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,24 +26,17 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from mnemos.agentic.gateway import LangGraphAgentGateway
-from mnemos.agentic.runtime.workflow import InvestigationPipeline
-from mnemos.agentic.schemas.base import AgentResponse
 from mnemos.core.db import Base
 from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import (
     AgentCitation,
     AgentClaim,
     AgentConfidence,
-    AgentOptions,
     AgentQueryRequest,
     AgentQueryResult,
     AgentRunMetadata,
-    AgentScope,
 )
-from mnemos.services.agent_validation import validate_agent_result
 from mnemos.services.query_execution import execute_query_background
-
 
 # ---------------------------------------------------------------------------
 # In-memory SQLite DB fixture (mirrors the real schema via SQLAlchemy)
@@ -501,8 +492,8 @@ async def test_e2e_intent_selective_agent_dispatch():
     RCA intent -> rca_agent + lessons_learned_agent only (not compliance,
     not asset_intelligence by default).
     """
-    from mnemos.agentic.runtime.workflow import _select_specialized_agents
     from mnemos.agentic.runtime.state import create_initial_state
+    from mnemos.agentic.runtime.workflow import _select_specialized_agents
 
     state = create_initial_state(
         investigation_id="inv_intent_test",
@@ -524,8 +515,8 @@ async def test_e2e_intent_selective_agent_dispatch():
 @pytest.mark.asyncio
 async def test_e2e_compliance_agent_dispatch():
     """Compliance intent selects compliance_agent, not RCA."""
-    from mnemos.agentic.runtime.workflow import _select_specialized_agents
     from mnemos.agentic.runtime.state import create_initial_state
+    from mnemos.agentic.runtime.workflow import _select_specialized_agents
 
     state = create_initial_state(
         investigation_id="inv_compliance_test",
@@ -540,8 +531,8 @@ async def test_e2e_compliance_agent_dispatch():
 @pytest.mark.asyncio
 async def test_e2e_asset_info_agent_dispatch():
     """Asset info intent selects asset_intelligence only."""
-    from mnemos.agentic.runtime.workflow import _select_specialized_agents
     from mnemos.agentic.runtime.state import create_initial_state
+    from mnemos.agentic.runtime.workflow import _select_specialized_agents
 
     state = create_initial_state(
         investigation_id="inv_asset_test",

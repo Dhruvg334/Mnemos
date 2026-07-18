@@ -34,6 +34,7 @@ from mnemos.agentic.mcp.tools import (
     TimelineInput,
 )
 from mnemos.agentic.runtime.audit import AuditLogger
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 from mnemos.agentic.schemas.base import (
     AuditAction,
     GuardrailCheckResult,
@@ -44,7 +45,6 @@ from mnemos.agentic.schemas.base import (
 )
 from mnemos.agentic.utils.guardrails import MnemosGuardrails
 from mnemos.agentic.utils.logging import StructuredLogger
-from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 
 logger = StructuredLogger("mcp.dispatch")
 
