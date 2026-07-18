@@ -1,0 +1,119 @@
+﻿========================================================================
+  MNEMOS AI LAYER - FEATURE-WISE UNIT TEST RESULTS
+  Generated: 2026-07-18 10:02:21
+========================================================================
+
+------------------------------------------------------------------------
+  Feature: AI Integration / Gateway / Orchestrator
+  File   : src/mnemos/agentic/tests/test_ai_integration.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 3  Failed: 0  Skipped: 0  Total: 3
+
+------------------------------------------------------------------------
+  Feature: Approval Queue
+  File   : src/mnemos/agentic/tests/test_approval_queue.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 32  Failed: 0  Skipped: 0  Total: 32
+
+------------------------------------------------------------------------
+  Feature: End-to-End Production Path
+  File   : src/mnemos/agentic/tests/test_e2e_production_path.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 11  Failed: 0  Skipped: 0  Total: 11
+
+------------------------------------------------------------------------
+  Feature: Evaluation Framework
+  File   : src/mnemos/agentic/tests/test_evaluation.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 81  Failed: 0  Skipped: 0  Total: 81
+
+------------------------------------------------------------------------
+  Feature: Feedback Loop / Agent Performance Tracking
+  File   : src/mnemos/agentic/tests/test_feedback.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 43  Failed: 0  Skipped: 0  Total: 43
+
+------------------------------------------------------------------------
+  Feature: MCP Tool Layer, Guardrails, Approval Gates, Audit Logging
+  File   : src/mnemos/agentic/tests/test_mcp_guardrails.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 142  Failed: 0  Skipped: 0  Total: 142
+
+------------------------------------------------------------------------
+  Feature: Agent Memory System
+  File   : src/mnemos/agentic/tests/test_memory.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 37  Failed: 0  Skipped: 0  Total: 37
+
+------------------------------------------------------------------------
+  Feature: Model Router
+  File   : src/mnemos/agentic/tests/test_model_router.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 21  Failed: 0  Skipped: 0  Total: 21
+
+------------------------------------------------------------------------
+  Feature: Observability, Streaming & Optimizations
+  File   : src/mnemos/agentic/tests/test_observability_streaming_optimizations.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 56  Failed: 0  Skipped: 0  Total: 56
+
+------------------------------------------------------------------------
+  Feature: Prompt Manager
+  File   : src/mnemos/agentic/tests/test_prompt_manager.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 36  Failed: 0  Skipped: 0  Total: 36
+
+------------------------------------------------------------------------
+  Feature: Report Composer & Investigation Pipeline
+  File   : src/mnemos/agentic/tests/test_report_composer_and_pipeline.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 55  Failed: 0  Skipped: 0  Total: 55
+
+------------------------------------------------------------------------
+  Feature: Security / Tool Security Hardening
+  File   : src/mnemos/agentic/tests/test_security.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 53  Failed: 0  Skipped: 0  Total: 53
+
+------------------------------------------------------------------------
+  Feature: Observability Spans / Tracing
+  File   : src/mnemos/agentic/tests/test_spans.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 24  Failed: 0  Skipped: 0  Total: 24
+
+------------------------------------------------------------------------
+  Feature: Multi-Agent Runtime Architecture
+  File   : src/mnemos/agentic/runtime/tests/test_runtime.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 64  Failed: 0  Skipped: 0  Total: 64
+
+------------------------------------------------------------------------
+  Feature: Retrieval Intelligence Agents
+  File   : src/mnemos/agentic/agents/tests/test_retrieval_agents.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 44  Failed: 0  Skipped: 0  Total: 44
+
+------------------------------------------------------------------------
+  Feature: Reasoning Agents
+  File   : src/mnemos/agentic/agents/tests/test_reasoning_agents.py
+------------------------------------------------------------------------
+  Status : PASS  |  Passed: 89  Failed: 0  Skipped: 0  Total: 89
+
+=========================================================================
+  OVERALL SUMMARY
+-------------------------------------------------------------------------
+  Features Tested   : 16
+  Features Passing  : 16
+  Features Failing  : 0
+  Total Passed      : 791
+  Total Failed      : 0
+  Total Skipped     : 0
+  Total Errors      : 0
+  Grand Total       : 791
+  Result            : ALL TESTS PASSED
+=========================================================================
+
+  Platform  : Windows / Python 3.11.4
+  Project   : Mnemos - AI Layer
+  Purpose   : Hackathon Submission - Unit Test Results
+
