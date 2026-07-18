@@ -304,7 +304,6 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
     def required_dependencies(self) -> list[str]:
         return []
 
-    @abstractmethod
     def _capabilities(self) -> list[Any]:
         return []
 

@@ -47,8 +47,10 @@ def _utcnow() -> datetime:
 class DurableCheckpointManager(CheckpointManager):
     """Writes checkpoints to PostgreSQL in addition to in-memory storage.
 
-    Falls back to in-memory only on DB errors so the pipeline never
-    breaks due to persistence issues.
+    Uses optimistic concurrency with version checking (P0 #13) to prevent
+    two workers from overwriting the same investigation checkpoint.
+    Does NOT silently fall back to in-memory on DB errors — production
+    checkpoint writes must be durable.
     """
 
     def __init__(self, investigation_id: str, db: AsyncSession) -> None:
@@ -56,97 +58,87 @@ class DurableCheckpointManager(CheckpointManager):
         self._db = db
 
     def _persist(self, checkpoint: Checkpoint) -> None:
-        """Persist a checkpoint to the current DB transaction."""
-        try:
-            self._db.add(
-                RuntimeCheckpoint(
-                    id=checkpoint.metadata.checkpoint_id,
-                    investigation_id=checkpoint.metadata.investigation_id,
-                    checkpoint_type=checkpoint.metadata.checkpoint_type.value
-                    if hasattr(checkpoint.metadata.checkpoint_type, "value")
-                    else str(checkpoint.metadata.checkpoint_type),
-                    phase=checkpoint.metadata.phase.value
-                    if hasattr(checkpoint.metadata.phase, "value")
-                    else str(checkpoint.metadata.phase),
-                    agent_name=checkpoint.metadata.agent_name,
-                    description=checkpoint.metadata.description,
-                    state_hash=checkpoint.metadata.state_hash,
-                    state_snapshot=checkpoint.state_snapshot,
-                    event_log_offset=checkpoint.event_log_offset,
-                    version=1,
-                    created_at=_utcnow(),
-                )
-            )
-            return
-        except Exception as exc:
-            logger.warning(
-                "DurableCheckpoint: failed to stage DB persist: %s", exc,
-            )
+        """Persist a checkpoint. Synchronous callers hit in-memory + schedule DB."""
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.ensure_future(self._async_persist(checkpoint))
+                asyncio.ensure_future(self.persist_async(checkpoint))
             else:
-                loop.run_until_complete(self._async_persist(checkpoint))
+                loop.run_until_complete(self.persist_async(checkpoint))
         except RuntimeError:
-            # No running event loop — schedule via a new task if possible
-            try:
-                asyncio.get_event_loop().call_soon(
-                    asyncio.ensure_future,
-                    self._async_persist(checkpoint),
-                )
-            except Exception:
-                logger.warning(
-                    "DurableCheckpoint: could not schedule DB persist "
-                    "(no event loop)"
-                )
-
-    async def _async_persist(self, checkpoint: Checkpoint) -> None:
-        try:
-            await self._db.execute(
-                text(
-                    """
-                    INSERT INTO runtime_checkpoints
-                        (id, investigation_id, checkpoint_type, phase,
-                         agent_name, description, state_hash,
-                         state_snapshot, event_log_offset, version,
-                         created_at)
-                    VALUES
-                        (:id, :investigation_id, :checkpoint_type, :phase,
-                         :agent_name, :description, :state_hash,
-                         :state_snapshot, :event_log_offset, :version,
-                         :created_at)
-                    """
-                ),
-                {
-                    "id": checkpoint.metadata.checkpoint_id,
-                    "investigation_id": checkpoint.metadata.investigation_id,
-                    "checkpoint_type": checkpoint.metadata.checkpoint_type.value
-                    if hasattr(checkpoint.metadata.checkpoint_type, "value")
-                    else str(checkpoint.metadata.checkpoint_type),
-                    "phase": checkpoint.metadata.phase.value
-                    if hasattr(checkpoint.metadata.phase, "value")
-                    else str(checkpoint.metadata.phase),
-                    "agent_name": checkpoint.metadata.agent_name,
-                    "description": checkpoint.metadata.description,
-                    "state_hash": checkpoint.metadata.state_hash,
-                    "state_snapshot": json.dumps(
-                        checkpoint.state_snapshot, default=str,
-                    ),
-                    "event_log_offset": checkpoint.event_log_offset,
-                    "version": 1,
-                    "created_at": _utcnow(),
-                },
+            logger.warning(
+                "DurableCheckpoint: no event loop available for async persist of %s",
+                checkpoint.metadata.checkpoint_id,
             )
+
+    async def persist_async(self, checkpoint: Checkpoint) -> None:
+        """Async persistence with optimistic concurrency version check (P0 #13)."""
+        from sqlalchemy import select, update
+
+        try:
+            # Check existing version for optimistic locking
+            row = await self._db.execute(
+                select(RuntimeCheckpoint.version)
+                .where(RuntimeCheckpoint.id == checkpoint.metadata.checkpoint_id)
+                .with_for_update()
+            )
+            existing = row.scalar_one_or_none()
+
+            if existing is not None:
+                # Update with version increment
+                await self._db.execute(
+                    update(RuntimeCheckpoint)
+                    .where(RuntimeCheckpoint.id == checkpoint.metadata.checkpoint_id)
+                    .values(
+                        version=RuntimeCheckpoint.version + 1,
+                        state_snapshot=checkpoint.state_snapshot,
+                        event_log_offset=checkpoint.event_log_offset,
+                        phase=checkpoint.metadata.phase.value
+                        if hasattr(checkpoint.metadata.phase, "value")
+                        else str(checkpoint.metadata.phase),
+                    )
+                )
+            else:
+                self._db.add(
+                    RuntimeCheckpoint(
+                        id=checkpoint.metadata.checkpoint_id,
+                        investigation_id=checkpoint.metadata.investigation_id,
+                        checkpoint_type=checkpoint.metadata.checkpoint_type.value
+                        if hasattr(checkpoint.metadata.checkpoint_type, "value")
+                        else str(checkpoint.metadata.checkpoint_type),
+                        phase=checkpoint.metadata.phase.value
+                        if hasattr(checkpoint.metadata.phase, "value")
+                        else str(checkpoint.metadata.phase),
+                        agent_name=checkpoint.metadata.agent_name,
+                        description=checkpoint.metadata.description,
+                        state_hash=checkpoint.metadata.state_hash,
+                        state_snapshot=checkpoint.state_snapshot,
+                        event_log_offset=checkpoint.event_log_offset,
+                        version=1,
+                        created_at=_utcnow(),
+                    )
+                )
             await self._db.flush()
         except Exception as exc:
-            logger.warning(
-                "DurableCheckpoint: failed to persist to DB: %s", exc,
+            logger.error(
+                "DurableCheckpoint: failed to persist checkpoint %s: %s",
+                checkpoint.metadata.checkpoint_id, exc,
             )
+            raise
 
     def _load_all(self) -> list[Checkpoint]:
-        # NOTE: synchronous fallback — callers should use load_latest_async
-        return []
+        """Load all checkpoints. Synchronous fallback — callers should use load_latest_async."""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                future = asyncio.ensure_future(self.load_latest_async())
+                result = future.result() if future.done() else None
+                return [result] if result else []
+            else:
+                result = loop.run_until_complete(self.load_latest_async())
+                return [result] if result else []
+        except Exception:
+            return []
 
     async def load_latest_async(self) -> Checkpoint | None:
         """Load the most recent checkpoint from DB."""

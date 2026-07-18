@@ -119,7 +119,7 @@ async def execute_with_retry(
     timeout_seconds: float | None = None,
     on_retry: Callable[[int, Exception], Awaitable[None]] | None = None,
     **kwargs: Any,
-) -> tuple[T, AgentStatus, int]:
+) -> tuple[T | None, AgentStatus, int]:
     """Execute an async function with retry and timeout logic.
 
     Returns:
@@ -153,7 +153,7 @@ async def execute_with_retry(
                     await on_retry(attempt, last_error)
                 await asyncio.sleep(delay)
                 continue
-            return None, AgentStatus.TIMEOUT, attempt  # type: ignore[return-value]
+            return None, AgentStatus.TIMEOUT, attempt
 
         except Exception as exc:
             last_error = exc
@@ -163,6 +163,6 @@ async def execute_with_retry(
                     await on_retry(attempt, exc)
                 await asyncio.sleep(delay)
                 continue
-            return None, AgentStatus.FAILED, attempt  # type: ignore[return-value]
+            return None, AgentStatus.FAILED, attempt
 
-    return None, AgentStatus.FAILED, max_attempts  # type: ignore[return-value]
+    return None, AgentStatus.FAILED, max_attempts

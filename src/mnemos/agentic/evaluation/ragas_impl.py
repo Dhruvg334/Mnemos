@@ -79,10 +79,10 @@ class RagasEvaluatorImpl(RAGEvaluator):
             return []
 
     async def evaluate(self, input_data: Any, output_data: Any, context: dict[str, Any]) -> list[EvaluationResult]:
-        return []
+        raise NotImplementedError("Use evaluate_sample() instead")
 
     async def evaluate_faithfulness(self, answer: str, context: list[str]) -> EvaluationResult:
-        return EvaluationResult(metric_name="faithfulness", score=0.0, reasoning="Use evaluate_sample")
+        raise NotImplementedError("Use evaluate_sample() instead")
 
     async def evaluate_relevance(self, query: str, answer: str) -> EvaluationResult:
-        return EvaluationResult(metric_name="answer_relevancy", score=0.0, reasoning="Use evaluate_sample")
+        raise NotImplementedError("Use evaluate_sample() instead")

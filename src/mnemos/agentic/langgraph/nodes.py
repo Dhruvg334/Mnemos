@@ -1,4 +1,5 @@
 import re
+from abc import ABC, abstractmethod
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -28,7 +29,7 @@ from mnemos.agentic.utils.logging import StructuredLogger
 logger = StructuredLogger("nodes")
 T = TypeVar("T", bound=BaseModel)
 
-class BaseNode:
+class BaseNode(ABC):
     """
     Optimized base node with structured logging and safety guardrails.
     """
@@ -49,16 +50,17 @@ class BaseNode:
             updated_state["steps_completed"].append(node_name)
             return updated_state
         except GuardrailViolation as e:
-            logger.warning(f"Guardrail violation in {node_name}: {str(e)}")
-            state["errors"].append(f"SAFETY_VIOLATION: {str(e)}")
+            safe_msg = f"Guardrail violation in {node_name}"
+            logger.warning(f"{safe_msg}: {node_name}")
+            state["errors"].append(f"SAFETY_VIOLATION: {node_name}")
             return state
         except Exception as e:
-            logger.error(f"Execution failed in {node_name}: {str(e)}", exc_info=True)
-            state["errors"].append(f"INTERNAL_ERROR: {node_name}: {str(e)}")
+            logger.error(f"Execution failed in {node_name}", exc_info=True)
+            state["errors"].append(f"INTERNAL_ERROR: {node_name}")
             return state
 
-    async def execute(self, state: AgentState) -> AgentState:
-        raise NotImplementedError
+    @abstractmethod
+    async def execute(self, state: AgentState) -> AgentState: ...
 
 class QueryClassification(BaseModel):
     intent: QueryIntent

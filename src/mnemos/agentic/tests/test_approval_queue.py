@@ -310,55 +310,74 @@ class TestApprovalQueue:
 
 class TestApprovalAPI:
     def setup_method(self):
+        from unittest.mock import MagicMock
+
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
         from mnemos.agentic.runtime.api.approvals import create_approval_router
+        from mnemos.api.deps import Principal, get_principal
 
         self.queue = ApprovalQueue(default_timeout_seconds=300.0)
         self.app = FastAPI()
         self.app.include_router(create_approval_router(self.queue), prefix="/approvals")
+
+        # Override authentication dependency (P0 #8)
+        fake_user = MagicMock()
+        fake_user.id = "test_user_id"
+        fake_user.full_name = "Test Approver"
+        fake_user.email = "approver@test.com"
+        fake_membership = MagicMock()
+        fake_membership.role = "approver"
+        fake_membership.site_id = None
+
+        async def fake_get_principal():
+            return Principal(user=fake_user, memberships=[fake_membership])
+
+        self.app.dependency_overrides[get_principal] = fake_get_principal
         self.client = TestClient(self.app)
 
-    def _submit_request(self) -> str:
-        import asyncio
-        request = asyncio.get_event_loop().run_until_complete(
-            self.queue.submit_request(
-                investigation_id="inv_001",
-                gate_type="rca_closure",
-                state_snapshot={"phase": "approval"},
-                summary="RCA needs review",
-            )
+    async def _submit_request(self) -> str:
+        request = await self.queue.submit_request(
+            investigation_id="inv_001",
+            gate_type="rca_closure",
+            state_snapshot={"phase": "approval"},
+            summary="RCA needs review",
         )
         return request.request_id
 
-    def test_list_pending_empty(self):
+    @pytest.mark.asyncio
+    async def test_list_pending_empty(self):
         response = self.client.get("/approvals/pending")
         assert response.status_code == 200
         data = response.json()
         assert data["count"] == 0
 
-    def test_list_pending_with_requests(self):
-        self._submit_request()
-        self._submit_request()
+    @pytest.mark.asyncio
+    async def test_list_pending_with_requests(self):
+        await self._submit_request()
+        await self._submit_request()
         response = self.client.get("/approvals/pending")
         assert response.status_code == 200
         assert response.json()["count"] == 2
 
-    def test_get_request(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_get_request(self):
+        request_id = await self._submit_request()
         response = self.client.get(f"/approvals/{request_id}")
         assert response.status_code == 200
         data = response.json()
         assert data["request"]["investigation_id"] == "inv_001"
         assert data["decision"] is None
 
-    def test_get_request_not_found(self):
+    @pytest.mark.asyncio
+    async def test_get_request_not_found(self):
         response = self.client.get("/approvals/nonexistent")
         assert response.status_code == 404
 
-    def test_submit_decision_approve(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_submit_decision_approve(self):
+        request_id = await self._submit_request()
         response = self.client.post(
             f"/approvals/{request_id}/decision",
             json={
@@ -372,8 +391,9 @@ class TestApprovalAPI:
         assert data["success"] is True
         assert data["status"] == "approved"
 
-    def test_submit_decision_reject(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_submit_decision_reject(self):
+        request_id = await self._submit_request()
         response = self.client.post(
             f"/approvals/{request_id}/decision",
             json={
@@ -385,8 +405,9 @@ class TestApprovalAPI:
         assert response.status_code == 200
         assert response.json()["status"] == "rejected"
 
-    def test_submit_decision_invalid(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_submit_decision_invalid(self):
+        request_id = await self._submit_request()
         response = self.client.post(
             f"/approvals/{request_id}/decision",
             json={
@@ -394,18 +415,19 @@ class TestApprovalAPI:
                 "reviewer": "admin",
             },
         )
-        # Pydantic field_validator raises ValidationError -> FastAPI returns 422
         assert response.status_code in (400, 422)
 
-    def test_submit_decision_not_found(self):
+    @pytest.mark.asyncio
+    async def test_submit_decision_not_found(self):
         response = self.client.post(
             "/approvals/nonexistent/decision",
             json={"decision": "approve", "reviewer": "admin"},
         )
         assert response.status_code == 404
 
-    def test_submit_decision_already_decided(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_submit_decision_already_decided(self):
+        request_id = await self._submit_request()
         self.client.post(
             f"/approvals/{request_id}/decision",
             json={"decision": "approve", "reviewer": "admin"},
@@ -416,19 +438,22 @@ class TestApprovalAPI:
         )
         assert response.status_code == 409
 
-    def test_cancel_request(self):
-        request_id = self._submit_request()
+    @pytest.mark.asyncio
+    async def test_cancel_request(self):
+        request_id = await self._submit_request()
         response = self.client.post(f"/approvals/{request_id}/cancel")
         assert response.status_code == 200
         assert response.json()["cancelled"] is True
 
-    def test_cancel_not_found(self):
+    @pytest.mark.asyncio
+    async def test_cancel_not_found(self):
         response = self.client.post("/approvals/nonexistent/cancel")
         assert response.status_code == 404
 
-    def test_summary(self):
-        self._submit_request()
-        self._submit_request()
+    @pytest.mark.asyncio
+    async def test_summary(self):
+        await self._submit_request()
+        await self._submit_request()
         response = self.client.get("/approvals/summary")
         assert response.status_code == 200
         data = response.json()

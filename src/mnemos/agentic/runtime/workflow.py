@@ -31,7 +31,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from typing import Any
+from typing import Any, cast
 
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +41,7 @@ from mnemos.agentic.runtime.approval import HumanApprovalNode
 from mnemos.agentic.runtime.audit import AuditLogger
 from mnemos.agentic.runtime.checkpoint import CheckpointManager
 from mnemos.agentic.runtime.events import InvestigationEventLog
-from mnemos.agentic.runtime.idempotency import IdempotentNodeExecutor
+from mnemos.agentic.runtime.idempotency import DeadLetterQueue, IdempotentNodeExecutor
 from mnemos.agentic.runtime.observability import ObservabilityDashboard
 from mnemos.agentic.runtime.otel import (
     SpanName,
@@ -95,77 +95,77 @@ try:
         QueryRouterAgent as _QUERY_ROUTER_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import QueryRouterAgent (circular import during init)")
 
 try:
     from mnemos.agentic.agents.retrieval.planner import (
         RetrievalPlannerAgent as _RETRIEVAL_PLANNER_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.retrieval.evidence_retrieval import (
         EvidenceRetrievalAgent as _EVIDENCE_RETRIEVAL_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.retrieval.evidence_verification import (
         EvidenceVerificationAgent as _EVIDENCE_VERIFICATION_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.retrieval.retrieval_reflection import (
         RetrievalReflectionAgent as _RETRIEVAL_REFLECTION_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.rca import (
         RCAAgent as _RCA_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.compliance import (
         ComplianceAgent as _COMPLIANCE_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.asset_intelligence import (
         AssetIntelligenceAgent as _ASSET_INTEL_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.lessons_learned import (
         LessonsLearnedAgent as _LESSONS_LEARNED_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.expert_knowledge import (
         ExpertKnowledgeAgent as _EXPERT_KNOWLEDGE_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 try:
     from mnemos.agentic.agents.reasoning.report_composer import (
         ReportComposerAgent as _REPORT_COMPOSER_CLS,
     )
 except ImportError:
-    pass
+    logger.warning("Failed to import agent module")
 
 
 # ======================================================================
@@ -313,7 +313,7 @@ def _create_tracing_manager(
                 },
             )
         except Exception:
-            pass
+            logger.warning("Span sink callback failed", exc_info=True)
 
     span_exporter.add_callback(_span_sink)
     return TracingManager(trace_id=investigation_id, exporter=span_exporter)
@@ -405,12 +405,23 @@ class InvestigationPipeline:
         evidence_confidence_threshold: float = 0.7,
         auto_checkpoint: bool = True,
         audit_logger: AuditLogger | None = None,
+        checkpoint_store: Any = None,
+        event_store: Any = None,
+        audit_sink: Any = None,
+        approval_queue: Any = None,
+        node_registry: Any = None,
     ) -> None:
         self.db = db
         self.max_iterations = max_iterations
         self.evidence_confidence_threshold = evidence_confidence_threshold
         self.auto_checkpoint = auto_checkpoint
         self.audit_logger = audit_logger or self._create_audit_logger("default")
+
+        self._checkpoint_store = checkpoint_store
+        self._event_store = event_store
+        self._audit_sink = audit_sink
+        self._approval_queue = approval_queue
+        self._node_registry = node_registry
 
         self.failure_recovery = FailureRecoveryManager()
         self.approval_node = HumanApprovalNode(audit_logger=self.audit_logger)
@@ -423,6 +434,7 @@ class InvestigationPipeline:
         )
         self._tracing_manager: TracingManager | None = None
         self._idempotent_executor = IdempotentNodeExecutor()
+        self._dead_letter_queue = DeadLetterQueue()
 
     # ------------------------------------------------------------------
     # Public entry points
@@ -471,23 +483,24 @@ class InvestigationPipeline:
         self._tracing_manager = _create_tracing_manager(investigation_id, event_log)
 
         # Wire durable node registry so idempotency survives restarts (P0 #22)
-        if self.db is not None:
+        # Load completions synchronously with await before first stage executes (P0 #12)
+        if self._node_registry is not None:
+            try:
+                await self._node_registry.load_completions(investigation_id)
+                registry = self._idempotent_executor._registry
+                registry._durable = self._node_registry
+            except Exception:
+                logger.warning("Failed to wire durable node registry from _node_registry")
+
+        elif self.db is not None:
             try:
                 from mnemos.agentic.runtime.persistence import DurableNodeRegistry
                 durable_reg = DurableNodeRegistry(self.db)
-                # Populate in-memory cache from DB on resume
-                import asyncio as _asyncio
-                try:
-                    loop = _asyncio.get_event_loop()
-                    if loop.is_running():
-                        _asyncio.ensure_future(durable_reg.load_completions(investigation_id))
-                except Exception:
-                    pass
-                # Wrap the durable registry as a NodeCompletionRegistry proxy
+                await durable_reg.load_completions(investigation_id)
                 registry = self._idempotent_executor._registry
                 registry._durable = durable_reg  # type: ignore[attr-defined]
             except Exception:
-                pass
+                logger.warning("Failed to wire durable node registry from db session")
 
         get_llm_telemetry().set_export_sink(
             lambda entry: event_log.append(
@@ -609,17 +622,25 @@ class InvestigationPipeline:
             errors.append(f"PIPELINE_FAILURE: {exc}")
             state["errors"] = errors
 
+            # Send permanently failed runs to dead-letter queue (P0 #14)
+            self._dead_letter_queue.add(
+                investigation_id=investigation_id,
+                node_name="pipeline",
+                exc=exc,
+                attempt_count=1,
+            )
+
             if self.auto_checkpoint:
                 try:
                     checkpoint_manager.save(
-                        state,  # type: ignore[arg-type]
+                        state,
                         phase=InvestigationPhase.FAILED,
                         checkpoint_type=CheckpointType.ON_FAILURE,
                         description=f"Pipeline failure: {exc}",
                         event_log_offset=event_log.get_offset(),
                     )
                 except Exception:
-                    pass
+                    logger.warning("Auto-checkpoint on failure failed", exc_info=True)
 
         return self._build_result(state, investigation_id, event_log)
 
@@ -1612,7 +1633,7 @@ class InvestigationPipeline:
 
         # Create the approval request (persisted in state)
         await self.approval_node.request_approval(
-            state,  # type: ignore[arg-type]
+            state,
             summary=state.get("query", ""),
             triggered_by="pipeline",
             gate_type=HumanApprovalNode.resolve_gate_type(gate_str),
@@ -1803,12 +1824,15 @@ class InvestigationPipeline:
 
         if self.auto_checkpoint:
             try:
-                checkpoint = checkpoint_manager.save(
-                    state,  # type: ignore[arg-type]
+                from mnemos.agentic.runtime.checkpoint import _optimistic_save
+                checkpoint = await _optimistic_save(
+                    checkpoint_manager,
+                    state,
                     phase=InvestigationPhase.COMPLETION,
                     checkpoint_type=CheckpointType.AUTOMATIC,
                     description="Pipeline completion checkpoint",
                     event_log_offset=event_log.get_offset(),
+                    db=self.db,
                 )
                 state["last_checkpoint_id"] = (
                     checkpoint.metadata.checkpoint_id
@@ -1943,7 +1967,7 @@ def _update_state(
             buf[key] = existing_dict
         else:
             buf[key] = value
-    return buf  # type: ignore[return-value]
+    return cast(InvestigationState, buf)
 
 
 # ======================================================================
@@ -1956,12 +1980,14 @@ def _update_state(
 
 
 class AgentExecutor:
-    """Wraps a registered agent callable with retry, timeout, and
-    event emission.
+    """DEPRECATED — Legacy agent executor wrapper.
 
-    This is the legacy executor used by the old supervisor-driven
-    workflow.  For the new 11-stage pipeline, use
-    ``InvestigationPipeline`` instead.
+    Wraps a registered agent callable with retry, timeout, and
+    event emission.  This is the legacy executor used by the old
+    supervisor-driven workflow.
+
+    For the new 11-stage pipeline, use ``InvestigationPipeline`` instead.
+    This will be removed in a future release.
     """
 
     def __init__(
@@ -2385,14 +2411,28 @@ def create_investigation_workflow(
     evidence_confidence_threshold: float = 0.7,
     auto_checkpoint_interval: int = 3,
 ) -> StateGraph:
-    """Build and compile the LangGraph StateGraph (backward compatible).
+    """DEPRECATED — Build and compile the LangGraph StateGraph (legacy).
 
-    This wraps ``InvestigationPipeline`` for backward compatibility.
-    The returned graph follows the old supervisor-driven dispatch
-    pattern with conditional routing.
+    This function creates the old supervisor-driven workflow with
+    conditional routing.  It is kept ONLY for backward compatibility
+    with existing tests.
 
-    For new code, prefer ``InvestigationPipeline`` directly.
+    DO NOT use in production.  Use ``InvestigationPipeline`` instead.
+
+    The canonical production flow is::
+
+        pipeline = InvestigationPipeline(db=session)
+        result = await pipeline.run(investigation_id, query, context)
+
+    This legacy path will be removed in a future release.
     """
+    import warnings as _warnings
+    _warnings.warn(
+        "create_investigation_workflow is deprecated. "
+        "Use InvestigationPipeline.run() directly.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     capability_registry = AgentCapabilityRegistry(agent_registry)
     event_log = InvestigationEventLog("runtime")
     failure_recovery = FailureRecoveryManager()

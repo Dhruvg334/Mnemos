@@ -148,7 +148,7 @@ class GuardrailPolicyEngine:
         decisions: list[PolicyDecision] = []
         decisions.append(self._policy_prompt_injection(query, source="query"))
         decisions.append(self._policy_sensitive_data_in_query(query))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_retrieved_document(
         self,
@@ -170,7 +170,7 @@ class GuardrailPolicyEngine:
         decisions.append(
             self._policy_tenant_site_leakage(doc_metadata, user_context)
         )
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_claim(
         self,
@@ -182,7 +182,7 @@ class GuardrailPolicyEngine:
         decisions.append(self._policy_unsupported_claim(claim))
         decisions.append(self._policy_missing_citation(claim))
         decisions.append(self._policy_compliance_overclaim(claim))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_recommended_action(
         self,
@@ -193,7 +193,7 @@ class GuardrailPolicyEngine:
         decisions: list[PolicyDecision] = []
         decisions.append(self._policy_unsafe_operational(action))
         decisions.append(self._policy_autonomous_control(action))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_output(
         self,
@@ -206,7 +206,7 @@ class GuardrailPolicyEngine:
         decisions.append(
             self._policy_sensitive_data_in_output(output_str)
         )
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     def evaluate_tool_call(
         self,
@@ -221,7 +221,7 @@ class GuardrailPolicyEngine:
             self._policy_prompt_injection(args_str, source=f"tool:{tool_name}")
         )
         decisions.append(self._policy_tenant_site_leakage(arguments, user_context))
-        return [d for d in decisions if d is not None]  # type: ignore[misc]
+        return decisions
 
     # ------------------------------------------------------------------
     # Individual policy methods

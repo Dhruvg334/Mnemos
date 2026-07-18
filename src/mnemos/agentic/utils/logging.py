@@ -29,6 +29,9 @@ class StructuredLogger:
             full_extra.update(extra)
         return full_extra
 
+    def debug(self, msg: str, **kwargs):
+        self.logger.debug(msg, extra=self._get_extra(kwargs))
+
     def info(self, msg: str, **kwargs):
         self.logger.info(msg, extra=self._get_extra(kwargs))
 

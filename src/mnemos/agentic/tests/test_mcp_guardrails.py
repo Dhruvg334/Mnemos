@@ -633,11 +633,9 @@ class TestMCPToolDispatch:
         self.audit_logger = _make_audit_logger()
         self.dispatch = MCPToolDispatch(audit_logger=self.audit_logger)
 
-    def test_unknown_tool_returns_error(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch("nonexistent_tool", {}, agent_name="test")
-        )
+    @pytest.mark.asyncio
+    async def test_unknown_tool_returns_error(self):
+        result = await self.dispatch.dispatch("nonexistent_tool", {}, agent_name="test")
         assert result.success is False
         assert "Unknown tool" in result.error
 
@@ -648,79 +646,64 @@ class TestMCPToolDispatch:
         self.dispatch.register_handler("resolve_asset_tag", mock_handler)
         assert "resolve_asset_tag" in self.dispatch._tool_handlers
 
-    def test_dispatch_with_handler(self):
-        import asyncio
-
+    @pytest.mark.asyncio
+    async def test_dispatch_with_handler(self):
         async def mock_handler(input):
             return {"resolved": True}
 
         self.dispatch.register_handler("resolve_asset_tag", mock_handler)
-        result = asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch(
-                "resolve_asset_tag",
-                {"mention": "P-101"},
-                agent_name="test_agent",
-                investigation_id="inv_001",
-            )
+        result = await self.dispatch.dispatch(
+            "resolve_asset_tag",
+            {"mention": "P-101"},
+            agent_name="test_agent",
+            investigation_id="inv_001",
         )
         assert result.success is True
         assert result.data is not None
 
-    def test_dispatch_logs_to_audit(self):
-        import asyncio
-
+    @pytest.mark.asyncio
+    async def test_dispatch_logs_to_audit(self):
         async def mock_handler(input):
             return {"ok": True}
 
         self.dispatch.register_handler("resolve_asset_tag", mock_handler)
-        asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch("resolve_asset_tag", {"mention": "P-101"})
-        )
+        await self.dispatch.dispatch("resolve_asset_tag", {"mention": "P-101"})
         assert self.audit_logger.length >= 2
 
-    def test_dispatch_permission_violation(self):
-        import asyncio
-
+    @pytest.mark.asyncio
+    async def test_dispatch_permission_violation(self):
         async def mock_handler(input):
             return {"ok": True}
 
         self.dispatch.register_handler("graph_traversal", mock_handler)
-        result = asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch(
-                "graph_traversal",
-                {"start_node_id": "n1", "site_id": "s2"},
-                user_context={"site_id": "s1"},
-            )
+        result = await self.dispatch.dispatch(
+            "graph_traversal",
+            {"start_node_id": "n1", "site_id": "s2"},
+            user_context={"site_id": "s1"},
         )
         assert result.success is False
         assert result.guardrail_passed is False
         assert "Policy blocked" in result.error
 
-    def test_dispatch_handler_exception(self):
-        import asyncio
-
+    @pytest.mark.asyncio
+    async def test_dispatch_handler_exception(self):
         async def failing_handler(input):
             raise RuntimeError("DB connection failed")
 
         self.dispatch.register_handler("resolve_asset_tag", failing_handler)
-        result = asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch("resolve_asset_tag", {"mention": "P-101"})
-        )
+        result = await self.dispatch.dispatch("resolve_asset_tag", {"mention": "P-101"})
         assert result.success is False
-        assert "DB connection failed" in result.error
+        assert "RuntimeError" in result.error
 
-    def test_dispatch_input_validation_failure(self):
-        import asyncio
-
+    @pytest.mark.asyncio
+    async def test_dispatch_input_validation_failure(self):
         async def mock_handler(input):
             return {"ok": True}
 
         self.dispatch.register_handler("resolve_asset_tag", mock_handler)
-        result = asyncio.get_event_loop().run_until_complete(
-            self.dispatch.dispatch(
-                "resolve_asset_tag",
-                {"invalid_field": "bad"},  # missing required 'mention'
-            )
+        result = await self.dispatch.dispatch(
+            "resolve_asset_tag",
+            {"invalid_field": "bad"},
         )
         assert result.success is False
         assert "Input validation failed" in result.error
@@ -733,8 +716,26 @@ class TestMCPToolDispatch:
 
 class TestMCMPServer:
     def setup_method(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
         self.audit_logger = _make_audit_logger()
-        self.server = MnemosMCPServer(audit_logger=self.audit_logger)
+        self.mock_graph_client = AsyncMock()
+        self.mock_graph_client.query = AsyncMock(return_value=[{"nodes": [], "rels": []}])
+        self.mock_session = MagicMock(spec=AsyncSession)
+        self.mock_session.execute = AsyncMock(return_value=MagicMock())
+        self.mock_session.execute.return_value.scalar_one_or_none = MagicMock(return_value=None)
+        self.mock_session.execute.return_value.scalars = MagicMock(return_value=MagicMock())
+        self.mock_session.execute.return_value.scalars.return_value.all = MagicMock(return_value=[])
+        self.mock_session_factory = MagicMock()
+        self.mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=self.mock_session)
+        self.mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+        self.server = MnemosMCPServer(
+            audit_logger=self.audit_logger,
+            graph_client=self.mock_graph_client,
+            db_session_factory=self.mock_session_factory,
+        )
 
     def test_list_tools_returns_10(self):
         tools = self.server.list_tools()
@@ -752,142 +753,112 @@ class TestMCMPServer:
             assert "input_schema" in tool
             assert "output_schema" in tool
 
-    def test_resolve_asset_tag(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("resolve_asset_tag", {"mention": "P-101"})
-        )
+    @pytest.mark.asyncio
+    async def test_resolve_asset_tag(self):
+        result = await self.server.call("resolve_asset_tag", {"mention": "P-101"})
         assert result.success is True
         assert result.data["resolved"] is False
-        assert "No database session" in result.data["ambiguity_reason"]
+        assert "No asset found" in result.data["ambiguity_reason"]
 
-    def test_graph_traversal(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("graph_traversal", {"start_node_id": "n1"})
-        )
+    @pytest.mark.asyncio
+    async def test_graph_traversal(self):
+        result = await self.server.call("graph_traversal", {"start_node_id": "n1"})
         assert result.success is True
 
-    def test_document_retrieval(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("document_retrieval", {"document_id": "doc_001"})
-        )
+    @pytest.mark.asyncio
+    async def test_document_retrieval(self):
+        result = await self.server.call("document_retrieval", {"document_id": "doc_001"})
         assert result.success is True
         assert result.data["document_id"] == "doc_001"
 
-    def test_timeline(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("timeline", {"asset_id": "asset_001"})
-        )
+    @pytest.mark.asyncio
+    async def test_timeline(self):
+        result = await self.server.call("timeline", {"asset_id": "asset_001"})
         assert result.success is True
 
-    def test_similar_failures(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("similar_failures", {"asset_id": "asset_001"})
-        )
+    @pytest.mark.asyncio
+    async def test_similar_failures(self):
+        result = await self.server.call("similar_failures", {"asset_id": "asset_001"})
         assert result.success is True
 
-    def test_revision_check(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("revision_check", {"document_id": "doc_001"})
-        )
+    @pytest.mark.asyncio
+    async def test_revision_check(self):
+        result = await self.server.call("revision_check", {"document_id": "doc_001"})
         assert result.success is True
 
-    def test_evidence_rules(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("evidence_rules", {"query": "ISO 9001"})
-        )
+    @pytest.mark.asyncio
+    async def test_evidence_rules(self):
+        result = await self.server.call("evidence_rules", {"query": "ISO 9001"})
         assert result.success is True
 
-    def test_approval_recording(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("approval_recording", {
-                "gate_type": "rca_closure",
-                "investigation_id": "inv_001",
-                "decision": "approve",
-                "reviewer": "admin",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_approval_recording(self):
+        result = await self.server.call("approval_recording", {
+            "gate_type": "rca_closure",
+            "investigation_id": "inv_001",
+            "decision": "approve",
+            "reviewer": "admin",
+        })
         assert result.success is True
         assert result.data["recorded"] is True
 
-    def test_action_creation(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("action_creation", {
-                "action_type": "INSPECTION",
-                "description": "Check pump",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_action_creation(self):
+        result = await self.server.call("action_creation", {
+            "action_type": "INSPECTION",
+            "description": "Check pump",
+        })
         assert result.success is True
         assert result.data["created"] is True
 
-    def test_report_generation(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("report_generation", {
-                "report_type": "rca_report",
-                "investigation_id": "inv_001",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_report_generation(self):
+        result = await self.server.call("report_generation", {
+            "report_type": "rca_report",
+            "investigation_id": "inv_001",
+        })
         assert result.success is True
         assert result.data["generated"] is True
 
-    def test_audit_export_requires_approval(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("report_generation", {
-                "report_type": "audit_export",
-                "investigation_id": "inv_001",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_audit_export_requires_approval(self):
+        result = await self.server.call("report_generation", {
+            "report_type": "audit_export",
+            "investigation_id": "inv_001",
+        })
         assert result.data["requires_approval"] is True
         assert result.data["approval_gate_type"] == "audit_export"
 
-    def test_maintenance_strategy_requires_approval(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("report_generation", {
-                "report_type": "maintenance_strategy",
-                "investigation_id": "inv_001",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_maintenance_strategy_requires_approval(self):
+        result = await self.server.call("report_generation", {
+            "report_type": "maintenance_strategy",
+            "investigation_id": "inv_001",
+        })
         assert result.data["requires_approval"] is True
 
-    def test_knowledge_card_requires_approval(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("report_generation", {
-                "report_type": "knowledge_card",
-                "investigation_id": "inv_001",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_knowledge_card_requires_approval(self):
+        result = await self.server.call("report_generation", {
+            "report_type": "knowledge_card",
+            "investigation_id": "inv_001",
+        })
         assert result.data["requires_approval"] is True
 
-    def test_critical_action_requires_approval(self):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            self.server.call("action_creation", {
-                "action_type": "REPAIR",
-                "description": "Replace bearing",
-                "priority": "critical",
-            })
-        )
+    @pytest.mark.asyncio
+    async def test_critical_action_requires_approval(self):
+        result = await self.server.call("action_creation", {
+            "action_type": "REPAIR",
+            "description": "Replace bearing",
+            "priority": "critical",
+        })
         assert result.data["requires_approval"] is True
         assert result.data["approval_gate_type"] == "high_priority_action"
 
-    def test_all_tools_audited(self):
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            self.server.call("resolve_asset_tag", {"mention": "P-101"})
-        )
-        assert self.audit_logger.length >= 2  # guardrail check + tool call
+    @pytest.mark.asyncio
+    async def test_all_tools_audited(self):
+        await self.server.call("resolve_asset_tag", {"mention": "P-101"})
+        assert self.audit_logger.length >= 2
 
 
 # =====================================================================
@@ -900,23 +871,21 @@ class TestApprovalGates:
         self.audit_logger = _make_audit_logger()
         self.node = HumanApprovalNode(audit_logger=self.audit_logger)
 
-    def test_request_approval_pauses_investigation(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_request_approval_pauses_investigation(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.ANALYSIS,
             "approval_required": False,
             "investigation_id": "inv_001",
         }
-        result = asyncio.get_event_loop().run_until_complete(
-            self.node.request_approval(
-                state, summary="RCA needs review", gate_type=ApprovalGateType.RCA_CLOSURE,
-            )
+        result = await self.node.request_approval(
+            state, summary="RCA needs review", gate_type=ApprovalGateType.RCA_CLOSURE,
         )
         assert result["approval_required"] is True
         assert result["phase"] == InvestigationPhase.APPROVAL
 
-    def test_process_approve(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_process_approve(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.APPROVAL,
             "approval_required": True,
@@ -924,14 +893,12 @@ class TestApprovalGates:
             "investigation_id": "inv_001",
             "context": {"approval_gate_type": "rca_closure"},
         }
-        result = asyncio.get_event_loop().run_until_complete(
-            self.node.process_response(state, decision="approve", reviewer="admin")
-        )
+        result = await self.node.process_response(state, decision="approve", reviewer="admin")
         assert result["approval_required"] is False
         assert result["phase"] == InvestigationPhase.ANALYSIS
 
-    def test_process_reject(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_process_reject(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.APPROVAL,
             "approval_required": True,
@@ -939,14 +906,12 @@ class TestApprovalGates:
             "investigation_id": "inv_001",
             "context": {"approval_gate_type": "compliance_closure"},
         }
-        result = asyncio.get_event_loop().run_until_complete(
-            self.node.process_response(state, decision="reject", reviewer="admin", comments="Unsafe")
-        )
+        result = await self.node.process_response(state, decision="reject", reviewer="admin", comments="Unsafe")
         assert result["should_abstain"] is True
         assert result["phase"] == InvestigationPhase.ABSTENTION
 
-    def test_process_request_changes(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_process_request_changes(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.APPROVAL,
             "approval_required": True,
@@ -954,9 +919,7 @@ class TestApprovalGates:
             "investigation_id": "inv_001",
             "context": {"approval_gate_type": "knowledge_publication"},
         }
-        result = asyncio.get_event_loop().run_until_complete(
-            self.node.process_response(state, decision="request_changes", reviewer="admin")
-        )
+        result = await self.node.process_response(state, decision="request_changes", reviewer="admin")
         assert result["phase"] == InvestigationPhase.PLANNING
 
     def test_is_approved(self):
@@ -979,23 +942,21 @@ class TestApprovalGates:
         state = {"approval_required": False, "approval_result": {"decision": "approve"}}
         assert self.node.is_pending(state) is False
 
-    def test_audit_log_records_approval_request(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_audit_log_records_approval_request(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.ANALYSIS,
             "approval_required": False,
             "investigation_id": "inv_001",
         }
-        asyncio.get_event_loop().run_until_complete(
-            self.node.request_approval(
-                state, summary="Test", gate_type=ApprovalGateType.RCA_CLOSURE,
-            )
+        await self.node.request_approval(
+            state, summary="Test", gate_type=ApprovalGateType.RCA_CLOSURE,
         )
         approval_events = self.audit_logger.filter_by_action(AuditAction.APPROVAL_REQUESTED)
         assert len(approval_events) == 1
 
-    def test_audit_log_records_approval_decision(self):
-        import asyncio
+    @pytest.mark.asyncio
+    async def test_audit_log_records_approval_decision(self):
         state: dict[str, Any] = {
             "phase": InvestigationPhase.APPROVAL,
             "approval_required": True,
@@ -1003,9 +964,7 @@ class TestApprovalGates:
             "investigation_id": "inv_001",
             "context": {"approval_gate_type": "rca_closure"},
         }
-        asyncio.get_event_loop().run_until_complete(
-            self.node.process_response(state, decision="approve", reviewer="admin")
-        )
+        await self.node.process_response(state, decision="approve", reviewer="admin")
         granted = self.audit_logger.filter_by_action(AuditAction.APPROVAL_GRANTED)
         assert len(granted) == 1
 

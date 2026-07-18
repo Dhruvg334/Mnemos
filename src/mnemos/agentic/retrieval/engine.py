@@ -18,12 +18,14 @@ Orchestrates the full retrieval intelligence pipeline:
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.graph.neo4j_client import Neo4jGraphClient
 from mnemos.agentic.retrieval.budget import RetrievalBudgetOptimiser
+from mnemos.agentic.services.llm import get_llm_telemetry
 from mnemos.agentic.retrieval.citation_extractor import CitationExtractor
 from mnemos.agentic.retrieval.confidence import ConfidenceCalculator
 from mnemos.agentic.retrieval.contradiction import ContradictionDetector
@@ -99,6 +101,7 @@ class HybridRetrievalEngine:
         context: dict[str, Any],
     ) -> EvidenceBundle:
         """Execute a dynamic retrieval plan with full pipeline."""
+        _started = time.time()
         site_id = plan.site_id or context.get("site_id")
 
         # Budget setup
@@ -183,6 +186,26 @@ class HybridRetrievalEngine:
 
         # 11. Missing evidence detection
         bundle.missing_evidence = self._detect_missing_evidence(bundle, plan)
+
+        _elapsed_ms = (time.time() - _started) * 1000
+
+        get_llm_telemetry().record(
+            model="retrieval_engine",
+            provider="internal",
+            task_type="hybrid_retrieval",
+            model_tier="internal",
+            latency_ms=round(_elapsed_ms, 1),
+            query_id=query_id,
+            intent=str(plan.intent.value) if plan.intent else "unknown",
+            strategies=[s.value for s in plan.strategies],
+            vector_count=len(bundle.raw_vector_data),
+            graph_sources=len(bundle.raw_graph_data),
+            verified_count=len(bundle.verified_evidence),
+            contradictions=len(bundle.contradictions),
+            citations=len(bundle.citations),
+            confidence=round(confidence, 3),
+            budget_usage=budget.usage_summary if budget else {},
+        )
 
         logger.info(
             f"Retrieval complete for {query_id}: "

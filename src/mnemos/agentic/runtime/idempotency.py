@@ -140,7 +140,7 @@ class NodeCompletionRegistry:
                     idempotency_key, investigation_id, node_name
                 )
             except Exception:
-                pass
+                logger.warning("Durable mark_complete failed for key '%s'", idempotency_key)
         return record
 
     def is_complete(self, idempotency_key: str) -> bool:

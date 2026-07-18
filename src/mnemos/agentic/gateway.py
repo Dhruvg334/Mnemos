@@ -43,11 +43,6 @@ _SAFE_ERROR_CODES = frozenset({
 
 
 def _sanitize_error(exc: BaseException) -> tuple[str, str]:
-    """Return a safe (error_code, error_message) pair.
-
-    Never expose raw exception text, provider payloads, SQL messages,
-    service URLs, or internal stack traces.
-    """
     code = getattr(exc, "code", None)
     if code and code in _SAFE_ERROR_CODES:
         return code, str(getattr(exc, "message", str(exc)[:200]))
@@ -78,16 +73,50 @@ class LangGraphAgentGateway:
 
         Maps the system's ``AgentQueryRequest`` to the internal AI Layer
         state and returns the mapped ``AgentQueryResult``.
+
+        The full request (question, organisation_id, site_id, user_id,
+        query_type, scope, options) is passed to the orchestrator which
+        forwards it to the ``InvestigationPipeline`` as the runtime context.
         """
         started = time.perf_counter()
+
+        if not request.question or not request.question.strip():
+            return AgentQueryResult(
+                run_id=request.run_id,
+                status="failed",
+                answer="",
+                confidence=AgentConfidence(label="none", score=0.0),
+                claims=[],
+                citations=[],
+                missing_evidence=[],
+                run_metadata=AgentRunMetadata(
+                    pipeline_version="v2.0-multi-agent-runtime",
+                    latency_ms=0,
+                    error="Question cannot be empty",
+                ),
+            )
+        if not request.organisation_id:
+            return AgentQueryResult(
+                run_id=request.run_id,
+                status="failed",
+                answer="",
+                confidence=AgentConfidence(label="none", score=0.0),
+                claims=[],
+                citations=[],
+                missing_evidence=[],
+                run_metadata=AgentRunMetadata(
+                    pipeline_version="v2.0-multi-agent-runtime",
+                    latency_ms=0,
+                    error="organisation_id is required",
+                ),
+            )
 
         async with SessionLocal() as db:
             orchestrator = MnemosAIOrchestrator(db)
 
             try:
                 agent_response = await orchestrator.run_query(
-                    query_id=request.query_id,
-                    run_id=request.run_id,
+                    request=request,
                 )
 
                 latency_ms = int((time.perf_counter() - started) * 1000)

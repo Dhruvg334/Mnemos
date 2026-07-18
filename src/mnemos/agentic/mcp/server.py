@@ -49,21 +49,22 @@ logger = StructuredLogger("mcp.server")
 
 
 class MnemosMCPServer:
-    """Internal governed tool dispatch layer (not a protocol-compliant MCP server).
+    """Governed internal tool-dispatch layer for the Mnemos agentic runtime.
 
     Exposes 12 typed tools to reasoning agents via a guardrailed,
     audit-logged dispatch layer.  Every call goes through:
-      1. Input validation (Pydantic schemas)
-      2. Guardrail checks (scope, classification, injection detection)
-      3. Audit logging (every call is written to RuntimeAuditEntry)
-      4. Real backend execution (PostgreSQL, Neo4j, pgvector, etc.)
+       1. Input validation (Pydantic schemas)
+       2. Guardrail checks (scope, classification, injection detection)
+       3. Audit logging (every call is written to RuntimeAuditEntry)
+       4. Real backend execution (PostgreSQL, Neo4j, pgvector, etc.)
 
     No agent may bypass this layer to access databases directly.
 
-    NOTE: Despite the "MCP" naming, this is NOT a protocol-compliant
-    Model Context Protocol server.  It is an internal Python dispatch
-    class.  See the package docstring for the full status and what a
-    real MCP implementation would require.
+    NOTE: This is a governed internal tool-dispatch layer, NOT a
+    protocol-compliant Model Context Protocol (MCP) server.  The "MCP"
+    naming is a historical artifact and refers to the internal dispatch
+    pattern, not the external MCP protocol.  If protocol-compliant MCP
+    is added later, it will be a separate service in a new package.
     """
 
     def __init__(
@@ -188,8 +189,9 @@ class MnemosMCPServer:
         Supports 6 graph types with configurable depth and direction.
         """
         if not self._graph_client:
-            return GraphTraversalOutput(
-                nodes=[], edges=[], total_nodes=0, truncated=False,
+            raise RuntimeError(
+                "graph_traversal: graph client unavailable — "
+                "cannot traverse the knowledge graph"
             )
 
         graph_type_str = input.graph_type
@@ -322,9 +324,9 @@ class MnemosMCPServer:
         Combines RCA cases, actions, and KnowledgeCard history.
         """
         if not self._session_factory:
-            return TimelineOutput(
-                asset_id=input.asset_id, events=[], total_events=0,
-                date_range={"from": input.date_from, "to": input.date_to},
+            raise RuntimeError(
+                f"timeline: database session unavailable — "
+                f"cannot retrieve timeline for asset '{input.asset_id}'"
             )
 
         async with self._session_factory() as db:
@@ -478,11 +480,9 @@ class MnemosMCPServer:
         Compares expected_version to current version in the database.
         """
         if not self._session_factory:
-            return RevisionCheckOutput(
-                document_id=input.document_id,
-                current_version=0, is_current=False,
-                status="unknown",
-                details="No database session available",
+            raise RuntimeError(
+                f"revision_check: database session unavailable — "
+                f"cannot check revision for document '{input.document_id}'"
             )
 
         async with self._session_factory() as db:
@@ -544,8 +544,9 @@ class MnemosMCPServer:
         Searches ComplianceRequirement table with optional text matching.
         """
         if not self._session_factory:
-            return EvidenceRulesOutput(
-                rules=[], total_found=0, coverage_gaps=[],
+            raise RuntimeError(
+                f"evidence_rules: database session unavailable — "
+                f"cannot look up compliance rules for '{input.query}'"
             )
 
         async with self._session_factory() as db:

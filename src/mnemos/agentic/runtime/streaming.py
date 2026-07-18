@@ -446,11 +446,11 @@ class StreamingSupervisor:
 
         # Propagate final state back to the caller's TypedDict reference.
         # TypedDict does not support .clear(), so we update each key individually.
-        for key in list(state.keys()):
-            if key in current_state:
-                state[key] = current_state[key]  # type: ignore[literal-required]
-            elif key in state:
-                del state[key]  # type: ignore[misc]
+        state.update(current_state)
+        # Remove keys that disappeared from current_state
+        removed = [k for k in state if k not in current_state]
+        for k in removed:
+            state.pop(k, None)
 
     # ------------------------------------------------------------------
     # Agent execution

@@ -29,7 +29,7 @@ class BaseGraphClient(ABC):
     """
 
     @abstractmethod
-    async def query(self, cypher: str, parameters: dict[str, Any] = None) -> list[dict[str, Any]]:
+    async def query(self, cypher: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Execute a raw Cypher query."""
         pass
 

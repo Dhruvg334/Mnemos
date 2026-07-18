@@ -24,8 +24,11 @@ def get_llm_service() -> LLMService:
 
 
 async def get_graph_client() -> BaseGraphClient:
+    password = os.environ.get("NEO4J_PASSWORD")
+    if not password:
+        raise RuntimeError("NEO4J_PASSWORD environment variable is required")
     return Neo4jGraphClient(
         uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
         user=os.getenv("NEO4J_USER", "neo4j"),
-        password=os.getenv("NEO4J_PASSWORD", "password"),
+        password=password,
     )

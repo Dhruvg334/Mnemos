@@ -1,5 +1,6 @@
 import asyncio
 import os
+from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 
@@ -15,12 +16,12 @@ class RerankResult(BaseModel):
     score: float
 
 
-class BaseReranker:
+class BaseReranker(ABC):
     """
     Abstract base class for reranking evidence.
     """
-    async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
-        raise NotImplementedError
+    @abstractmethod
+    async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]: ...
 
 
 class CrossEncoderReranker(BaseReranker):

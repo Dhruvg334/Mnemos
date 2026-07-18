@@ -4,9 +4,9 @@ from mnemos.agentic.providers import get_prompt_manager
 from mnemos.agentic.schemas.base import EvidenceSource
 from mnemos.agentic.schemas.specialized import AssetPassport
 from mnemos.agentic.schemas.state import AgentState
-from mnemos.agentic.utils.logging import setup_agent_logger
+from mnemos.agentic.utils.logging import StructuredLogger
 
-logger = setup_agent_logger("asset_agent")
+logger = StructuredLogger("asset_agent")
 
 class AssetIntelligenceAgent:
     """

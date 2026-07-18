@@ -43,6 +43,7 @@ from mnemos.agentic.schemas.base import (
     MCPToolName,
     MCPToolResult,
 )
+from mnemos.agentic.services.llm import get_llm_telemetry
 from mnemos.agentic.utils.guardrails import MnemosGuardrails
 from mnemos.agentic.utils.logging import StructuredLogger
 
@@ -439,6 +440,16 @@ class MCPToolDispatch:
                 duration_ms=elapsed,
             )
 
+            get_llm_telemetry().record(
+                model="mcp_tool",
+                provider="internal",
+                task_type=f"tool_call:{tool_name}",
+                model_tier="internal",
+                latency_ms=round(elapsed, 1),
+                agent_name=agent_name,
+                success=True,
+            )
+
             return MCPToolResult(
                 tool_name=tool_name,
                 success=True,
@@ -449,6 +460,9 @@ class MCPToolDispatch:
 
         except Exception as exc:
             elapsed = (time.time() - start) * 1000
+            # Safe error: do not expose raw exception details (P0 #14, P0 #19)
+            safe_code = getattr(exc, "code", "TOOL_EXECUTION_FAILED")
+            safe_msg = f"Tool '{tool_name}' failed: {type(exc).__name__}"
             self.audit_logger.log(
                 action=AuditAction.TOOL_FAILED,
                 agent_name=agent_name,
@@ -458,13 +472,28 @@ class MCPToolDispatch:
                 resource_type="tool_call",
                 resource_id=audit_entry.audit_id if audit_entry else None,
                 success=False,
-                error=str(exc),
+                error=safe_msg,
                 duration_ms=elapsed,
+            )
+
+            get_llm_telemetry().record(
+                model="mcp_tool",
+                provider="internal",
+                task_type=f"tool_call:{tool_name}",
+                model_tier="internal",
+                latency_ms=round(elapsed, 1),
+                agent_name=agent_name,
+                success=False,
+                error=safe_code,
+            )
+
+            logger.debug(
+                f"MCP dispatch suppressed exception for {tool_name}: {exc}",
             )
             return MCPToolResult(
                 tool_name=tool_name,
                 success=False,
-                error=str(exc),
+                error=safe_msg,
                 audit_id=audit_entry.audit_id if audit_entry else None,
                 duration_ms=elapsed,
             )

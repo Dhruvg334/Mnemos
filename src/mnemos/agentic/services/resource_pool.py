@@ -19,7 +19,9 @@ class ResourcePool:
         if cls._neo4j_driver is None:
             uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
             user = os.getenv("NEO4J_USER", "neo4j")
-            password = os.getenv("NEO4J_PASSWORD", "password")
+            password = os.environ.get("NEO4J_PASSWORD")
+            if not password:
+                raise RuntimeError("NEO4J_PASSWORD environment variable is required")
             cls._neo4j_driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
             logger.info("Neo4j driver pooled.")
         return cls._neo4j_driver

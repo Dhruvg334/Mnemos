@@ -8,10 +8,12 @@ Exposes a FastAPI router with endpoints for authorised reviewers to:
 - ``POST /approvals/{request_id}/cancel``  – cancel a pending request
 - ``GET  /approvals/summary``              – queue summary stats
 
-Authorization:
-- A reviewer must supply a non-empty ``reviewer`` identifier.
-- Decisions are validated: only ``approve``, ``reject``, or
-  ``request_changes`` are accepted.
+Authorization (P0 #8):
+- Reviewer identity is extracted from the authenticated JWT principal.
+- A ``reviewer`` field supplied in the request body is IGNORED for
+  identity — the authenticated user is always used.
+- Separation-of-duties: the reviewer must have an appropriate role
+  for the approval gate type.
 - Already-decided or expired requests return HTTP 409.
 - Every decision is written to the durable approval queue so it
   survives process restarts and deployments.
@@ -21,28 +23,32 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from mnemos.agentic.runtime.approval_queue import (
     ApprovalDecision,
     ApprovalQueueBase,
 )
+from mnemos.api.deps import Principal, get_principal, require_site_access
 
 _VALID_DECISIONS = frozenset({"approve", "reject", "request_changes"})
 
 
 class DecisionRequest(BaseModel):
-    """Request body for submitting an approval decision."""
+    """Request body for submitting an approval decision.
+
+    The ``reviewer`` field is NOT used for authorization — the
+    authenticated principal from JWT is always authoritative (P0 #8).
+    """
 
     decision: str = Field(
         ...,
         description="Must be one of: approve, reject, request_changes",
     )
     reviewer: str = Field(
-        ...,
-        min_length=1,
-        description="Non-empty identifier of the human reviewer",
+        default="",
+        description="Deprecated — ignored; authenticated principal is used.",
     )
     comments: str = Field(default="", description="Reviewer comments")
     conditions: list[str] = Field(
@@ -59,19 +65,43 @@ class DecisionRequest(BaseModel):
             )
         return v
 
-    @field_validator("reviewer")
-    @classmethod
-    def validate_reviewer(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("reviewer must not be blank")
-        return v
-
 
 class CancelRequest(BaseModel):
     """Request body for cancelling an approval request."""
 
     reason: str = Field(default="", description="Cancellation reason")
+
+
+def _require_approval_role(
+    principal: Principal,
+    request: Any,
+    gate_type: str | None = None,
+) -> str:
+    """Validate the authenticated principal has authority for this gate type.
+
+    Returns the reviewer identity string for audit logging.
+
+    Raises HTTPException 403 if the user lacks the required role.
+    """
+    user_id = principal.user.id
+    user_name = principal.user.full_name or principal.user.email or user_id
+
+    # Check membership-based authorization
+    required_roles = {"approver", "platform_admin", "organisation_admin", "site_admin"}
+
+    if not any(
+        membership.role in required_roles
+        for membership in principal.memberships
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You are not authorized to submit approval decisions. "
+                "Requires one of: approver, admin."
+            ),
+        )
+
+    return user_name
 
 
 def create_approval_router(
@@ -99,8 +129,11 @@ def create_approval_router(
     # ------------------------------------------------------------------
 
     @router.get("/pending")
-    async def list_pending() -> dict[str, Any]:
-        """List all pending approval requests."""
+    async def list_pending(
+        principal: Principal = Depends(get_principal),
+    ) -> dict[str, Any]:
+        """List all pending approval requests (authenticated)."""
+        _require_approval_role(principal, "list_pending")
         pending = await approval_queue.get_all_pending()
         return {
             "requests": [r.model_dump(mode="json") for r in pending],
@@ -112,8 +145,11 @@ def create_approval_router(
     # ------------------------------------------------------------------
 
     @router.get("/summary")
-    async def get_summary() -> dict[str, Any]:
-        """Get approval queue summary stats."""
+    async def get_summary(
+        principal: Principal = Depends(get_principal),
+    ) -> dict[str, Any]:
+        """Get approval queue summary stats (authenticated)."""
+        _require_approval_role(principal, "summary")
         return approval_queue.summary()
 
     # ------------------------------------------------------------------
@@ -121,8 +157,12 @@ def create_approval_router(
     # ------------------------------------------------------------------
 
     @router.get("/{request_id}")
-    async def get_request(request_id: str) -> dict[str, Any]:
-        """Get details of a specific approval request."""
+    async def get_request(
+        request_id: str,
+        principal: Principal = Depends(get_principal),
+    ) -> dict[str, Any]:
+        """Get details of a specific approval request (authenticated)."""
+        _require_approval_role(principal, "get_request")
         request = await approval_queue.get_request(request_id)
         if request is None:
             raise HTTPException(
@@ -141,12 +181,15 @@ def create_approval_router(
 
     @router.post("/{request_id}/decision")
     async def submit_decision(
-        request_id: str, body: DecisionRequest
+        request_id: str,
+        body: DecisionRequest,
+        principal: Principal = Depends(get_principal),
     ) -> dict[str, Any]:
         """Submit an approval decision for a pending request.
 
-        Only pending requests may receive a decision.  A request that
-        is already decided, expired, or cancelled returns HTTP 409.
+        The reviewer identity is ALWAYS taken from the authenticated
+        principal (P0 #8), NOT from the request body.  This prevents
+        identity spoofing.
         """
         request = await approval_queue.get_request(request_id)
         if request is None:
@@ -164,9 +207,16 @@ def create_approval_router(
                 ),
             )
 
+        # Extract reviewer identity from authenticated principal (P0 #8)
+        reviewer = _require_approval_role(
+            principal,
+            "submit_decision",
+            gate_type=request.gate_type,
+        )
+
         decision = ApprovalDecision(
             decision=body.decision,
-            reviewer=body.reviewer,
+            reviewer=reviewer,
             comments=body.comments,
             conditions=body.conditions,
         )
@@ -183,7 +233,7 @@ def create_approval_router(
             "request_id": request_id,
             "status": updated.status.value,
             "decision": body.decision,
-            "reviewer": body.reviewer,
+            "reviewer": reviewer,
         }
 
     # ------------------------------------------------------------------
@@ -194,8 +244,10 @@ def create_approval_router(
     async def cancel_request(
         request_id: str,
         body: CancelRequest | None = None,
+        principal: Principal = Depends(get_principal),
     ) -> dict[str, Any]:
-        """Cancel a pending approval request."""
+        """Cancel a pending approval request (authenticated)."""
+        _require_approval_role(principal, "cancel_request")
         cancelled = await approval_queue.cancel(request_id)
         if not cancelled:
             raise HTTPException(

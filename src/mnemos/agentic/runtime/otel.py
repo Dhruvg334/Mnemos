@@ -136,7 +136,7 @@ def record_span_attrs(span: Any, attrs: dict[str, Any]) -> None:
             if value is not None:
                 span.set_attribute(key, value)
     except Exception:
-        pass
+        logger.warning("Failed to set span attributes", exc_info=True)
 
 
 def record_span_event(span: Any, name: str, attrs: dict[str, Any] | None = None) -> None:
@@ -144,7 +144,7 @@ def record_span_event(span: Any, name: str, attrs: dict[str, Any] | None = None)
     try:
         span.add_event(name, attributes=attrs or {})
     except Exception:
-        pass
+        logger.warning("Failed to add span event '%s'", name, exc_info=True)
 
 
 def set_span_error(span: Any, exc: BaseException) -> None:
@@ -158,7 +158,7 @@ def set_span_error(span: Any, exc: BaseException) -> None:
         else:
             span.status = "error"
     except Exception:
-        pass
+        logger.warning("Failed to record span error", exc_info=True)
 
 
 # ---------------------------------------------------------------------------

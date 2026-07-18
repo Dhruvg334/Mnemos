@@ -29,7 +29,7 @@ class LLMTelemetry:
             try:
                 self._export_sink(entry)
             except Exception:
-                pass
+                logger.warning("LLMTelemetry export sink failed")
 
     def summary(self) -> list[dict]:
         return list(self.records)

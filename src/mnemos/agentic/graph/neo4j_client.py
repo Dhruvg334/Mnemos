@@ -22,7 +22,7 @@ class Neo4jGraphClient(BaseGraphClient):
     async def close(self):
         await self.driver.close()
 
-    async def query(self, cypher: str, parameters: dict[str, Any] = None) -> list[dict[str, Any]]:
+    async def query(self, cypher: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         async with self.driver.session() as session:
             result = await session.run(cypher, parameters or {})
             records = await result.data()

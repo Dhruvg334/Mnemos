@@ -294,9 +294,9 @@ class DurableApprovalQueue(ApprovalQueueBase):
     """PostgreSQL-backed approval queue (production).
 
     Approval requests are persisted to ``runtime_approval_requests``
-    immediately.  DB errors fall back to in-memory so the pipeline is
-    never blocked by a transient DB failure, but the fallback is logged
-    so operators can detect data-loss risk.
+    immediately.  For high-impact approval gates, the queue FAILS CLOSED
+    (P0 #9): database errors raise so the workflow stays paused and no
+    decision is accepted without durable persistence.
 
     Designed to be used as a singleton shared across the FastAPI app.
     Inject via dependency injection; do NOT create per-request.
@@ -309,7 +309,6 @@ class DurableApprovalQueue(ApprovalQueueBase):
     ) -> None:
         self._session_factory = session_factory
         self._default_timeout = default_timeout_seconds
-        # Fallback in-memory mirror for reads when DB is unavailable
         self._mirror: dict[str, PendingApprovalRequest] = {}
 
     # ------------------------------------------------------------------
@@ -350,11 +349,8 @@ class DurableApprovalQueue(ApprovalQueueBase):
             triggered_by=triggered_by,
         )
 
-        # Mirror in memory for fast local reads
-        self._mirror[request_id] = request
-
-        try:
-            async with self._session_factory() as db:
+        async with self._session_factory() as db:
+            try:
                 db.add(
                     RuntimeApprovalRequest(
                         id=request_id,
@@ -376,6 +372,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                     )
                 )
                 await db.commit()
+                self._mirror[request_id] = request
                 logger.info(
                     "DurableApprovalQueue: persisted request %s "
                     "(investigation=%s, gate=%s)",
@@ -383,13 +380,18 @@ class DurableApprovalQueue(ApprovalQueueBase):
                     investigation_id,
                     gate_type,
                 )
-        except Exception as exc:
-            logger.error(
-                "DurableApprovalQueue: failed to persist request %s to DB: %s "
-                "(in-memory mirror retained)",
-                request_id,
-                exc,
-            )
+            except Exception as exc:
+                logger.error(
+                    "DurableApprovalQueue: failed to persist request %s to DB: %s "
+                    "(approval NOT submitted — fail closed)",
+                    request_id,
+                    exc,
+                )
+                await db.rollback()
+                raise RuntimeError(
+                    f"Approval request {request_id} could not be persisted: "
+                    f"database unavailable"
+                ) from exc
 
         return request
 
@@ -473,11 +475,11 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 request_id,
                 exc,
             )
-            # Fall back to in-memory mirror mutation so the workflow isn't blocked
-            req = self._mirror.get(request_id)
-            if req and req.status == ApprovalStatus.PENDING:
-                req.status = ApprovalStatus(new_status)
-            return req
+            await db.rollback()
+            raise RuntimeError(
+                f"Approval decision for {request_id} could not be persisted: "
+                f"database unavailable"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Read
@@ -540,7 +542,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                         conditions=row.conditions_json or [],
                     )
         except Exception:
-            pass
+            logger.warning("Failed to read decision for request '%s'", request_id, exc_info=True)
         return None
 
     async def get_pending_for_investigation(
