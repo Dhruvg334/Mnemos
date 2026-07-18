@@ -17,6 +17,7 @@ Verifies the complete flow:
 The test uses a real SQLite in-process database so that persistence
 assertions are verifiable without requiring a live PostgreSQL server.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -70,6 +71,7 @@ async def session_factory(engine):
 # Seed helpers
 # ---------------------------------------------------------------------------
 
+
 def _seed_query(query_id: str, org_id: str, site_id: str, user_id: str) -> Query:
     return Query(
         id=query_id,
@@ -90,6 +92,7 @@ def _seed_query(query_id: str, org_id: str, site_id: str, user_id: str) -> Query
 # ---------------------------------------------------------------------------
 # Canned AgentQueryResult to be returned by the mocked gateway
 # ---------------------------------------------------------------------------
+
 
 def _make_result(run_id: str) -> AgentQueryResult:
     """Produce a minimal valid AgentQueryResult for RCA intent."""
@@ -129,6 +132,7 @@ def _make_result(run_id: str) -> AgentQueryResult:
 # P0 #9 — Test 1: complete success path
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_e2e_success_path(db_session: AsyncSession, session_factory):
     """
@@ -161,15 +165,17 @@ async def test_e2e_success_path(db_session: AsyncSession, session_factory):
     mock_gw.name = "test_gateway"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_execute)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "mock"
         mock_settings.app_env = "test"
 
@@ -184,9 +190,7 @@ async def test_e2e_success_path(db_session: AsyncSession, session_factory):
         assert q.confidence_label == "high"
         assert q.confidence_score == pytest.approx(0.92)
 
-        runs = (
-            await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))
-        ).all()
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
         assert len(runs) == 1, f"Expected exactly 1 AgentRun, got {len(runs)}"
         run = runs[0]
         assert run.status == "succeeded"
@@ -194,20 +198,12 @@ async def test_e2e_success_path(db_session: AsyncSession, session_factory):
         assert run.pipeline_version == "v2.0-multi-agent-runtime"
         assert run.latency_ms == 420
 
-        claims = (
-            await s.scalars(
-                select(QueryClaim).where(QueryClaim.query_id == query_id)
-            )
-        ).all()
+        claims = (await s.scalars(select(QueryClaim).where(QueryClaim.query_id == query_id))).all()
         assert len(claims) == 1, f"Expected 1 claim, got {len(claims)}"
         assert claims[0].text == "Pump P-101 failed due to bearing wear."
         assert claims[0].support_status == "supported"
 
-        citations = (
-            await s.scalars(
-                select(Citation).where(Citation.query_id == query_id)
-            )
-        ).all()
+        citations = (await s.scalars(select(Citation).where(Citation.query_id == query_id))).all()
         assert len(citations) == 1, f"Expected 1 citation, got {len(citations)}"
         assert citations[0].document_title == "Maintenance Log 2025"
 
@@ -229,6 +225,7 @@ async def test_e2e_success_path(db_session: AsyncSession, session_factory):
 # ===========================================================================
 # P0 #9 — Test 2: no duplicate records on concurrent / re-execution attempt
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_e2e_no_duplicate_records(db_session: AsyncSession, session_factory):
@@ -253,15 +250,17 @@ async def test_e2e_no_duplicate_records(db_session: AsyncSession, session_factor
     mock_gw.name = "test_gateway"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_execute)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "mock"
         mock_settings.app_env = "test"
 
@@ -271,35 +270,20 @@ async def test_e2e_no_duplicate_records(db_session: AsyncSession, session_factor
         await execute_query_background(query_id)
 
     async with session_factory() as s:
-        runs = (
-            await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))
-        ).all()
-        assert len(runs) == 1, (
-            f"Duplicate AgentRun detected: expected 1, got {len(runs)}"
-        )
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
+        assert len(runs) == 1, f"Duplicate AgentRun detected: expected 1, got {len(runs)}"
 
-        claims = (
-            await s.scalars(
-                select(QueryClaim).where(QueryClaim.query_id == query_id)
-            )
-        ).all()
-        assert len(claims) == 1, (
-            f"Duplicate QueryClaim detected: expected 1, got {len(claims)}"
-        )
+        claims = (await s.scalars(select(QueryClaim).where(QueryClaim.query_id == query_id))).all()
+        assert len(claims) == 1, f"Duplicate QueryClaim detected: expected 1, got {len(claims)}"
 
-        citations = (
-            await s.scalars(
-                select(Citation).where(Citation.query_id == query_id)
-            )
-        ).all()
-        assert len(citations) == 1, (
-            f"Duplicate Citation detected: expected 1, got {len(citations)}"
-        )
+        citations = (await s.scalars(select(Citation).where(Citation.query_id == query_id))).all()
+        assert len(citations) == 1, f"Duplicate Citation detected: expected 1, got {len(citations)}"
 
 
 # ===========================================================================
 # P0 #9 — Test 3: tenant and site scope enforced
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_e2e_scope_enforcement(db_session: AsyncSession, session_factory):
@@ -366,15 +350,17 @@ async def test_e2e_scope_enforcement(db_session: AsyncSession, session_factory):
     mock_gw.name = "test_gateway"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_cross_tenant)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "live"
         mock_settings.app_env = "production"
 
@@ -384,18 +370,12 @@ async def test_e2e_scope_enforcement(db_session: AsyncSession, session_factory):
         q = await s.get(Query, query_id)
         assert q is not None
         assert q.status == "failed", (
-            f"Cross-tenant scope violation should have failed the query, "
-            f"got status={q.status}"
+            f"Cross-tenant scope violation should have failed the query, got status={q.status}"
         )
         # No claims or citations should be persisted on failure
-        claims = (
-            await s.scalars(
-                select(QueryClaim).where(QueryClaim.query_id == query_id)
-            )
-        ).all()
+        claims = (await s.scalars(select(QueryClaim).where(QueryClaim.query_id == query_id))).all()
         assert len(claims) == 0, (
-            f"Claims should not be persisted after scope violation, "
-            f"got {len(claims)}"
+            f"Claims should not be persisted after scope violation, got {len(claims)}"
         )
 
 
@@ -403,10 +383,9 @@ async def test_e2e_scope_enforcement(db_session: AsyncSession, session_factory):
 # P0 #9 — Test 4: agent failure is handled safely, no raw exceptions exposed
 # ===========================================================================
 
+
 @pytest.mark.asyncio
-async def test_e2e_agent_failure_safe_handling(
-    db_session: AsyncSession, session_factory
-):
+async def test_e2e_agent_failure_safe_handling(db_session: AsyncSession, session_factory):
     """
     When the agent gateway raises an unexpected exception the backend
     must:
@@ -426,20 +405,22 @@ async def test_e2e_agent_failure_safe_handling(
 
     async def _fake_crash(request: AgentQueryRequest) -> AgentQueryResult:
         raise RuntimeError(
-            "SELECT * FROM secrets WHERE password='hunter2'; "
-            "at /internal/path/service.py:42"
+            "SELECT * FROM secrets WHERE password='hunter2'; at /internal/path/service.py:42"
         )
 
     mock_gw = MagicMock()
     mock_gw.name = "test_gateway"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_crash)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
     ):
         await execute_query_background(query_id)
 
@@ -448,9 +429,7 @@ async def test_e2e_agent_failure_safe_handling(
         assert q is not None
         assert q.status == "failed"
 
-        runs = (
-            await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))
-        ).all()
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
         assert len(runs) == 1
         run = runs[0]
         assert run.status == "failed"
@@ -458,15 +437,11 @@ async def test_e2e_agent_failure_safe_handling(
 
         # Raw exception text must NOT be in error_message
         if run.error_message:
-            assert "hunter2" not in run.error_message, (
-                "Sensitive data leaked into error_message"
-            )
+            assert "hunter2" not in run.error_message, "Sensitive data leaked into error_message"
             assert "/internal/path" not in run.error_message, (
                 "Internal path leaked into error_message"
             )
-            assert "SELECT" not in run.error_message, (
-                "SQL leaked into error_message"
-            )
+            assert "SELECT" not in run.error_message, "SQL leaked into error_message"
 
         events = (
             await s.scalars(
@@ -482,6 +457,7 @@ async def test_e2e_agent_failure_safe_handling(
 # ===========================================================================
 # P0 #9 — Test 5: intent-selective agent dispatch
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_e2e_intent_selective_agent_dispatch():
@@ -549,6 +525,7 @@ async def test_e2e_asset_info_agent_dispatch():
 # P0 #9 — Test 6: pending_approval path — pipeline pauses correctly
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_e2e_pending_approval_path(db_session: AsyncSession, session_factory):
     """
@@ -583,15 +560,17 @@ async def test_e2e_pending_approval_path(db_session: AsyncSession, session_facto
     mock_gw.name = "test_gateway"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_pending)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "mock"
         mock_settings.app_env = "test"
 
@@ -600,25 +579,15 @@ async def test_e2e_pending_approval_path(db_session: AsyncSession, session_facto
     async with session_factory() as s:
         q = await s.get(Query, query_id)
         assert q is not None
-        assert q.status == "pending_approval", (
-            f"Expected pending_approval, got {q.status}"
-        )
-        assert q.completed_at is None, (
-            "completed_at must be None while approval is pending"
-        )
+        assert q.status == "pending_approval", f"Expected pending_approval, got {q.status}"
+        assert q.completed_at is None, "completed_at must be None while approval is pending"
 
-        runs = (
-            await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))
-        ).all()
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
         assert len(runs) == 1
         assert runs[0].status == "pending_approval"
         assert runs[0].completed_at is None
 
-        events = (
-            await s.scalars(
-                select(QueryEvent).where(QueryEvent.query_id == query_id)
-            )
-        ).all()
+        events = (await s.scalars(select(QueryEvent).where(QueryEvent.query_id == query_id))).all()
         stages = [e.stage for e in events]
         assert "pending_approval" in stages, (
             f"Expected pending_approval event, got stages: {stages}"
@@ -628,6 +597,7 @@ async def test_e2e_pending_approval_path(db_session: AsyncSession, session_facto
 # ===========================================================================
 # P0 #9 — Test 7: durable approval queue round-trip
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 async def test_durable_approval_queue_round_trip(session_factory):

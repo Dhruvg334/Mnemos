@@ -21,9 +21,7 @@ class DuplicateRemover:
     def __init__(self, near_duplicate_threshold: float = 0.9) -> None:
         self.near_duplicate_threshold = near_duplicate_threshold
 
-    def remove_duplicates(
-        self, candidates: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def remove_duplicates(self, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Remove duplicate candidates, keeping the highest-scored version."""
         if not candidates:
             return []
@@ -66,9 +64,7 @@ class DuplicateRemover:
 
         return final
 
-    def remove_region_duplicates(
-        self, candidates: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def remove_region_duplicates(self, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Remove duplicates by evidence_region_id or chunk_id."""
         seen_ids: set[str] = set()
         unique: list[dict[str, Any]] = []

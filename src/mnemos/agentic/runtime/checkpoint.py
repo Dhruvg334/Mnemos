@@ -13,14 +13,14 @@ import json
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from mnemos.agentic.runtime.types import (
     Checkpoint,
     CheckpointMetadata,
     CheckpointType,
     InvestigationPhase,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CheckpointManager:
@@ -125,8 +125,7 @@ class CheckpointManager:
     def delete(self, checkpoint_id: str) -> bool:
         before = len(self._checkpoints)
         self._checkpoints = [
-            cp for cp in self._checkpoints
-            if cp.metadata.checkpoint_id != checkpoint_id
+            cp for cp in self._checkpoints if cp.metadata.checkpoint_id != checkpoint_id
         ]
         return len(self._checkpoints) < before
 
@@ -150,6 +149,7 @@ class CheckpointManager:
 # ---------------------------------------------------------------------------
 # Serialisation helpers
 # ---------------------------------------------------------------------------
+
 
 def _serialise_state(state: dict[str, Any]) -> dict[str, Any]:
     """Best-effort serialisation of the investigation state for storage.
@@ -208,7 +208,7 @@ async def _optimistic_save(
     if db is not None:
         try:
             from sqlalchemy import text
-            from mnemos.models.entities import RuntimeCheckpoint as _RTCp
+
             result = await db.execute(
                 text(
                     """

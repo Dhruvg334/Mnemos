@@ -39,9 +39,7 @@ class CitationExtractor:
                 continue
             seen_provenances.add(dedup_key)
 
-            retrieval_sources = self._determine_retrieval_sources(
-                source, bundle
-            )
+            retrieval_sources = self._determine_retrieval_sources(source, bundle)
 
             citation = Citation(
                 citation_id=f"cit_{bundle.query_id}_{idx:04d}",
@@ -55,9 +53,8 @@ class CitationExtractor:
                 retrieval_sources=retrieval_sources,
                 relevance_score=source.relevance_score,
                 confidence_score=source.confidence_score,
-                is_latest_version=prov.document_version == self._get_max_version(
-                    prov.document_id, bundle
-                ),
+                is_latest_version=prov.document_version
+                == self._get_max_version(prov.document_id, bundle),
             )
             citations.append(citation)
 

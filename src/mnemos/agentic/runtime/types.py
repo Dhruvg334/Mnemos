@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class AgentRole(StrEnum):
     SUPERVISOR = "supervisor"
     REFLECTION = "reflection"
@@ -118,6 +119,7 @@ class TerminationReason(StrEnum):
 # Tool call tracking
 # ---------------------------------------------------------------------------
 
+
 class ToolCallRecord(BaseModel):
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
@@ -132,8 +134,10 @@ class ToolCallRecord(BaseModel):
 # Agent Invocation Metadata
 # ---------------------------------------------------------------------------
 
+
 class AgentInvocationMetadata(BaseModel):
     """Produced by every agent invocation."""
+
     model_config = ConfigDict(use_enum_values=True)
 
     agent_name: str
@@ -155,8 +159,10 @@ class AgentInvocationMetadata(BaseModel):
 # Typed Agent Messages
 # ---------------------------------------------------------------------------
 
+
 class AgentMessage(BaseModel):
     """Base message for inter-agent communication through shared state."""
+
     model_config = ConfigDict(use_enum_values=True)
 
     message_id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -207,6 +213,7 @@ class ApprovalRequest(BaseModel):
 # Checkpoint
 # ---------------------------------------------------------------------------
 
+
 class CheckpointMetadata(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -232,6 +239,7 @@ class Checkpoint(BaseModel):
 # Investigation Event
 # ---------------------------------------------------------------------------
 
+
 class InvestigationEvent(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -248,6 +256,7 @@ class InvestigationEvent(BaseModel):
 # ---------------------------------------------------------------------------
 # Supervisor Decision
 # ---------------------------------------------------------------------------
+
 
 class SupervisorDecision(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
@@ -266,15 +275,19 @@ class SupervisorDecision(BaseModel):
 # Agent Registry Record
 # ---------------------------------------------------------------------------
 
+
 class AgentCapability(BaseModel):
     """Describes what an agent can produce or consume."""
+
     name: str
     description: str = ""
     input_types: list[str] = Field(default_factory=list)
     output_types: list[str] = Field(default_factory=list)
     required_context: list[str] = Field(default_factory=list)
     produced_context: list[str] = Field(default_factory=list)
-    dependencies: list[str] = Field(default_factory=list, description="Agent names this agent depends on")
+    dependencies: list[str] = Field(
+        default_factory=list, description="Agent names this agent depends on"
+    )
 
 
 class AgentRegistration(BaseModel):
@@ -296,6 +309,7 @@ class AgentRegistration(BaseModel):
 # Reflection Output
 # ---------------------------------------------------------------------------
 
+
 class ReflectionOutput(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -315,8 +329,10 @@ class ReflectionOutput(BaseModel):
 # Agent Result (returned by every agent invocation)
 # ---------------------------------------------------------------------------
 
+
 class AgentResult(BaseModel):
     """Structured result from any agent invocation."""
+
     model_config = ConfigDict(use_enum_values=True)
 
     agent_name: str

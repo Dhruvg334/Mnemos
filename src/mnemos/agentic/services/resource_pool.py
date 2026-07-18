@@ -6,11 +6,13 @@ from neo4j import AsyncGraphDatabase
 
 logger = logging.getLogger(__name__)
 
+
 class ResourcePool:
     """
     Manages long-lived connections for the AI Layer.
     Optimizes memory usage and reduces latency via connection pooling.
     """
+
     _neo4j_driver: AsyncGraphDatabase | None = None
     _http_client: httpx.AsyncClient | None = None
 
@@ -31,7 +33,7 @@ class ResourcePool:
         if cls._http_client is None:
             cls._http_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(90.0, connect=10.0),
-                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
+                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
             )
             logger.info("Shared HTTP client pooled.")
         return cls._http_client

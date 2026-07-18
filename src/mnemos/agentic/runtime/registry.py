@@ -136,9 +136,7 @@ class AgentRegistry:
                 executable.append(reg)
         return executable
 
-    def getParallelGroups(
-        self, completed: list[str]
-    ) -> list[list[str]]:
+    def getParallelGroups(self, completed: list[str]) -> list[list[str]]:
         """Compute groups of agents that can execute in parallel.
 
         Returns a list of groups; each group contains agents whose

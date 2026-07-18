@@ -36,6 +36,7 @@ async def get_graph_client() -> BaseGraphClient:
 
     if _graph_client_lock:
         from mnemos.agentic.utils.exceptions import ConfigurationError
+
         raise ConfigurationError("Graph client creation already in progress")
 
     _graph_client_lock = True

@@ -51,41 +51,54 @@ from mnemos.agentic.runtime import (
 # Fixtures
 # ======================================================================
 
+
 @pytest.fixture
 def agent_registry() -> AgentRegistry:
     reg = AgentRegistry()
-    reg.register(AgentRegistration(
-        name="retrieval_agent",
-        role=AgentRole.RETRIEVAL,
-        capabilities=[AgentCapability(
-            name="retrieval",
-            input_types=["query"],
-            output_types=["evidence"],
-        )],
-        timeout_seconds=30.0,
-    ))
-    reg.register(AgentRegistration(
-        name="analysis_agent",
-        role=AgentRole.ANALYSIS,
-        capabilities=[AgentCapability(
-            name="analysis",
-            input_types=["evidence"],
-            output_types=["analysis_result"],
-            dependencies=["retrieval_agent"],
-        )],
-        timeout_seconds=60.0,
-    ))
-    reg.register(AgentRegistration(
-        name="verification_agent",
-        role=AgentRole.VERIFICATION,
-        capabilities=[AgentCapability(
-            name="verification",
-            input_types=["analysis_result", "evidence"],
-            output_types=["verified_result"],
-            dependencies=["analysis_agent"],
-        )],
-        timeout_seconds=45.0,
-    ))
+    reg.register(
+        AgentRegistration(
+            name="retrieval_agent",
+            role=AgentRole.RETRIEVAL,
+            capabilities=[
+                AgentCapability(
+                    name="retrieval",
+                    input_types=["query"],
+                    output_types=["evidence"],
+                )
+            ],
+            timeout_seconds=30.0,
+        )
+    )
+    reg.register(
+        AgentRegistration(
+            name="analysis_agent",
+            role=AgentRole.ANALYSIS,
+            capabilities=[
+                AgentCapability(
+                    name="analysis",
+                    input_types=["evidence"],
+                    output_types=["analysis_result"],
+                    dependencies=["retrieval_agent"],
+                )
+            ],
+            timeout_seconds=60.0,
+        )
+    )
+    reg.register(
+        AgentRegistration(
+            name="verification_agent",
+            role=AgentRole.VERIFICATION,
+            capabilities=[
+                AgentCapability(
+                    name="verification",
+                    input_types=["analysis_result", "evidence"],
+                    output_types=["verified_result"],
+                    dependencies=["analysis_agent"],
+                )
+            ],
+            timeout_seconds=45.0,
+        )
+    )
     return reg
 
 
@@ -117,6 +130,7 @@ def initial_state() -> InvestigationState:
 # ======================================================================
 # Types tests
 # ======================================================================
+
 
 class TestTypes:
     def test_agent_role_enum(self) -> None:
@@ -199,6 +213,7 @@ class TestTypes:
 
     def test_agent_result(self) -> None:
         from mnemos.agentic.runtime.types import AgentResult
+
         result = AgentResult(
             agent_name="test",
             status=AgentStatus.COMPLETED,
@@ -211,6 +226,7 @@ class TestTypes:
 # ======================================================================
 # State tests
 # ======================================================================
+
 
 class TestState:
     def test_create_initial_state(self) -> None:
@@ -241,6 +257,7 @@ class TestState:
 # ======================================================================
 # Registry tests
 # ======================================================================
+
 
 class TestAgentRegistry:
     def test_register_and_get(self, agent_registry: AgentRegistry) -> None:
@@ -285,9 +302,7 @@ class TestAgentRegistry:
         assert "retrieval_agent" in names
 
     def test_get_executable_after_completion(self, agent_registry: AgentRegistry) -> None:
-        executable = agent_registry.get_executable_agents(
-            completed=["retrieval_agent"], pending=[]
-        )
+        executable = agent_registry.get_executable_agents(completed=["retrieval_agent"], pending=[])
         names = [a.name for a in executable]
         assert "analysis_agent" in names
         assert "retrieval_agent" not in names
@@ -307,9 +322,7 @@ class TestCapabilityRegistry:
         consumers = capability_registry.consumers_of("evidence")
         assert "analysis_agent" in consumers
 
-    def test_unsatisfied_capabilities(
-        self, capability_registry: AgentCapabilityRegistry
-    ) -> None:
+    def test_unsatisfied_capabilities(self, capability_registry: AgentCapabilityRegistry) -> None:
         unsatisfied = capability_registry.unsatisfied_capabilities(completed_agents=[])
         assert "evidence" in unsatisfied or "analysis_result" in unsatisfied
 
@@ -329,6 +342,7 @@ class TestCapabilityRegistry:
 # ======================================================================
 # Event log tests
 # ======================================================================
+
 
 class TestEventLog:
     def test_append_and_retrieve(self, event_log: InvestigationEventLog) -> None:
@@ -382,6 +396,7 @@ class TestEventLog:
 # Checkpoint tests
 # ======================================================================
 
+
 class TestCheckpointManager:
     def test_save_and_load(self, checkpoint_manager: CheckpointManager) -> None:
         state = {"key": "value", "iteration": 5}
@@ -425,6 +440,7 @@ class TestCheckpointManager:
 # ======================================================================
 # Recovery tests
 # ======================================================================
+
 
 class TestRecovery:
     def test_state_recovery_from_event_log(self) -> None:
@@ -481,6 +497,7 @@ class TestRecovery:
 # ======================================================================
 # Retry tests
 # ======================================================================
+
 
 class TestRetry:
     def test_retry_policy_delays(self) -> None:
@@ -574,6 +591,7 @@ class TestRetry:
 # Supervisor tests
 # ======================================================================
 
+
 class TestSupervisor:
     def test_supervisor_initial_dispatch(self, agent_registry: AgentRegistry) -> None:
         cap_reg = AgentCapabilityRegistry(agent_registry)
@@ -620,9 +638,7 @@ class TestSupervisor:
         assert decision.should_continue is False
         assert decision.termination_reason == TerminationReason.MAX_ITERATIONS
 
-    def test_supervisor_uses_reflection_when_no_agents(
-        self, agent_registry: AgentRegistry
-    ) -> None:
+    def test_supervisor_uses_reflection_when_no_agents(self, agent_registry: AgentRegistry) -> None:
         cap_reg = AgentCapabilityRegistry(agent_registry)
         supervisor = SupervisorAgent(agent_registry, cap_reg)
 
@@ -642,6 +658,7 @@ class TestSupervisor:
 # ======================================================================
 # Reflection tests
 # ======================================================================
+
 
 class TestReflection:
     @pytest.mark.asyncio
@@ -681,6 +698,7 @@ class TestReflection:
 # Approval tests
 # ======================================================================
 
+
 class TestApproval:
     @pytest.mark.asyncio
     async def test_request_approval(self) -> None:
@@ -703,9 +721,7 @@ class TestApproval:
         state = create_initial_state("inv_001", "Test query")
         await node.request_approval(state, summary="Test")
 
-        result = await node.process_response(
-            state, decision="approve", reviewer="dr_smith"
-        )
+        result = await node.process_response(state, decision="approve", reviewer="dr_smith")
 
         assert result["approval_required"] is False
         assert node.is_approved(result)
@@ -729,9 +745,7 @@ class TestApproval:
         state = create_initial_state("inv_001", "Test query")
         await node.request_approval(state, summary="Test")
 
-        result = await node.process_response(
-            state, decision="request_changes", reviewer="dr_smith"
-        )
+        result = await node.process_response(state, decision="request_changes", reviewer="dr_smith")
 
         assert result["phase"] == InvestigationPhase.PLANNING
         assert not node.is_approved(result)
@@ -741,6 +755,7 @@ class TestApproval:
 # ======================================================================
 # Workflow integration tests
 # ======================================================================
+
 
 class TestWorkflow:
     def test_workflow_compiles(self, agent_registry: AgentRegistry) -> None:
@@ -762,13 +777,15 @@ class TestWorkflow:
         assert compiled is not None
 
     @pytest.mark.asyncio
-    async def test_workflow_runs_with_stub_agents(
-        self, agent_registry: AgentRegistry
-    ) -> None:
+    async def test_workflow_runs_with_stub_agents(self, agent_registry: AgentRegistry) -> None:
         async def stub_agent(state: dict[str, Any]) -> dict[str, Any]:
             state = dict(state)
             agent_outputs = dict(state.get("agent_outputs", {}))
-            agent_outputs[state.get("pending_agents", ["unknown"])[0] if state.get("pending_agents") else "unknown"] = {
+            agent_outputs[
+                state.get("pending_agents", ["unknown"])[0]
+                if state.get("pending_agents")
+                else "unknown"
+            ] = {
                 "confidence": 0.8,
                 "answer": "stub answer",
             }
@@ -806,17 +823,21 @@ class TestWorkflow:
     @pytest.mark.asyncio
     async def test_workflow_with_failing_agent(self) -> None:
         reg = AgentRegistry()
-        reg.register(AgentRegistration(
-            name="failing_agent",
-            role=AgentRole.ANALYSIS,
-            capabilities=[AgentCapability(
-                name="analysis",
-                input_types=[],
-                output_types=["result"],
-            )],
-            max_retries=1,
-            timeout_seconds=5.0,
-        ))
+        reg.register(
+            AgentRegistration(
+                name="failing_agent",
+                role=AgentRole.ANALYSIS,
+                capabilities=[
+                    AgentCapability(
+                        name="analysis",
+                        input_types=[],
+                        output_types=["result"],
+                    )
+                ],
+                max_retries=1,
+                timeout_seconds=5.0,
+            )
+        )
 
         async def failing_agent(state: dict[str, Any]) -> dict[str, Any]:
             raise RuntimeError("Agent failure simulation")

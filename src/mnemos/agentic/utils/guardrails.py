@@ -40,9 +40,7 @@ class MnemosGuardrails:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def check_permissions(
-        user_context: dict[str, Any], evidence: list[EvidenceSource]
-    ) -> None:
+    def check_permissions(user_context: dict[str, Any], evidence: list[EvidenceSource]) -> None:
         """Prevents site/org permission violations.
 
         Evidence must belong to the same organisation and site as the
@@ -153,8 +151,7 @@ class MnemosGuardrails:
 
         if not source or source in ("", "unknown"):
             raise GuardrailViolation(
-                "Sensor data missing provenance: no source identified. "
-                "Cannot verify authenticity."
+                "Sensor data missing provenance: no source identified. Cannot verify authenticity."
             )
 
     # ------------------------------------------------------------------
@@ -162,9 +159,7 @@ class MnemosGuardrails:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def validate_compliance_evidence(
-        requirement_id: str, evidence: list[EvidenceSource]
-    ) -> None:
+    def validate_compliance_evidence(requirement_id: str, evidence: list[EvidenceSource]) -> None:
         """Prevents compliance claims without evidence.
 
         Every compliance requirement must have at least one piece of
@@ -172,8 +167,7 @@ class MnemosGuardrails:
         """
         if not evidence:
             raise GuardrailViolation(
-                f"Compliance verification for {requirement_id} failed: "
-                "No evidence found."
+                f"Compliance verification for {requirement_id} failed: No evidence found."
             )
 
     # ------------------------------------------------------------------
@@ -222,8 +216,7 @@ class MnemosGuardrails:
             if claim.status == ClaimSupportStatus.SUPPORTED:
                 if not claim.sources:
                     raise GuardrailViolation(
-                        f"Claim '{claim.text}' marked as SUPPORTED "
-                        "but has no evidence sources."
+                        f"Claim '{claim.text}' marked as SUPPORTED but has no evidence sources."
                     )
                 for source in claim.sources:
                     if source.verification_status == VerificationStatus.UNVERIFIED:
@@ -239,13 +232,15 @@ class MnemosGuardrails:
     def detect_injection(query: str) -> None:
         """Prevents prompt injection attacks."""
         injection_keywords = [
-            "ignore all previous", "system prompt", "developer mode",
-            "dan mode", "output as json only", "you are now a",
+            "ignore all previous",
+            "system prompt",
+            "developer mode",
+            "dan mode",
+            "output as json only",
+            "you are now a",
         ]
         if any(k in query.lower() for k in injection_keywords):
-            raise GuardrailViolation(
-                "Potential prompt injection detected in user query."
-            )
+            raise GuardrailViolation("Potential prompt injection detected in user query.")
 
     # ------------------------------------------------------------------
     # 7. Output validation guardrails
@@ -259,13 +254,15 @@ class MnemosGuardrails:
         supported claims have evidence backing.
         """
         if "reasoning_decision" not in output:
-            raise GuardrailViolation(
-                "Agent output missing required 'reasoning_decision' field."
-            )
+            raise GuardrailViolation("Agent output missing required 'reasoning_decision' field.")
 
         valid_decisions = {
-            "sufficient", "insufficient", "needs_human_review",
-            "abstain", "needs_more_evidence", "conflicting_evidence",
+            "sufficient",
+            "insufficient",
+            "needs_human_review",
+            "abstain",
+            "needs_more_evidence",
+            "conflicting_evidence",
         }
         decision = output["reasoning_decision"]
         if decision not in valid_decisions:
@@ -312,9 +309,7 @@ class MnemosGuardrails:
         """
         missing = [f for f in required_fields if f not in output]
         if missing:
-            raise GuardrailViolation(
-                f"Agent output missing required fields: {', '.join(missing)}"
-            )
+            raise GuardrailViolation(f"Agent output missing required fields: {', '.join(missing)}")
 
     @staticmethod
     def validate_output_no_hallucinated_facts(
@@ -328,9 +323,13 @@ class MnemosGuardrails:
         """
         text_fields = ["reasoning_summary", "content", "description", "summary"]
         hallucination_markers = [
-            "as an ai", "according to my training", "i believe without evidence",
-            "based on my knowledge cutoff", "i don't have access to",
-            "this is hypothetical", "assume without evidence",
+            "as an ai",
+            "according to my training",
+            "i believe without evidence",
+            "based on my knowledge cutoff",
+            "i don't have access to",
+            "this is hypothetical",
+            "assume without evidence",
         ]
 
         for field in text_fields:

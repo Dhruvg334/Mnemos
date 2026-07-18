@@ -27,6 +27,7 @@ logger = StructuredLogger("runtime.feedback")
 
 class FeedbackType(StrEnum):
     """Types of feedback that can be collected."""
+
     USER_RATING = "user_rating"
     OUTCOME_TRACKING = "outcome_tracking"
     EXPERT_REVIEW = "expert_review"
@@ -36,6 +37,7 @@ class FeedbackType(StrEnum):
 
 class FeedbackEntry(BaseModel):
     """A single feedback item."""
+
     feedback_id: str = Field(default_factory=lambda: f"fb_{uuid.uuid4().hex[:10]}")
     investigation_id: str
     agent_name: str
@@ -50,6 +52,7 @@ class FeedbackEntry(BaseModel):
 
 class FeedbackPattern(BaseModel):
     """A detected pattern in feedback data."""
+
     pattern_id: str = Field(default_factory=lambda: f"pat_{uuid.uuid4().hex[:8]}")
     agent_name: str
     pattern_type: str
@@ -61,6 +64,7 @@ class FeedbackPattern(BaseModel):
 
 class ImprovementSuggestion(BaseModel):
     """A suggestion for improving agent performance."""
+
     suggestion_id: str = Field(default_factory=lambda: f"sug_{uuid.uuid4().hex[:8]}")
     agent_name: str
     category: str
@@ -79,7 +83,7 @@ class FeedbackStore:
     def add(self, entry: FeedbackEntry) -> FeedbackEntry:
         self._entries.append(entry)
         if len(self._entries) > self._max_entries:
-            self._entries = self._entries[-self._max_entries:]
+            self._entries = self._entries[-self._max_entries :]
         return entry
 
     def get_for_agent(self, agent_name: str, limit: int = 100) -> list[FeedbackEntry]:
@@ -161,24 +165,28 @@ class FeedbackAnalyzer:
         negative_entries = [e for e in entries if e.is_positive is False]
         if len(negative_entries) >= 3:
             comments = [e.comment for e in negative_entries if e.comment]
-            patterns.append(FeedbackPattern(
-                agent_name=agent_name,
-                pattern_type="recurring_negative_feedback",
-                description=f"{len(negative_entries)} negative feedback entries for {agent_name}",
-                frequency=len(negative_entries),
-                metadata={"sample_comments": comments[:5]},
-            ))
+            patterns.append(
+                FeedbackPattern(
+                    agent_name=agent_name,
+                    pattern_type="recurring_negative_feedback",
+                    description=f"{len(negative_entries)} negative feedback entries for {agent_name}",
+                    frequency=len(negative_entries),
+                    metadata={"sample_comments": comments[:5]},
+                )
+            )
 
         low_rated = [e for e in entries if e.rating is not None and e.rating < 0.4]
         if len(low_rated) >= 2:
             avg_low = sum(e.rating for e in low_rated) / len(low_rated)
-            patterns.append(FeedbackPattern(
-                agent_name=agent_name,
-                pattern_type="consistently_low_rating",
-                description=f"Average rating {avg_low:.2f} across {len(low_rated)} low-rated entries",
-                frequency=len(low_rated),
-                avg_rating=avg_low,
-            ))
+            patterns.append(
+                FeedbackPattern(
+                    agent_name=agent_name,
+                    pattern_type="consistently_low_rating",
+                    description=f"Average rating {avg_low:.2f} across {len(low_rated)} low-rated entries",
+                    frequency=len(low_rated),
+                    avg_rating=avg_low,
+                )
+            )
 
         outcome_entries = [e for e in entries if e.outcome]
         if outcome_entries:
@@ -187,12 +195,14 @@ class FeedbackAnalyzer:
                 outcome_counts[e.outcome] = outcome_counts.get(e.outcome, 0) + 1
             for outcome, count in outcome_counts.items():
                 if count >= 2:
-                    patterns.append(FeedbackPattern(
-                        agent_name=agent_name,
-                        pattern_type=f"outcome_{outcome}",
-                        description=f"Outcome '{outcome}' observed {count} times",
-                        frequency=count,
-                    ))
+                    patterns.append(
+                        FeedbackPattern(
+                            agent_name=agent_name,
+                            pattern_type=f"outcome_{outcome}",
+                            description=f"Outcome '{outcome}' observed {count} times",
+                            frequency=count,
+                        )
+                    )
 
         return patterns
 
@@ -203,37 +213,43 @@ class FeedbackAnalyzer:
 
         for pattern in patterns:
             if pattern.pattern_type == "recurring_negative_feedback":
-                suggestions.append(ImprovementSuggestion(
-                    agent_name=agent_name,
-                    category="quality",
-                    description=(
-                        f"Agent {agent_name} has {pattern.frequency} negative feedback entries. "
-                        "Review recent outputs for accuracy and completeness."
-                    ),
-                    priority="high",
-                    evidence=[p.description for p in [pattern]],
-                ))
+                suggestions.append(
+                    ImprovementSuggestion(
+                        agent_name=agent_name,
+                        category="quality",
+                        description=(
+                            f"Agent {agent_name} has {pattern.frequency} negative feedback entries. "
+                            "Review recent outputs for accuracy and completeness."
+                        ),
+                        priority="high",
+                        evidence=[p.description for p in [pattern]],
+                    )
+                )
             elif pattern.pattern_type == "consistently_low_rating":
-                suggestions.append(ImprovementSuggestion(
-                    agent_name=agent_name,
-                    category="accuracy",
-                    description=(
-                        f"Agent {agent_name} has consistently low ratings "
-                        f"(avg: {pattern.avg_rating:.2f}). Consider prompt adjustments."
-                    ),
-                    priority="high",
-                ))
+                suggestions.append(
+                    ImprovementSuggestion(
+                        agent_name=agent_name,
+                        category="accuracy",
+                        description=(
+                            f"Agent {agent_name} has consistently low ratings "
+                            f"(avg: {pattern.avg_rating:.2f}). Consider prompt adjustments."
+                        ),
+                        priority="high",
+                    )
+                )
             elif pattern.pattern_type.startswith("outcome_"):
                 outcome = pattern.pattern_type.replace("outcome_", "")
-                suggestions.append(ImprovementSuggestion(
-                    agent_name=agent_name,
-                    category="outcome",
-                    description=(
-                        f"Agent {agent_name} frequently produces '{outcome}' outcomes "
-                        f"({pattern.frequency} times). Review if this is expected."
-                    ),
-                    priority="medium",
-                ))
+                suggestions.append(
+                    ImprovementSuggestion(
+                        agent_name=agent_name,
+                        category="outcome",
+                        description=(
+                            f"Agent {agent_name} frequently produces '{outcome}' outcomes "
+                            f"({pattern.frequency} times). Review if this is expected."
+                        ),
+                        priority="medium",
+                    )
+                )
 
         return suggestions
 
@@ -268,14 +284,16 @@ class AgentPerformanceTracker:
         if agent_name not in self._metrics:
             self._metrics[agent_name] = []
 
-        self._metrics[agent_name].append({
-            "investigation_id": investigation_id,
-            "success": success,
-            "duration_ms": duration_ms,
-            "confidence": confidence,
-            "timestamp": time.time(),
-            "metadata": metadata or {},
-        })
+        self._metrics[agent_name].append(
+            {
+                "investigation_id": investigation_id,
+                "success": success,
+                "duration_ms": duration_ms,
+                "confidence": confidence,
+                "timestamp": time.time(),
+                "metadata": metadata or {},
+            }
+        )
 
     def get_metrics(self, agent_name: str) -> list[dict[str, Any]]:
         return self._metrics.get(agent_name, [])

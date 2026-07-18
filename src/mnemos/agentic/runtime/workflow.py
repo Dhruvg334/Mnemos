@@ -249,10 +249,7 @@ def _select_specialized_agents(
         intent = str(intent_raw).lower().strip()
 
     selected = _INTENT_AGENT_MAP.get(intent, _INTENT_AGENT_MAP["general"])
-    logger.info(
-        f"Intent-based dispatch: intent={intent!r}, "
-        f"selected_agents={selected}"
-    )
+    logger.info(f"Intent-based dispatch: intent={intent!r}, selected_agents={selected}")
     return selected
 
 
@@ -265,14 +262,12 @@ def _instantiate_agent(
     """Attempt to instantiate an agent class. Returns *None* on failure."""
     if agent_cls is None:
         logger.warning(
-            f"Stage [{stage_name}]: agent class not available "
-            "(import may have failed). Skipping."
+            f"Stage [{stage_name}]: agent class not available (import may have failed). Skipping."
         )
         return None
     if db is None:
         logger.warning(
-            f"Stage [{stage_name}]: no DB session provided; "
-            "agent will run without database access."
+            f"Stage [{stage_name}]: no DB session provided; agent will run without database access."
         )
     try:
         agent = agent_cls(db)
@@ -281,8 +276,7 @@ def _instantiate_agent(
         return agent
     except Exception as exc:
         logger.error(
-            f"Stage [{stage_name}]: failed to instantiate agent "
-            f"{agent_cls.__name__}: {exc}"
+            f"Stage [{stage_name}]: failed to instantiate agent {agent_cls.__name__}: {exc}"
         )
         return None
 
@@ -306,7 +300,9 @@ def _create_tracing_manager(
                     "parent_span_id": span.parent_span_id,
                     "name": span.name,
                     "operation": span.operation,
-                    "status": span.status.value if hasattr(span.status, "value") else str(span.status),
+                    "status": span.status.value
+                    if hasattr(span.status, "value")
+                    else str(span.status),
                     "duration_ms": span.duration_ms,
                     "attributes": span.attributes,
                     "event_count": len(span.events),
@@ -457,10 +453,13 @@ class InvestigationPipeline:
         with tracer.start_as_current_span(
             f"{SpanName.QUERY_CLASSIFICATION}.pipeline",
         ) as root_span:
-            record_span_attrs(root_span, {
-                "investigation.id": investigation_id,
-                "investigation.query_length": len(query),
-            })
+            record_span_attrs(
+                root_span,
+                {
+                    "investigation.id": investigation_id,
+                    "investigation.query_length": len(query),
+                },
+            )
             result = await self._run_pipeline(
                 investigation_id=investigation_id,
                 query=query,
@@ -498,6 +497,7 @@ class InvestigationPipeline:
         elif self.db is not None:
             try:
                 from mnemos.agentic.runtime.persistence import DurableNodeRegistry
+
                 durable_reg = DurableNodeRegistry(self.db)
                 await durable_reg.load_completions(investigation_id)
                 registry = self._idempotent_executor._registry
@@ -532,11 +532,19 @@ class InvestigationPipeline:
 
         try:
             state = await _execute_stage(
-                self, state, event_log, "supervisor_init", self._stage_supervisor_init,
+                self,
+                state,
+                event_log,
+                "supervisor_init",
+                self._stage_supervisor_init,
             )
 
             state = await _execute_stage(
-                self, state, event_log, "query_router", self._stage_query_router,
+                self,
+                state,
+                event_log,
+                "query_router",
+                self._stage_query_router,
             )
 
             # Record classified intent in span (P0 #18)
@@ -544,21 +552,37 @@ class InvestigationPipeline:
             record_span_attrs(root_span, {"query.intent": str(intent)})
 
             state = await _execute_stage(
-                self, state, event_log, "retrieval_planner", self._stage_retrieval_planner,
+                self,
+                state,
+                event_log,
+                "retrieval_planner",
+                self._stage_retrieval_planner,
             )
 
             state = await _execute_stage(
-                self, state, event_log, "evidence_retrieval", self._stage_evidence_retrieval,
+                self,
+                state,
+                event_log,
+                "evidence_retrieval",
+                self._stage_evidence_retrieval,
             )
 
             state = await _execute_stage(
-                self, state, event_log, "evidence_verification", self._stage_evidence_verification,
+                self,
+                state,
+                event_log,
+                "evidence_verification",
+                self._stage_evidence_verification,
             )
             # Bounded reflection loop (P0 #8): if evidence is insufficient,
             # re-retrieve up to _MAX_REFLECTION_CYCLES times.
             for _reflection_cycle in range(_MAX_REFLECTION_CYCLES + 1):
                 state, should_continue = await _execute_stage(
-                    self, state, event_log, "reflection", self._stage_reflection,
+                    self,
+                    state,
+                    event_log,
+                    "reflection",
+                    self._stage_reflection,
                 )
 
                 if should_continue:
@@ -570,10 +594,18 @@ class InvestigationPipeline:
                     f"re-retrieving with gap guidance"
                 )
                 state = await _execute_stage(
-                    self, state, event_log, "evidence_retrieval", self._stage_evidence_retrieval,
+                    self,
+                    state,
+                    event_log,
+                    "evidence_retrieval",
+                    self._stage_evidence_retrieval,
                 )
                 state = await _execute_stage(
-                    self, state, event_log, "evidence_verification", self._stage_evidence_verification,
+                    self,
+                    state,
+                    event_log,
+                    "evidence_verification",
+                    self._stage_evidence_verification,
                 )
             else:
                 # Max reflection cycles exhausted — force continue
@@ -584,24 +616,44 @@ class InvestigationPipeline:
                 )
 
             state = await _execute_stage(
-                self, state, event_log, "specialized_agents", self._stage_specialized_agents,
+                self,
+                state,
+                event_log,
+                "specialized_agents",
+                self._stage_specialized_agents,
             )
 
             state = await _execute_stage(
-                self, state, event_log, "report_composer", self._stage_report_composer,
+                self,
+                state,
+                event_log,
+                "report_composer",
+                self._stage_report_composer,
             )
 
             state, approved = await _execute_stage(
-                self, state, event_log, "human_approval", self._stage_human_approval,
+                self,
+                state,
+                event_log,
+                "human_approval",
+                self._stage_human_approval,
             )
 
             if approved:
                 state = await _execute_stage(
-                    self, state, event_log, "final_response", self._stage_final_response,
+                    self,
+                    state,
+                    event_log,
+                    "final_response",
+                    self._stage_final_response,
                 )
 
             state = await _execute_stage(
-                self, state, event_log, "complete", self._stage_complete,
+                self,
+                state,
+                event_log,
+                "complete",
+                self._stage_complete,
                 checkpoint_manager,
             )
 
@@ -704,7 +756,11 @@ class InvestigationPipeline:
                     "phase": _phase_str(state.get("phase", "")),
                 }
                 state = await _execute_stage(
-                    self, state, event_log, stage_name, stage_fn,
+                    self,
+                    state,
+                    event_log,
+                    stage_name,
+                    stage_fn,
                 )
                 yield {
                     "event_type": "stage_complete",
@@ -722,7 +778,11 @@ class InvestigationPipeline:
                 "phase": _phase_str(state.get("phase", "")),
             }
             state, should_continue = await _execute_stage(
-                self, state, event_log, "reflection", self._stage_reflection,
+                self,
+                state,
+                event_log,
+                "reflection",
+                self._stage_reflection,
             )
             yield {
                 "event_type": "stage_complete",
@@ -739,7 +799,11 @@ class InvestigationPipeline:
                     "phase": _phase_str(state.get("phase", "")),
                 }
                 state = await _execute_stage(
-                    self, state, event_log, "specialized_agents", self._stage_specialized_agents,
+                    self,
+                    state,
+                    event_log,
+                    "specialized_agents",
+                    self._stage_specialized_agents,
                 )
                 yield {
                     "event_type": "stage_complete",
@@ -755,7 +819,11 @@ class InvestigationPipeline:
                     "phase": _phase_str(state.get("phase", "")),
                 }
                 state = await _execute_stage(
-                    self, state, event_log, "report_composer", self._stage_report_composer,
+                    self,
+                    state,
+                    event_log,
+                    "report_composer",
+                    self._stage_report_composer,
                 )
                 yield {
                     "event_type": "stage_complete",
@@ -774,7 +842,11 @@ class InvestigationPipeline:
                     "phase": _phase_str(state.get("phase", "")),
                 }
                 state, approved = await _execute_stage(
-                    self, state, event_log, "human_approval", self._stage_human_approval,
+                    self,
+                    state,
+                    event_log,
+                    "human_approval",
+                    self._stage_human_approval,
                 )
                 yield {
                     "event_type": "stage_complete",
@@ -791,14 +863,17 @@ class InvestigationPipeline:
                         "phase": _phase_str(state.get("phase", "")),
                     }
                     state = await _execute_stage(
-                        self, state, event_log, "final_response", self._stage_final_response,
+                        self,
+                        state,
+                        event_log,
+                        "final_response",
+                        self._stage_final_response,
                     )
                     yield {
                         "event_type": "stage_complete",
                         "stage": 10,
                         "stage_name": "final_response",
-                        "has_response": state.get("final_response")
-                        is not None,
+                        "has_response": state.get("final_response") is not None,
                     }
 
             yield {
@@ -808,7 +883,11 @@ class InvestigationPipeline:
                 "phase": _phase_str(state.get("phase", "")),
             }
             state = await _execute_stage(
-                self, state, event_log, "complete", self._stage_complete,
+                self,
+                state,
+                event_log,
+                "complete",
+                self._stage_complete,
                 checkpoint_manager,
             )
             yield {
@@ -857,8 +936,8 @@ class InvestigationPipeline:
                 return DurableEventLog(investigation_id, self.db)
             except Exception as exc:
                 logger.warning(
-                    "Falling back to in-memory event log "
-                    "(DurableEventLog unavailable): %s", exc,
+                    "Falling back to in-memory event log (DurableEventLog unavailable): %s",
+                    exc,
                 )
         return InvestigationEventLog(investigation_id)
 
@@ -874,13 +953,14 @@ class InvestigationPipeline:
                 return DurableAuditLogger(investigation_id, self.db)
             except Exception as exc:
                 logger.warning(
-                    "Falling back to in-memory audit logger "
-                    "(DurableAuditLogger unavailable): %s", exc,
+                    "Falling back to in-memory audit logger (DurableAuditLogger unavailable): %s",
+                    exc,
                 )
         return AuditLogger(investigation_id)
 
     def _create_checkpoint_manager(
-        self, investigation_id: str,
+        self,
+        investigation_id: str,
     ) -> CheckpointManager:
         """Create a checkpoint manager.  Uses durable DB-backed manager
         when a DB session is available."""
@@ -894,7 +974,8 @@ class InvestigationPipeline:
             except Exception as exc:
                 logger.warning(
                     "Falling back to in-memory checkpoint manager "
-                    "(DurableCheckpointManager unavailable): %s", exc,
+                    "(DurableCheckpointManager unavailable): %s",
+                    exc,
                 )
         return CheckpointManager(investigation_id)
 
@@ -909,10 +990,7 @@ class InvestigationPipeline:
     ) -> InvestigationState:
         """Stage 1: Initialize investigation, set up state."""
         started = time.time()
-        logger.info(
-            f"Stage 1 [Supervisor Init]: investigation_id="
-            f"{state.get('investigation_id')}"
-        )
+        logger.info(f"Stage 1 [Supervisor Init]: investigation_id={state.get('investigation_id')}")
 
         state["phase"] = InvestigationPhase.INITIALIZATION
         state["iteration"] = 0
@@ -925,9 +1003,7 @@ class InvestigationPipeline:
         )
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 1 [Supervisor Init]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 1 [Supervisor Init]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -951,13 +1027,11 @@ class InvestigationPipeline:
             data={"stage": "query_router"},
         )
 
-        agent = _instantiate_agent(_QUERY_ROUTER_CLS, self.db, "query_router",
-                                    mcp_server=self.mcp_server)
+        agent = _instantiate_agent(
+            _QUERY_ROUTER_CLS, self.db, "query_router", mcp_server=self.mcp_server
+        )
         if agent is None:
-            logger.warning(
-                "Stage 2 [Query Router]: agent unavailable, "
-                "setting default intent"
-            )
+            logger.warning("Stage 2 [Query Router]: agent unavailable, setting default intent")
             ctx = dict(state.get("context", {}))
             ctx.setdefault("intent", "general")
             ctx.setdefault("extracted_entities", [])
@@ -978,7 +1052,8 @@ class InvestigationPipeline:
                         state.get("context", {}).get("intent", "unknown"),
                     ),
                     "entities": state.get("context", {}).get(
-                        "extracted_entities", [],
+                        "extracted_entities",
+                        [],
                     ),
                 },
             )
@@ -999,9 +1074,7 @@ class InvestigationPipeline:
             state["context"] = ctx
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 2 [Query Router]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 2 [Query Router]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1024,13 +1097,13 @@ class InvestigationPipeline:
         )
 
         agent = _instantiate_agent(
-            _RETRIEVAL_PLANNER_CLS, self.db, "retrieval_planner",
+            _RETRIEVAL_PLANNER_CLS,
+            self.db,
+            "retrieval_planner",
             mcp_server=self.mcp_server,
         )
         if agent is None:
-            logger.warning(
-                "Stage 3 [Retrieval Planner]: agent unavailable"
-            )
+            logger.warning("Stage 3 [Retrieval Planner]: agent unavailable")
             _record_step(state, "retrieval_planner", "skipped")
             return state
 
@@ -1065,9 +1138,7 @@ class InvestigationPipeline:
             _record_error(state, "retrieval_planner")
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 3 [Retrieval Planner]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 3 [Retrieval Planner]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1081,9 +1152,7 @@ class InvestigationPipeline:
     ) -> InvestigationState:
         """Stage 4: Execute retrieval plan via HybridRetrievalEngine."""
         started = time.time()
-        logger.info(
-            "Stage 4 [Evidence Retrieval]: executing retrieval plan"
-        )
+        logger.info("Stage 4 [Evidence Retrieval]: executing retrieval plan")
 
         state["phase"] = InvestigationPhase.EVIDENCE_GATHERING
 
@@ -1094,13 +1163,13 @@ class InvestigationPipeline:
         )
 
         agent = _instantiate_agent(
-            _EVIDENCE_RETRIEVAL_CLS, self.db, "evidence_retrieval",
+            _EVIDENCE_RETRIEVAL_CLS,
+            self.db,
+            "evidence_retrieval",
             mcp_server=self.mcp_server,
         )
         if agent is None:
-            logger.warning(
-                "Stage 4 [Evidence Retrieval]: agent unavailable"
-            )
+            logger.warning("Stage 4 [Evidence Retrieval]: agent unavailable")
             _record_step(state, "evidence_retrieval", "skipped")
             return state
 
@@ -1140,9 +1209,7 @@ class InvestigationPipeline:
             _record_error(state, "evidence_retrieval")
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 4 [Evidence Retrieval]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 4 [Evidence Retrieval]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1156,9 +1223,7 @@ class InvestigationPipeline:
     ) -> InvestigationState:
         """Stage 5: Verify evidence provenance, citations, confidence."""
         started = time.time()
-        logger.info(
-            "Stage 5 [Evidence Verification]: verifying evidence bundle"
-        )
+        logger.info("Stage 5 [Evidence Verification]: verifying evidence bundle")
 
         state["phase"] = InvestigationPhase.VERIFICATION
 
@@ -1169,13 +1234,13 @@ class InvestigationPipeline:
         )
 
         agent = _instantiate_agent(
-            _EVIDENCE_VERIFICATION_CLS, self.db, "evidence_verification",
+            _EVIDENCE_VERIFICATION_CLS,
+            self.db,
+            "evidence_verification",
             mcp_server=self.mcp_server,
         )
         if agent is None:
-            logger.warning(
-                "Stage 5 [Evidence Verification]: agent unavailable"
-            )
+            logger.warning("Stage 5 [Evidence Verification]: agent unavailable")
             _record_step(state, "evidence_verification", "skipped")
             return state
 
@@ -1203,9 +1268,7 @@ class InvestigationPipeline:
             _record_step(state, "evidence_verification", "completed")
 
         except Exception as exc:
-            logger.error(
-                f"Stage 5 [Evidence Verification]: failed: {exc}"
-            )
+            logger.error(f"Stage 5 [Evidence Verification]: failed: {exc}")
             event_log.append(
                 EventType.AGENT_FAILED,
                 phase=InvestigationPhase.VERIFICATION,
@@ -1215,9 +1278,7 @@ class InvestigationPipeline:
             _record_error(state, "evidence_verification")
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 5 [Evidence Verification]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 5 [Evidence Verification]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1246,9 +1307,7 @@ class InvestigationPipeline:
             data={"stage": "retrieval_reflection"},
         )
 
-        reflection_cycle = state.get("context", {}).get(
-            "reflection_cycle", 0
-        )
+        reflection_cycle = state.get("context", {}).get("reflection_cycle", 0)
 
         # Enforce maximum reflection cycles (P0 #8)
         if reflection_cycle >= _MAX_REFLECTION_CYCLES:
@@ -1270,7 +1329,9 @@ class InvestigationPipeline:
             return state, True
 
         agent = _instantiate_agent(
-            _RETRIEVAL_REFLECTION_CLS, self.db, "retrieval_reflection",
+            _RETRIEVAL_REFLECTION_CLS,
+            self.db,
+            "retrieval_reflection",
             mcp_server=self.mcp_server,
         )
 
@@ -1308,9 +1369,7 @@ class InvestigationPipeline:
                     )
                     # Update reflection cycle counter in context
                     ctx["reflection_cycle"] = reflection_cycle + 1
-                    ctx["reflection_gaps"] = [
-                        g if isinstance(g, str) else str(g) for g in gaps
-                    ]
+                    ctx["reflection_gaps"] = [g if isinstance(g, str) else str(g) for g in gaps]
                     state["context"] = ctx
                     # Return False to signal pipeline to re-retrieve
                     should_continue = False
@@ -1319,9 +1378,7 @@ class InvestigationPipeline:
                     should_continue = True
 
             except Exception as exc:
-                logger.error(
-                    f"Stage 6 [Reflection]: failed: {exc}"
-                )
+                logger.error(f"Stage 6 [Reflection]: failed: {exc}")
                 event_log.append(
                     EventType.AGENT_FAILED,
                     phase=InvestigationPhase.REFLECTION,
@@ -1331,10 +1388,7 @@ class InvestigationPipeline:
                 _record_error(state, "retrieval_reflection")
                 should_continue = True
         else:
-            logger.warning(
-                "Stage 6 [Reflection]: agent unavailable, "
-                "continuing pipeline"
-            )
+            logger.warning("Stage 6 [Reflection]: agent unavailable, continuing pipeline")
             should_continue = True
             _record_step(state, "retrieval_reflection", "skipped")
 
@@ -1360,9 +1414,7 @@ class InvestigationPipeline:
         classification determines which agents are relevant.
         """
         started = time.time()
-        logger.info(
-            "Stage 7 [Specialized Agents]: launching parallel analysis"
-        )
+        logger.info("Stage 7 [Specialized Agents]: launching parallel analysis")
 
         state["phase"] = InvestigationPhase.ANALYSIS
 
@@ -1385,24 +1437,19 @@ class InvestigationPipeline:
         }
 
         agent_specs: list[tuple[str, type | None]] = [
-            (name, all_agent_specs.get(name))
-            for name in selected_names
-            if name in all_agent_specs
+            (name, all_agent_specs.get(name)) for name in selected_names if name in all_agent_specs
         ]
 
         agents_to_run: list[tuple[str, Any]] = []
         for name, cls in agent_specs:
-            agent = _instantiate_agent(cls, self.db, name,
-                                       mcp_server=self.mcp_server)
+            agent = _instantiate_agent(cls, self.db, name, mcp_server=self.mcp_server)
             if agent is not None:
                 agents_to_run.append((name, agent))
             else:
                 _record_step(state, name, "skipped")
 
         if not agents_to_run:
-            logger.warning(
-                "Stage 7 [Specialized Agents]: no agents available"
-            )
+            logger.warning("Stage 7 [Specialized Agents]: no agents available")
             return state
 
         event_log.append(
@@ -1424,15 +1471,11 @@ class InvestigationPipeline:
                         result = await a.as_function(state)
                         return agent_name, result
                     except Exception as exc:
-                        logger.error(
-                            f"Stage 7 [{agent_name}]: failed: {exc}"
-                        )
+                        logger.error(f"Stage 7 [{agent_name}]: failed: {exc}")
                         return agent_name, None
             return agent_name, None
 
-        tasks = [
-            _run_one(name, agent) for name, agent in agents_to_run
-        ]
+        tasks = [_run_one(name, agent) for name, agent in agents_to_run]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_reasoning_outputs: list[Any] = []
@@ -1440,9 +1483,7 @@ class InvestigationPipeline:
 
         for result in results:
             if isinstance(result, Exception):
-                logger.error(
-                    f"Stage 7: agent task raised exception: {result}"
-                )
+                logger.error(f"Stage 7: agent task raised exception: {result}")
                 continue
             if not isinstance(result, tuple) or len(result) != 2:
                 continue
@@ -1515,13 +1556,13 @@ class InvestigationPipeline:
         )
 
         agent = _instantiate_agent(
-            _REPORT_COMPOSER_CLS, self.db, "report_composer",
+            _REPORT_COMPOSER_CLS,
+            self.db,
+            "report_composer",
             mcp_server=self.mcp_server,
         )
         if agent is None:
-            logger.warning(
-                "Stage 8 [Report Composer]: agent unavailable"
-            )
+            logger.warning("Stage 8 [Report Composer]: agent unavailable")
             _record_step(state, "report_composer", "skipped")
             return state
 
@@ -1565,9 +1606,7 @@ class InvestigationPipeline:
             _record_error(state, "report_composer")
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 8 [Report Composer]: complete in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 8 [Report Composer]: complete in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1611,23 +1650,19 @@ class InvestigationPipeline:
         approval_required = state.get("approval_required", False)
 
         if not approval_required:
-            logger.info(
-                "Stage 9 [Human Approval]: no approval required"
-            )
+            logger.info("Stage 9 [Human Approval]: no approval required")
             state["approval_result"] = None
             state["approval_required"] = False
             _record_step(state, "human_approval", "not_required")
             elapsed_ms = (time.time() - started) * 1000
             logger.info(
-                f"Stage 9 [Human Approval]: complete in {elapsed_ms:.1f}ms "
-                f"(no gate triggered)"
+                f"Stage 9 [Human Approval]: complete in {elapsed_ms:.1f}ms (no gate triggered)"
             )
             return state, True
 
         gate_str = gate_type_str or "general"
         logger.warning(
-            f"Stage 9 [Human Approval]: approval REQUIRED "
-            f"(gate={gate_str}) — pausing pipeline"
+            f"Stage 9 [Human Approval]: approval REQUIRED (gate={gate_str}) — pausing pipeline"
         )
 
         event_log.append(
@@ -1696,8 +1731,7 @@ class InvestigationPipeline:
 
         if final_report is None:
             logger.warning(
-                "Stage 10 [Final Response]: no FinalReport available, "
-                "building minimal response"
+                "Stage 10 [Final Response]: no FinalReport available, building minimal response"
             )
             response = AgentResponse(
                 answer=(
@@ -1721,34 +1755,21 @@ class InvestigationPipeline:
             answer_parts.append(report.summary)
 
             if report.grounded_claims:
-                supported = [
-                    c for c in report.grounded_claims
-                    if c.status.value == "supported"
-                ]
-                uncertain = [
-                    c for c in report.grounded_claims
-                    if c.status.value == "uncertain"
-                ]
+                supported = [c for c in report.grounded_claims if c.status.value == "supported"]
+                uncertain = [c for c in report.grounded_claims if c.status.value == "uncertain"]
                 if supported:
-                    answer_parts.append(
-                        f"\n\nSupported findings ({len(supported)}):"
-                    )
+                    answer_parts.append(f"\n\nSupported findings ({len(supported)}):")
                     for claim in supported[:5]:
                         answer_parts.append(f"  - {claim.text[:200]}")
                 if uncertain:
-                    answer_parts.append(
-                        f"\n\nUncertain findings ({len(uncertain)}):"
-                    )
+                    answer_parts.append(f"\n\nUncertain findings ({len(uncertain)}):")
                     for claim in uncertain[:3]:
                         answer_parts.append(f"  - {claim.text[:200]}")
 
             if report.recommended_actions:
                 answer_parts.append("\n\nRecommended actions:")
                 for action in report.recommended_actions[:5]:
-                    answer_parts.append(
-                        f"  [{action.priority.upper()}] "
-                        f"{action.description[:150]}"
-                    )
+                    answer_parts.append(f"  [{action.priority.upper()}] {action.description[:150]}")
 
             if report.disclaimer:
                 answer_parts.append(f"\n\n{report.disclaimer}")
@@ -1760,9 +1781,7 @@ class InvestigationPipeline:
                 claim_scores = []
                 for claim in report.grounded_claims:
                     if claim.sources:
-                        claim_scores.append(
-                            claim.sources[0].confidence_score
-                        )
+                        claim_scores.append(claim.sources[0].confidence_score)
                 if claim_scores:
                     confidence_score = sum(claim_scores) / len(
                         claim_scores,
@@ -1845,6 +1864,7 @@ class InvestigationPipeline:
         if self.auto_checkpoint:
             try:
                 from mnemos.agentic.runtime.checkpoint import _optimistic_save
+
                 checkpoint = await _optimistic_save(
                     checkpoint_manager,
                     state,
@@ -1854,9 +1874,7 @@ class InvestigationPipeline:
                     event_log_offset=event_log.get_offset(),
                     db=self.db,
                 )
-                state["last_checkpoint_id"] = (
-                    checkpoint.metadata.checkpoint_id
-                )
+                state["last_checkpoint_id"] = checkpoint.metadata.checkpoint_id
                 checkpoints = list(state.get("checkpoints", []))
                 checkpoints.append(checkpoint)
                 state["checkpoints"] = checkpoints
@@ -1865,20 +1883,14 @@ class InvestigationPipeline:
                     EventType.CHECKPOINT_SAVED,
                     phase=InvestigationPhase.COMPLETION,
                     data={
-                        "checkpoint_id": (
-                            checkpoint.metadata.checkpoint_id
-                        ),
+                        "checkpoint_id": (checkpoint.metadata.checkpoint_id),
                     },
                 )
             except Exception as exc:
-                logger.error(
-                    f"Stage 11 [Complete]: checkpoint save failed: {exc}"
-                )
+                logger.error(f"Stage 11 [Complete]: checkpoint save failed: {exc}")
 
         elapsed_ms = (time.time() - started) * 1000
-        logger.info(
-            f"Stage 11 [Complete]: pipeline finished in {elapsed_ms:.1f}ms"
-        )
+        logger.info(f"Stage 11 [Complete]: pipeline finished in {elapsed_ms:.1f}ms")
         return state
 
     # ------------------------------------------------------------------
@@ -1980,8 +1992,13 @@ def _update_state(
             existing = list(buf.get(key, []))
             existing.extend(value)
             buf[key] = existing
-        elif isinstance(value, dict) and key in buf and isinstance(
-            buf[key], dict,
+        elif (
+            isinstance(value, dict)
+            and key in buf
+            and isinstance(
+                buf[key],
+                dict,
+            )
         ):
             existing_dict: dict[str, Any] = dict(buf[key])
             existing_dict.update(value)
@@ -2045,7 +2062,9 @@ class AgentExecutor:
             timeout_manager=timeout_manager,
             timeout_seconds=self.registration.timeout_seconds,
             on_retry=lambda attempt, exc: self._on_retry(
-                agent_name, attempt, exc,
+                agent_name,
+                attempt,
+                exc,
             ),
         )
 
@@ -2064,10 +2083,7 @@ class AgentExecutor:
                 data={"elapsed_ms": elapsed_ms, "attempts": attempts},
             )
         else:
-            error_msg = (
-                f"Agent {agent_name} failed with status {status} "
-                f"after {attempts} attempts"
-            )
+            error_msg = f"Agent {agent_name} failed with status {status} after {attempts} attempts"
             self.failure_recovery.record_failure(agent_name, error_msg)
             self.event_log.append(
                 EventType.AGENT_FAILED,
@@ -2221,7 +2237,10 @@ def _create_gather_node(
                 if reg and fn:
                     executors.append(
                         AgentExecutor(
-                            fn, reg, event_log, failure_recovery,
+                            fn,
+                            reg,
+                            event_log,
+                            failure_recovery,
                         ),
                     )
 
@@ -2253,7 +2272,10 @@ def _create_gather_node(
                 fn = agent_functions.get(name)
                 if reg and fn:
                     executor = AgentExecutor(
-                        fn, reg, event_log, failure_recovery,
+                        fn,
+                        reg,
+                        event_log,
+                        failure_recovery,
                     )
                     result = await executor.execute(current_state)
                     current_state = result
@@ -2300,9 +2322,7 @@ def _create_reflection_node(
 
         if not output.should_continue and not output.should_abstain:
             state["is_complete"] = True
-            state["termination_reason"] = (
-                TerminationReason.SUFFICIENT_EVIDENCE
-            )
+            state["termination_reason"] = TerminationReason.SUFFICIENT_EVIDENCE
 
         return state
 
@@ -2352,9 +2372,7 @@ def _create_checkpoint_node(
                 ),
             ),
             checkpoint_type=CheckpointType.AUTOMATIC,
-            description=(
-                f"Auto-checkpoint at iteration {state.get('iteration', 0)}"
-            ),
+            description=(f"Auto-checkpoint at iteration {state.get('iteration', 0)}"),
             event_log_offset=event_log.get_offset(),
         )
 
@@ -2448,9 +2466,9 @@ def create_investigation_workflow(
     This legacy path will be removed in a future release.
     """
     import warnings as _warnings
+
     _warnings.warn(
-        "create_investigation_workflow is deprecated. "
-        "Use InvestigationPipeline.run() directly.",
+        "create_investigation_workflow is deprecated. Use InvestigationPipeline.run() directly.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -2474,7 +2492,10 @@ def create_investigation_workflow(
 
     supervisor_fn = _create_supervisor_node(supervisor, event_log)
     gather_fn = _create_gather_node(
-        agent_registrations, agent_functions, event_log, failure_recovery,
+        agent_registrations,
+        agent_functions,
+        event_log,
+        failure_recovery,
     )
     reflection_fn = _create_reflection_node(reflection_agent, event_log)
     approval_fn = _create_approval_node(approval_node, event_log)
@@ -2544,6 +2565,4 @@ class _ApprovalPendingError(Exception):
     def __init__(self, gate_type: str, state: InvestigationState) -> None:
         self.gate_type = gate_type
         self.frozen_state = state
-        super().__init__(
-            f"Approval required for gate '{gate_type}' — pipeline paused"
-        )
+        super().__init__(f"Approval required for gate '{gate_type}' — pipeline paused")

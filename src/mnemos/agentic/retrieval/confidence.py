@@ -54,79 +54,88 @@ class ConfidenceCalculator:
         signals: list[ConfidenceSignal] = []
 
         # Signal 1: Average relevance
-        avg_relevance = sum(
-            s.relevance_score for s in bundle.verified_evidence
-        ) / len(bundle.verified_evidence)
-        signals.append(ConfidenceSignal(
-            signal_name="relevance",
-            signal_value=avg_relevance,
-            weight=self.weights["relevance"],
-            reasoning=f"Average relevance across {len(bundle.verified_evidence)} sources",
-        ))
+        avg_relevance = sum(s.relevance_score for s in bundle.verified_evidence) / len(
+            bundle.verified_evidence
+        )
+        signals.append(
+            ConfidenceSignal(
+                signal_name="relevance",
+                signal_value=avg_relevance,
+                weight=self.weights["relevance"],
+                reasoning=f"Average relevance across {len(bundle.verified_evidence)} sources",
+            )
+        )
 
         # Signal 2: Source reliability
         avg_reliability = self._avg_source_reliability(
             bundle.verified_evidence, source_reliabilities
         )
-        signals.append(ConfidenceSignal(
-            signal_name="source_reliability",
-            signal_value=avg_reliability,
-            weight=self.weights["source_reliability"],
-            reasoning="Average reliability of evidence source types",
-        ))
+        signals.append(
+            ConfidenceSignal(
+                signal_name="source_reliability",
+                signal_value=avg_reliability,
+                weight=self.weights["source_reliability"],
+                reasoning="Average reliability of evidence source types",
+            )
+        )
 
         # Signal 3: Provenance validation
         provenance_score = self._provenance_score(bundle.verified_evidence)
-        signals.append(ConfidenceSignal(
-            signal_name="provenance_validation",
-            signal_value=provenance_score,
-            weight=self.weights["provenance_validation"],
-            reasoning="Fraction of evidence with validated provenance",
-        ))
+        signals.append(
+            ConfidenceSignal(
+                signal_name="provenance_validation",
+                signal_value=provenance_score,
+                weight=self.weights["provenance_validation"],
+                reasoning="Fraction of evidence with validated provenance",
+            )
+        )
 
         # Signal 4: Graph-edge verification
         graph_edge_score = self._graph_edge_verification_score(bundle)
-        signals.append(ConfidenceSignal(
-            signal_name="graph_edge_verification",
-            signal_value=graph_edge_score,
-            weight=self.weights["graph_edge_verification"],
-            reasoning="Verification that graph traversal edges are grounded in evidence",
-        ))
+        signals.append(
+            ConfidenceSignal(
+                signal_name="graph_edge_verification",
+                signal_value=graph_edge_score,
+                weight=self.weights["graph_edge_verification"],
+                reasoning="Verification that graph traversal edges are grounded in evidence",
+            )
+        )
 
         # Signal 5: Corroboration
         corroboration_score = self._corroboration_score(bundle.verified_evidence)
-        signals.append(ConfidenceSignal(
-            signal_name="corroboration",
-            signal_value=corroboration_score,
-            weight=self.weights["corroboration"],
-            reasoning="Degree of multi-source corroboration",
-        ))
+        signals.append(
+            ConfidenceSignal(
+                signal_name="corroboration",
+                signal_value=corroboration_score,
+                weight=self.weights["corroboration"],
+                reasoning="Degree of multi-source corroboration",
+            )
+        )
 
         # Signal 6: Recency
         recency_score = self._recency_score(bundle)
-        signals.append(ConfidenceSignal(
-            signal_name="recency",
-            signal_value=recency_score,
-            weight=self.weights["recency"],
-            reasoning="Recency of evidence relative to query time",
-        ))
+        signals.append(
+            ConfidenceSignal(
+                signal_name="recency",
+                signal_value=recency_score,
+                weight=self.weights["recency"],
+                reasoning="Recency of evidence relative to query time",
+            )
+        )
 
         # Weighted combination
-        total_confidence = sum(
-            sig.signal_value * sig.weight for sig in signals
-        )
+        total_confidence = sum(sig.signal_value * sig.weight for sig in signals)
         total_confidence = max(0.0, min(1.0, total_confidence))
 
         return total_confidence, signals
 
-    def calculate_source_confidence(
-        self, source: EvidenceSource
-    ) -> float:
+    def calculate_source_confidence(self, source: EvidenceSource) -> float:
         """Calculate confidence for a single evidence source."""
         signals = [
             source.relevance_score * 0.4,
             source.confidence_score * 0.4,
-            (1.0 if source.verification_status == VerificationStatus.PROVENANCE_VALIDATED else 0.3) * 0.2,
+            (1.0 if source.verification_status == VerificationStatus.PROVENANCE_VALIDATED else 0.3)
+            * 0.2,
         ]
         return max(0.0, min(1.0, sum(signals)))
 
@@ -148,8 +157,10 @@ class ConfidenceCalculator:
         if not evidence:
             return 0.0
         validated = sum(
-            1 for s in evidence
-            if s.verification_status in (
+            1
+            for s in evidence
+            if s.verification_status
+            in (
                 VerificationStatus.PROVENANCE_VALIDATED,
                 VerificationStatus.HUMAN_REVIEWED,
             )
@@ -179,10 +190,7 @@ class ConfidenceCalculator:
             # but no bonus either
             return 0.5
 
-        verified_ids = {
-            s.provenance.evidence_region_id
-            for s in bundle.verified_evidence
-        }
+        verified_ids = {s.provenance.evidence_region_id for s in bundle.verified_evidence}
 
         grounded_count = 0
         for rel in grounded_rels:
@@ -205,7 +213,6 @@ class ConfidenceCalculator:
             return 0.0
         # Evidence with latest_version_only flag or recent dates scores higher
         latest_count = sum(
-            1 for s in bundle.verified_evidence
-            if s.metadata.get("is_latest_version", True)
+            1 for s in bundle.verified_evidence if s.metadata.get("is_latest_version", True)
         )
         return latest_count / len(bundle.verified_evidence)

@@ -7,18 +7,20 @@ from typing import Any
 # Context variable to correlate all logs for a single query across agents and retrievers
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="no-trace")
 
+
 class StructuredLogger:
     """
     Production-grade structured logger for industrial AI operations.
     Supports trace propagation and high-fidelity event context.
     """
+
     def __init__(self, name: str):
         self.logger = logging.getLogger(f"mnemos.agentic.{name}")
         self.logger.setLevel(logging.INFO)
         if not self.logger.handlers:
             handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - [Trace: %(trace_id)s] - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - [Trace: %(trace_id)s] - %(message)s"
             )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
@@ -36,7 +38,9 @@ class StructuredLogger:
         self.logger.info(msg, extra=self._get_extra(kwargs))
 
     def error(self, msg: str, **kwargs: Any) -> None:
-        self.logger.error(msg, extra=self._get_extra(kwargs), exc_info=kwargs.get("exc_info", False))
+        self.logger.error(
+            msg, extra=self._get_extra(kwargs), exc_info=kwargs.get("exc_info", False)
+        )
 
     def warning(self, msg: str, **kwargs: Any) -> None:
         self.logger.warning(msg, extra=self._get_extra(kwargs))

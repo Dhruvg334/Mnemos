@@ -81,9 +81,17 @@ class TestMemoryType:
     def test_all_types(self):
         types = [t.value for t in MemoryType]
         expected = [
-            "observation", "decision", "hypothesis", "tool_result",
-            "evidence", "reasoning", "question", "answer",
-            "feedback", "error", "summary",
+            "observation",
+            "decision",
+            "hypothesis",
+            "tool_result",
+            "evidence",
+            "reasoning",
+            "question",
+            "answer",
+            "feedback",
+            "error",
+            "summary",
         ]
         assert sorted(types) == sorted(expected)
 
@@ -405,9 +413,7 @@ class TestInvestigationStateMemory:
             investigation_id="inv_001",
             query="Why did pump P-101 fail?",
         )
-        state["context"]["memory"].record(
-            "rca_agent", MemoryType.OBSERVATION, "Obs 1"
-        )
+        state["context"]["memory"].record("rca_agent", MemoryType.OBSERVATION, "Obs 1")
 
         new_context = dict(state["context"])
         new_context["evidence_bundle"] = "some_bundle"

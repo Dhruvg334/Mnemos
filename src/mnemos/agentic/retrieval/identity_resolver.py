@@ -26,20 +26,27 @@ class AssetIdentityResolver:
         if not text:
             return ""
         # Convert to NFKD to separate characters and accents
-        text = unicodedata.normalize('NFKD', text)
+        text = unicodedata.normalize("NFKD", text)
         # Keep only alphanumeric
-        text = re.sub(r'[^A-Z0-9]', '', text.upper())
+        text = re.sub(r"[^A-Z0-9]", "", text.upper())
         return text
 
     def _generate_fuzzy_variants(self, normalized: str) -> set[str]:
         """Generates common OCR substitution variants for better recall."""
         substitutions = {
-            'O': '0', '0': 'O',
-            'I': '1', '1': 'I', 'L': '1',
-            'S': '5', '5': 'S',
-            'B': '8', '8': 'B',
-            'G': '6', '6': 'G',
-            'Z': '2', '2': 'Z'
+            "O": "0",
+            "0": "O",
+            "I": "1",
+            "1": "I",
+            "L": "1",
+            "S": "5",
+            "5": "S",
+            "B": "8",
+            "8": "B",
+            "G": "6",
+            "6": "G",
+            "Z": "2",
+            "2": "Z",
         }
         variants = {normalized}
 
@@ -47,7 +54,7 @@ class AssetIdentityResolver:
         # for common OCR ambiguity pairs.
         for i, char in enumerate(normalized):
             if char in substitutions:
-                variant = normalized[:i] + substitutions[char] + normalized[i+1:]
+                variant = normalized[:i] + substitutions[char] + normalized[i + 1 :]
                 variants.add(variant)
 
         return variants
@@ -71,11 +78,15 @@ class AssetIdentityResolver:
             .where(
                 or_(
                     # Match normalized asset_tag
-                    func.replace(func.replace(func.replace(func.upper(Asset.asset_tag), '-', ''), ' ', ''), '.', '').in_(list(variants)),
+                    func.replace(
+                        func.replace(func.replace(func.upper(Asset.asset_tag), "-", ""), " ", ""),
+                        ".",
+                        "",
+                    ).in_(list(variants)),
                     # Match pre-normalized aliases
                     AssetAlias.normalized_alias.in_(list(variants)),
                     # Match raw tags just in case
-                    Asset.asset_tag == mention
+                    Asset.asset_tag == mention,
                 )
             )
         )
@@ -96,22 +107,24 @@ class AssetIdentityResolver:
             elif asset_norm == raw_normalized:
                 confidence = 0.95
             elif any(v == asset_norm for v in variants):
-                confidence = 0.85 # OCR variant match
+                confidence = 0.85  # OCR variant match
             else:
-                confidence = 0.7 # Alias or indirect match
+                confidence = 0.7  # Alias or indirect match
 
-            resolved_entities.append(ResolvedEntity(
-                original_text=mention,
-                entity_id=asset.id,
-                entity_type="ASSET",
-                confidence=confidence,
-                canonical_name=asset.name,
-                metadata={
-                    "tag": asset.asset_tag,
-                    "type": asset.asset_type,
-                    "site_id": asset.site_id
-                }
-            ))
+            resolved_entities.append(
+                ResolvedEntity(
+                    original_text=mention,
+                    entity_id=asset.id,
+                    entity_type="ASSET",
+                    confidence=confidence,
+                    canonical_name=asset.name,
+                    metadata={
+                        "tag": asset.asset_tag,
+                        "type": asset.asset_type,
+                        "site_id": asset.site_id,
+                    },
+                )
+            )
 
         # Sort by confidence
         resolved_entities.sort(key=lambda x: x.confidence, reverse=True)

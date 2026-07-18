@@ -101,7 +101,10 @@ class AuditLogger:
         )
 
     def log_agent_completed(
-        self, agent_name: str, investigation_id: str = "", trace_id: str | None = None,
+        self,
+        agent_name: str,
+        investigation_id: str = "",
+        trace_id: str | None = None,
         duration_ms: float = 0.0,
     ) -> AuditEntry:
         return self.log(
@@ -113,7 +116,10 @@ class AuditLogger:
         )
 
     def log_agent_failed(
-        self, agent_name: str, error: str, investigation_id: str = "",
+        self,
+        agent_name: str,
+        error: str,
+        investigation_id: str = "",
         trace_id: str | None = None,
     ) -> AuditEntry:
         return self.log(
@@ -126,8 +132,12 @@ class AuditLogger:
         )
 
     def log_decision(
-        self, agent_name: str, decision: str, reasoning: str = "",
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        agent_name: str,
+        decision: str,
+        reasoning: str = "",
+        investigation_id: str = "",
+        trace_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> AuditEntry:
         return self.log(
@@ -140,8 +150,12 @@ class AuditLogger:
         )
 
     def log_approval_requested(
-        self, gate_type: str, agent_name: str, summary: str = "",
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        gate_type: str,
+        agent_name: str,
+        summary: str = "",
+        investigation_id: str = "",
+        trace_id: str | None = None,
     ) -> AuditEntry:
         return self.log(
             AuditAction.APPROVAL_REQUESTED,
@@ -153,12 +167,19 @@ class AuditLogger:
         )
 
     def log_approval_decision(
-        self, gate_type: str, decision: str, reviewer: str, comments: str = "",
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        gate_type: str,
+        decision: str,
+        reviewer: str,
+        comments: str = "",
+        investigation_id: str = "",
+        trace_id: str | None = None,
     ) -> AuditEntry:
         action = (
-            AuditAction.APPROVAL_GRANTED if decision == "approve"
-            else AuditAction.APPROVAL_DENIED if decision == "reject"
+            AuditAction.APPROVAL_GRANTED
+            if decision == "approve"
+            else AuditAction.APPROVAL_DENIED
+            if decision == "reject"
             else AuditAction.APPROVAL_CHANGES
         )
         return self.log(
@@ -171,8 +192,12 @@ class AuditLogger:
         )
 
     def log_state_transition(
-        self, from_phase: str, to_phase: str, agent_name: str | None = None,
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        from_phase: str,
+        to_phase: str,
+        agent_name: str | None = None,
+        investigation_id: str = "",
+        trace_id: str | None = None,
     ) -> AuditEntry:
         return self.log(
             AuditAction.STATE_TRANSITION,
@@ -184,8 +209,11 @@ class AuditLogger:
         )
 
     def log_evidence_collected(
-        self, agent_name: str, evidence_count: int,
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        agent_name: str,
+        evidence_count: int,
+        investigation_id: str = "",
+        trace_id: str | None = None,
     ) -> AuditEntry:
         return self.log(
             AuditAction.EVIDENCE_COLLECTED,
@@ -196,8 +224,12 @@ class AuditLogger:
         )
 
     def log_claim_added(
-        self, agent_name: str, claim_id: str, claim_text: str = "",
-        investigation_id: str = "", trace_id: str | None = None,
+        self,
+        agent_name: str,
+        claim_id: str,
+        claim_text: str = "",
+        investigation_id: str = "",
+        trace_id: str | None = None,
     ) -> AuditEntry:
         return self.log(
             AuditAction.CLAIM_ADDED,

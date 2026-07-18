@@ -60,9 +60,7 @@ class PendingApprovalRequest(BaseModel):
     gate_type: str
     summary: str = ""
     findings: dict[str, Any] = Field(default_factory=dict)
-    options: list[str] = Field(
-        default_factory=lambda: ["approve", "reject", "request_changes"]
-    )
+    options: list[str] = Field(default_factory=lambda: ["approve", "reject", "request_changes"])
     created_at: float = Field(default_factory=time.time)
     expires_at: float | None = None
     status: ApprovalStatus = ApprovalStatus.PENDING
@@ -192,8 +190,7 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
         )
         self._requests[request.request_id] = request
         logger.info(
-            "InMemoryApprovalQueue: request %s submitted "
-            "(investigation=%s, gate=%s)",
+            "InMemoryApprovalQueue: request %s submitted (investigation=%s, gate=%s)",
             request.request_id,
             investigation_id,
             gate_type,
@@ -217,9 +214,7 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
             "reject": ApprovalStatus.REJECTED,
             "request_changes": ApprovalStatus.CHANGES_REQUESTED,
         }
-        request.status = _status_map.get(
-            decision.decision, ApprovalStatus.PENDING
-        )
+        request.status = _status_map.get(decision.decision, ApprovalStatus.PENDING)
         logger.info(
             "InMemoryApprovalQueue: decision '%s' by '%s' for request %s",
             decision.decision,
@@ -243,8 +238,7 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
         return [
             r
             for r in self._requests.values()
-            if r.investigation_id == investigation_id
-            and r.status == ApprovalStatus.PENDING
+            if r.investigation_id == investigation_id and r.status == ApprovalStatus.PENDING
         ]
 
     async def get_all_pending(self) -> list[PendingApprovalRequest]:
@@ -266,18 +260,12 @@ class InMemoryApprovalQueue(ApprovalQueueBase):
         return True
 
     def count(self) -> int:
-        return sum(
-            1
-            for r in self._requests.values()
-            if r.status == ApprovalStatus.PENDING
-        )
+        return sum(1 for r in self._requests.values() if r.status == ApprovalStatus.PENDING)
 
     def summary(self) -> dict[str, Any]:
         status_counts: dict[str, int] = {}
         for r in self._requests.values():
-            status_counts[r.status.value] = (
-                status_counts.get(r.status.value, 0) + 1
-            )
+            status_counts[r.status.value] = status_counts.get(r.status.value, 0) + 1
         return {
             "total_requests": len(self._requests),
             "status_counts": status_counts,
@@ -359,7 +347,8 @@ class DurableApprovalQueue(ApprovalQueueBase):
                         gate_type=gate_type,
                         summary=summary,
                         findings_json=findings or {},
-                        options_json=options or [
+                        options_json=options
+                        or [
                             "approve",
                             "reject",
                             "request_changes",
@@ -374,8 +363,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 await db.commit()
                 self._mirror[request_id] = request
                 logger.info(
-                    "DurableApprovalQueue: persisted request %s "
-                    "(investigation=%s, gate=%s)",
+                    "DurableApprovalQueue: persisted request %s (investigation=%s, gate=%s)",
                     request_id,
                     investigation_id,
                     gate_type,
@@ -389,8 +377,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 )
                 await db.rollback()
                 raise RuntimeError(
-                    f"Approval request {request_id} could not be persisted: "
-                    f"database unavailable"
+                    f"Approval request {request_id} could not be persisted: database unavailable"
                 ) from exc
 
         return request
@@ -434,9 +421,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                     .with_for_update()
                 )
                 if row is None:
-                    logger.warning(
-                        "DurableApprovalQueue: request %s not found", request_id
-                    )
+                    logger.warning("DurableApprovalQueue: request %s not found", request_id)
                     return None
                 if row.status != "pending":
                     logger.warning(
@@ -477,8 +462,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
             )
             await db.rollback()
             raise RuntimeError(
-                f"Approval decision for {request_id} could not be persisted: "
-                f"database unavailable"
+                f"Approval decision for {request_id} could not be persisted: database unavailable"
             ) from exc
 
     # ------------------------------------------------------------------
@@ -493,17 +477,14 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 from sqlalchemy import select
 
                 row = await db.scalar(
-                    select(RuntimeApprovalRequest).where(
-                        RuntimeApprovalRequest.id == request_id
-                    )
+                    select(RuntimeApprovalRequest).where(RuntimeApprovalRequest.id == request_id)
                 )
                 if row is None:
                     return self._mirror.get(request_id)
                 return _row_to_model(row)
         except Exception as exc:
             logger.warning(
-                "DurableApprovalQueue: DB read failed for %s: %s "
-                "(using mirror)",
+                "DurableApprovalQueue: DB read failed for %s: %s (using mirror)",
                 request_id,
                 exc,
             )
@@ -530,9 +511,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 from sqlalchemy import select
 
                 row = await db.scalar(
-                    select(RuntimeApprovalRequest).where(
-                        RuntimeApprovalRequest.id == request_id
-                    )
+                    select(RuntimeApprovalRequest).where(RuntimeApprovalRequest.id == request_id)
                 )
                 if row and row.reviewer_decision:
                     return ApprovalDecision(
@@ -557,10 +536,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 rows = (
                     await db.scalars(
                         select(RuntimeApprovalRequest)
-                        .where(
-                            RuntimeApprovalRequest.investigation_id
-                            == investigation_id
-                        )
+                        .where(RuntimeApprovalRequest.investigation_id == investigation_id)
                         .where(RuntimeApprovalRequest.status == "pending")
                         .order_by(RuntimeApprovalRequest.created_at.asc())
                     )
@@ -575,8 +551,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
             return [
                 r
                 for r in self._mirror.values()
-                if r.investigation_id == investigation_id
-                and r.status == ApprovalStatus.PENDING
+                if r.investigation_id == investigation_id and r.status == ApprovalStatus.PENDING
             ]
 
     async def get_all_pending(self) -> list[PendingApprovalRequest]:
@@ -603,7 +578,9 @@ class DurableApprovalQueue(ApprovalQueueBase):
                             await db.commit()
                         except Exception as exc:
                             logger.warning(
-                                "Failed to expire request %s: %s", r.id, exc,
+                                "Failed to expire request %s: %s",
+                                r.id,
+                                exc,
                             )
                             await db.rollback()
                     else:
@@ -614,9 +591,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
                 "DurableApprovalQueue: DB read for get_all_pending failed: %s",
                 exc,
             )
-            return await InMemoryApprovalQueue._get_all_pending_from(
-                self._mirror
-            )
+            return await InMemoryApprovalQueue._get_all_pending_from(self._mirror)
 
     async def cancel(self, request_id: str) -> bool:
         from mnemos.models.entities import RuntimeApprovalRequest
@@ -641,9 +616,7 @@ class DurableApprovalQueue(ApprovalQueueBase):
             return True
 
         except Exception as exc:
-            logger.warning(
-                "DurableApprovalQueue: cancel %s failed: %s", request_id, exc
-            )
+            logger.warning("DurableApprovalQueue: cancel %s failed: %s", request_id, exc)
             req = self._mirror.get(request_id)
             if req and req.status == ApprovalStatus.PENDING:
                 req.status = ApprovalStatus.CANCELLED
@@ -651,18 +624,12 @@ class DurableApprovalQueue(ApprovalQueueBase):
             return False
 
     def count(self) -> int:
-        return sum(
-            1
-            for r in self._mirror.values()
-            if r.status == ApprovalStatus.PENDING
-        )
+        return sum(1 for r in self._mirror.values() if r.status == ApprovalStatus.PENDING)
 
     def summary(self) -> dict[str, Any]:
         status_counts: dict[str, int] = {}
         for r in self._mirror.values():
-            status_counts[r.status.value] = (
-                status_counts.get(r.status.value, 0) + 1
-            )
+            status_counts[r.status.value] = status_counts.get(r.status.value, 0) + 1
         return {
             "total_requests_mirrored": len(self._mirror),
             "status_counts": status_counts,

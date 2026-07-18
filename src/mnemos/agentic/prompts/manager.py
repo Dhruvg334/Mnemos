@@ -76,9 +76,7 @@ class PromptManager:
     def __init__(self, enable_cache: bool = True, cache_ttl_seconds: float = 300.0) -> None:
         self.template_path = Path(__file__).resolve().parent / "templates"
         if not self.template_path.is_dir():
-            raise RuntimeError(
-                f"Prompt template directory is missing: {self.template_path}"
-            )
+            raise RuntimeError(f"Prompt template directory is missing: {self.template_path}")
 
         self.env = Environment(
             loader=FileSystemLoader(self.template_path),
@@ -166,17 +164,11 @@ class PromptManager:
 
     def list_by_agent(self, agent: str) -> list[str]:
         """List prompt names registered for a specific agent."""
-        return [
-            m.name for m in self._registry.values()
-            if m.agent == agent
-        ]
+        return [m.name for m in self._registry.values() if m.agent == agent]
 
     def list_by_tag(self, tag: str) -> list[str]:
         """List prompt names with a specific tag."""
-        return [
-            m.name for m in self._registry.values()
-            if tag in m.tags
-        ]
+        return [m.name for m in self._registry.values() if tag in m.tags]
 
     def get_version(self, name: str) -> str | None:
         """Get the version of a registered prompt."""
@@ -201,9 +193,7 @@ class PromptManager:
             "total_renders": self._total_renders,
             "cache_hits": self._cache_hits,
             "hit_rate": (
-                self._cache_hits / self._total_renders
-                if self._total_renders > 0
-                else 0.0
+                self._cache_hits / self._total_renders if self._total_renders > 0 else 0.0
             ),
             "ttl_seconds": self._cache_ttl,
         }
@@ -246,6 +236,7 @@ class PromptManager:
     def _make_cache_key(self, template_name: str, kwargs: dict[str, Any]) -> str:
         """Create a cache key from template name and variables."""
         import json
+
         content = f"{template_name}:{json.dumps(kwargs, sort_keys=True, default=str)}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
@@ -259,9 +250,6 @@ class PromptManager:
     def _prune_cache(self) -> None:
         """Remove expired cache entries."""
         now = time.time()
-        expired = [
-            k for k, (_, t) in self._cache.items()
-            if (now - t) >= self._cache_ttl
-        ]
+        expired = [k for k, (_, t) in self._cache.items() if (now - t) >= self._cache_ttl]
         for k in expired:
             del self._cache[k]

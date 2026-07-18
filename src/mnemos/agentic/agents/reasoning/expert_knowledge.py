@@ -76,12 +76,11 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
         voice_transcription = ctx.get("voice_transcription")
         if voice_transcription and isinstance(voice_transcription, str):
             # Process voice transcription as additional expert evidence
-            voice_evidence = self._process_voice_transcription(
-                voice_transcription, state
-            )
+            voice_evidence = self._process_voice_transcription(voice_transcription, state)
             if bundle is None:
                 # Create a minimal bundle from voice transcription alone
                 from mnemos.agentic.schemas.base import EvidenceBundle
+
                 bundle = EvidenceBundle(
                     query_id=ctx.get("query_id", "voice"),
                     intent=ctx.get("intent", "general"),
@@ -140,9 +139,8 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
                 ),
                 ConfidenceSignal(
                     signal_name="conflict_rate",
-                    signal_value=1.0 - (
-                        sum(1 for s in submissions if s.conflicts_with) / max(len(submissions), 1)
-                    ),
+                    signal_value=1.0
+                    - (sum(1 for s in submissions if s.conflicts_with) / max(len(submissions), 1)),
                     weight=1.5,
                     reasoning="Ratio of conflict-free submissions",
                 ),
@@ -154,9 +152,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
                 "knowledge_submissions": [s.model_dump() for s in submissions],
                 "total_submissions": len(submissions),
                 "conflicts_detected": sum(1 for s in submissions if s.conflicts_with),
-                "pending_review": sum(
-                    1 for s in submissions if s.status == "submitted_for_review"
-                ),
+                "pending_review": sum(1 for s in submissions if s.status == "submitted_for_review"),
             },
         )
 
@@ -243,9 +239,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
         bundle: Any,
     ) -> list[KnowledgeSubmission]:
         """Link knowledge submissions to graph entities."""
-        entity_ids = {
-            e.entity_id for e in getattr(bundle, "resolved_entities", [])
-        }
+        entity_ids = {e.entity_id for e in getattr(bundle, "resolved_entities", [])}
 
         for sub in submissions:
             linked = set(sub.asset_ids)
@@ -280,9 +274,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
                     sub.conflicts_with.append(f"existing_claim_{hash(prev_claim) % 10000}")
 
             for jdx, other in enumerate(submissions):
-                if idx != jdx and self._is_conflicting(
-                    content_lower, other.content.lower()
-                ):
+                if idx != jdx and self._is_conflicting(content_lower, other.content.lower()):
                     if other.submission_id not in sub.conflicts_with:
                         sub.conflicts_with.append(other.submission_id)
 
@@ -309,9 +301,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
     # Request review (never publish directly)
     # ------------------------------------------------------------------
 
-    def _request_review(
-        self, submissions: list[KnowledgeSubmission]
-    ) -> list[KnowledgeSubmission]:
+    def _request_review(self, submissions: list[KnowledgeSubmission]) -> list[KnowledgeSubmission]:
         """Mark all submissions for human review. Never publishes directly."""
         for sub in submissions:
             if sub.status == "draft":
@@ -388,7 +378,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
         import re
 
         # Split on sentence-ending punctuation followed by whitespace or newline
-        raw_segments = re.split(r'(?<=[.!?])\s+|\n+', text)
+        raw_segments = re.split(r"(?<=[.!?])\s+|\n+", text)
 
         # Merge very short segments with their successor
         merged: list[str] = []
@@ -423,14 +413,19 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
         claims: list[GroundedClaim] = []
 
         for sub in submissions:
-            conflict_status = ClaimSupportStatus.PARTIALLY_SUPPORTED if sub.conflicts_with else ClaimSupportStatus.SUPPORTED
+            conflict_status = (
+                ClaimSupportStatus.PARTIALLY_SUPPORTED
+                if sub.conflicts_with
+                else ClaimSupportStatus.SUPPORTED
+            )
             claims.append(
                 GroundedClaim(
                     claim_id=sub.submission_id,
                     text=sub.content[:200],
                     status=conflict_status,
                     sources=[
-                        s for s in evidence
+                        s
+                        for s in evidence
                         if s.provenance.evidence_region_id in sub.source_evidence_ids
                     ][:3],
                     reasoning=sub.reasoning,
@@ -443,9 +438,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
     # Citations
     # ------------------------------------------------------------------
 
-    def _build_citations(
-        self, evidence: list[EvidenceSource]
-    ) -> list[Citation]:
+    def _build_citations(self, evidence: list[EvidenceSource]) -> list[Citation]:
         citations: list[Citation] = []
         for source in evidence:
             p = source.provenance
@@ -481,20 +474,13 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
         conflict_ratio = conflict_free / len(submissions)
 
         evidence_quality = (
-            sum(s.confidence_score for s in evidence) / len(evidence)
-            if evidence
-            else 0.0
+            sum(s.confidence_score for s in evidence) / len(evidence) if evidence else 0.0
         )
 
         has_entities = any(s.asset_ids for s in submissions)
         entity_bonus = 0.15 if has_entities else 0.0
 
-        confidence = (
-            0.4 * conflict_ratio
-            + 0.4 * evidence_quality
-            + entity_bonus
-            + 0.05
-        )
+        confidence = 0.4 * conflict_ratio + 0.4 * evidence_quality + entity_bonus + 0.05
         return round(min(confidence, 1.0), 3)
 
     # ------------------------------------------------------------------
@@ -539,9 +525,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
     # Actions
     # ------------------------------------------------------------------
 
-    def _build_actions(
-        self, submissions: list[KnowledgeSubmission]
-    ) -> list[RecommendedAction]:
+    def _build_actions(self, submissions: list[KnowledgeSubmission]) -> list[RecommendedAction]:
         actions: list[RecommendedAction] = []
 
         for sub in submissions:
@@ -563,9 +547,7 @@ class ExpertKnowledgeAgent(_BaseReasoningAgent):
                 RecommendedAction(
                     action_id=f"act_{uuid.uuid4().hex[:8]}",
                     type="PROCEDURE_UPDATE",
-                    description=(
-                        f"{len(pending)} knowledge submissions awaiting human review"
-                    ),
+                    description=(f"{len(pending)} knowledge submissions awaiting human review"),
                     priority="medium",
                     reasoning="All submissions require human review before publishing",
                 )

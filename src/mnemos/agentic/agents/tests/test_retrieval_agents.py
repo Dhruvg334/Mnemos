@@ -48,6 +48,7 @@ from mnemos.agentic.schemas.state import AgentState
 # Fixtures
 # ======================================================================
 
+
 @pytest.fixture
 def mock_db() -> MagicMock:
     db = MagicMock(spec=AsyncSession)
@@ -104,6 +105,7 @@ def _make_verified_source(
 # Protocol conformance
 # ======================================================================
 
+
 class TestProtocolConformance:
     ALL_AGENTS = [
         QueryRouterAgent,
@@ -139,6 +141,7 @@ class TestProtocolConformance:
 # QueryRouterAgent
 # ======================================================================
 
+
 class TestQueryRouterAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = QueryRouterAgent(mock_db)
@@ -154,11 +157,13 @@ class TestQueryRouterAgent:
     async def test_classifies_intent(self, mock_db: MagicMock) -> None:
         agent = QueryRouterAgent(mock_db)
         agent.llm = MagicMock()
-        agent.llm.call_structured = AsyncMock(return_value=QueryClassification(
-            intent=QueryIntent.ASSET_INFO,
-            entities=["P-101"],
-            confidence=0.92,
-        ))
+        agent.llm.call_structured = AsyncMock(
+            return_value=QueryClassification(
+                intent=QueryIntent.ASSET_INFO,
+                entities=["P-101"],
+                confidence=0.92,
+            )
+        )
 
         result = await agent.run(_initial_state())
         assert result["context"]["intent"] == QueryIntent.ASSET_INFO
@@ -179,6 +184,7 @@ class TestQueryRouterAgent:
 # RetrievalPlannerAgent
 # ======================================================================
 
+
 class TestRetrievalPlannerAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = RetrievalPlannerAgent(mock_db)
@@ -194,20 +200,22 @@ class TestRetrievalPlannerAgent:
     async def test_llm_plan_used_when_available(self, mock_db: MagicMock) -> None:
         agent = RetrievalPlannerAgent(mock_db)
         agent.llm = MagicMock()
-        agent.llm.call_structured = AsyncMock(return_value=PlannerLLMOutput(
-            strategies=[
-                RetrievalStrategy.GRAPH_TRAVERSAL,
-                RetrievalStrategy.VECTOR_SEARCH,
-            ],
-            asset_ids=["ast_001"],
-            date_from="2024-01-01",
-            latest_version_only=False,
-            top_k_per_strategy=8,
-            min_relevance_score=0.5,
-            min_evidence_count=4,
-            min_average_confidence=0.7,
-            reasoning="RCA query needs historical graph traversal",
-        ))
+        agent.llm.call_structured = AsyncMock(
+            return_value=PlannerLLMOutput(
+                strategies=[
+                    RetrievalStrategy.GRAPH_TRAVERSAL,
+                    RetrievalStrategy.VECTOR_SEARCH,
+                ],
+                asset_ids=["ast_001"],
+                date_from="2024-01-01",
+                latest_version_only=False,
+                top_k_per_strategy=8,
+                min_relevance_score=0.5,
+                min_evidence_count=4,
+                min_average_confidence=0.7,
+                reasoning="RCA query needs historical graph traversal",
+            )
+        )
 
         state = _initial_state()
         state["context"]["intent"] = QueryIntent.RCA
@@ -277,6 +285,7 @@ class TestRetrievalPlannerAgent:
 # EvidenceRetrievalAgent
 # ======================================================================
 
+
 class TestEvidenceRetrievalAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = EvidenceRetrievalAgent(mock_db)
@@ -335,6 +344,7 @@ class TestEvidenceRetrievalAgent:
 # ======================================================================
 # EvidenceVerificationAgent
 # ======================================================================
+
 
 class TestEvidenceVerificationAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
@@ -404,6 +414,7 @@ class TestEvidenceVerificationAgent:
 # RetrievalReflectionAgent
 # ======================================================================
 
+
 class TestRetrievalReflectionAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = RetrievalReflectionAgent(mock_db)
@@ -432,7 +443,9 @@ class TestRetrievalReflectionAgent:
             verified_evidence=[
                 _make_verified_source(confidence=0.9, relevance=0.95),
                 _make_verified_source(text="Max temp 200C", confidence=0.85, relevance=0.8),
-                _make_verified_source(text="Last inspected 2024-01", confidence=0.8, relevance=0.75),
+                _make_verified_source(
+                    text="Last inspected 2024-01", confidence=0.8, relevance=0.75
+                ),
             ],
             raw_vector_data=[{"content": "a"}, {"content": "b"}],
             raw_graph_data={"ast_001": {"nodes": [], "relationships": []}},
@@ -567,6 +580,7 @@ class TestRetrievalReflectionAgent:
 # Pipeline integration
 # ======================================================================
 
+
 class TestPipelineIntegration:
     """Verify the 5 agents can run sequentially as the supervisor dispatches them."""
 
@@ -575,11 +589,13 @@ class TestPipelineIntegration:
         # -- 1. QueryRouter --
         router = QueryRouterAgent(mock_db)
         router.llm = MagicMock()
-        router.llm.call_structured = AsyncMock(return_value=QueryClassification(
-            intent=QueryIntent.ASSET_INFO,
-            entities=["P-101"],
-            confidence=0.92,
-        ))
+        router.llm.call_structured = AsyncMock(
+            return_value=QueryClassification(
+                intent=QueryIntent.ASSET_INFO,
+                entities=["P-101"],
+                confidence=0.92,
+            )
+        )
         state = await router.run(_initial_state())
         assert state["context"]["intent"] == QueryIntent.ASSET_INFO
 
@@ -600,7 +616,12 @@ class TestPipelineIntegration:
             raw_vector_data=[
                 {"content": "P-101 pressure limit 40 bar", "metadata": {}, "score": 0.95},
             ],
-            raw_graph_data={"ast_001": {"nodes": [{"id": "n1"}, {"id": "n2"}, {"id": "n3"}], "relationships": [{"type": "HAS_COMPONENT"}]}},
+            raw_graph_data={
+                "ast_001": {
+                    "nodes": [{"id": "n1"}, {"id": "n2"}, {"id": "n3"}],
+                    "relationships": [{"type": "HAS_COMPONENT"}],
+                }
+            },
             resolved_entities=[],
         )
         mock_engine = MagicMock()
@@ -619,11 +640,13 @@ class TestPipelineIntegration:
         # -- 4. EvidenceVerification --
         verifier = EvidenceVerificationAgent(mock_db)
         mock_rag = MagicMock()
-        mock_rag.process_bundle = AsyncMock(return_value=[
-            _make_verified_source(),
-            _make_verified_source(text="Max operating temp 200C", confidence=0.85),
-            _make_verified_source(text="Last inspected Jan 2024", confidence=0.8),
-        ])
+        mock_rag.process_bundle = AsyncMock(
+            return_value=[
+                _make_verified_source(),
+                _make_verified_source(text="Max operating temp 200C", confidence=0.85),
+                _make_verified_source(text="Last inspected Jan 2024", confidence=0.8),
+            ]
+        )
         with patch(
             "mnemos.agentic.agents.retrieval.evidence_verification.GraphRAGLayer",
             return_value=mock_rag,
@@ -659,6 +682,7 @@ class TestPipelineIntegration:
 # ======================================================================
 # RetrievalPlan schema
 # ======================================================================
+
 
 class TestRetrievalPlanSchema:
     def test_new_filter_fields(self) -> None:

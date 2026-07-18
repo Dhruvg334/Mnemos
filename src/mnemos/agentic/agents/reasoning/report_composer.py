@@ -94,7 +94,9 @@ class ReportComposerAgent(_BaseReasoningAgent):
         if not outputs:
             report = self._build_empty_report(state)
             self._store_final(state, report, [])
-            self.logger.info("Report composition: no reasoning outputs found; empty report emitted.")
+            self.logger.info(
+                "Report composition: no reasoning outputs found; empty report emitted."
+            )
             return state
 
         report = self._synthesize_report(outputs, state)
@@ -136,35 +138,41 @@ class ReportComposerAgent(_BaseReasoningAgent):
         # Check state for approval result
         approval_result = state.get("approval_result")
         if approval_result and isinstance(approval_result, dict):
-            decisions.append({
-                "gate_type": approval_result.get("gate_type", "unknown"),
-                "decision": approval_result.get("decision", "unknown"),
-                "reviewer": approval_result.get("reviewer", "unknown"),
-                "comments": approval_result.get("comments", ""),
-                "timestamp": str(approval_result.get("timestamp", "")),
-            })
+            decisions.append(
+                {
+                    "gate_type": approval_result.get("gate_type", "unknown"),
+                    "decision": approval_result.get("decision", "unknown"),
+                    "reviewer": approval_result.get("reviewer", "unknown"),
+                    "comments": approval_result.get("comments", ""),
+                    "timestamp": str(approval_result.get("timestamp", "")),
+                }
+            )
 
         # Check pending approval request
         pending = state.get("pending_approval_request")
         if pending and isinstance(pending, dict):
-            decisions.append({
-                "gate_type": pending.get("gate_type", "unknown"),
-                "decision": "pending",
-                "reviewer": pending.get("reviewer", ""),
-                "comments": pending.get("summary", ""),
-                "timestamp": "",
-            })
+            decisions.append(
+                {
+                    "gate_type": pending.get("gate_type", "unknown"),
+                    "decision": "pending",
+                    "reviewer": pending.get("reviewer", ""),
+                    "comments": pending.get("summary", ""),
+                    "timestamp": "",
+                }
+            )
 
         # Check approval_required flag
         if state.get("approval_required") and not decisions:
             gate_type = ctx.get("approval_gate_type", "unknown")
-            decisions.append({
-                "gate_type": gate_type,
-                "decision": "pending",
-                "reviewer": "",
-                "comments": "Approval required but not yet processed",
-                "timestamp": "",
-            })
+            decisions.append(
+                {
+                    "gate_type": gate_type,
+                    "decision": "pending",
+                    "reviewer": "",
+                    "comments": "Approval required but not yet processed",
+                    "timestamp": "",
+                }
+            )
 
         return decisions
 
@@ -186,9 +194,7 @@ class ReportComposerAgent(_BaseReasoningAgent):
                 doc_versions[doc_id] = {
                     "document_id": doc_id,
                     "version": citation.document_version,
-                    "is_latest_version": getattr(
-                        citation, "is_latest_version", True
-                    ),
+                    "is_latest_version": getattr(citation, "is_latest_version", True),
                     "citation_count": 0,
                     "titles": set(),
                 }
@@ -403,9 +409,9 @@ class ReportComposerAgent(_BaseReasoningAgent):
             if signals:
                 total_weight = sum(s.weight for s in signals)
                 if total_weight > 0:
-                    bundle_confidence = sum(
-                        s.signal_value * s.weight for s in signals
-                    ) / total_weight
+                    bundle_confidence = (
+                        sum(s.signal_value * s.weight for s in signals) / total_weight
+                    )
 
         if bundle_confidence is not None:
             overall = 0.85 * agent_avg + 0.15 * bundle_confidence
@@ -447,22 +453,14 @@ class ReportComposerAgent(_BaseReasoningAgent):
         for output in outputs:
             agent_label = output.agent_name.replace("_", " ").title()
             parts.append(
-                f"\n**{agent_label}** ({output.reasoning_decision}): "
-                f"{output.reasoning_summary}"
+                f"\n**{agent_label}** ({output.reasoning_decision}): {output.reasoning_summary}"
             )
 
-        supported = sum(
-            1 for c in claims if c.status == ClaimSupportStatus.SUPPORTED
-        )
-        refuted = sum(
-            1 for c in claims if c.status == ClaimSupportStatus.REFUTED
-        )
-        uncertain = sum(
-            1 for c in claims if c.status == ClaimSupportStatus.UNCERTAIN
-        )
+        supported = sum(1 for c in claims if c.status == ClaimSupportStatus.SUPPORTED)
+        refuted = sum(1 for c in claims if c.status == ClaimSupportStatus.REFUTED)
+        uncertain = sum(1 for c in claims if c.status == ClaimSupportStatus.UNCERTAIN)
         parts.append(
-            f"\nOverall: {supported} supported, {refuted} refuted, "
-            f"{uncertain} uncertain claim(s)."
+            f"\nOverall: {supported} supported, {refuted} refuted, {uncertain} uncertain claim(s)."
         )
 
         return " ".join(parts)

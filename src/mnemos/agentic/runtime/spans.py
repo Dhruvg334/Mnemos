@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class SpanStatus(StrEnum):
     """Span completion status."""
+
     OK = "ok"
     ERROR = "error"
     TIMEOUT = "timeout"
@@ -34,6 +35,7 @@ class SpanStatus(StrEnum):
 
 class SpanEvent(BaseModel):
     """An event within a span (e.g., log message, milestone)."""
+
     name: str
     timestamp: float = Field(default_factory=time.time)
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -41,6 +43,7 @@ class SpanEvent(BaseModel):
 
 class Span(BaseModel):
     """A single tracing span representing an operation."""
+
     span_id: str = Field(default_factory=lambda: f"spn_{uuid.uuid4().hex[:12]}")
     trace_id: str = ""
     parent_span_id: str | None = None

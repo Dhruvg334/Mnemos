@@ -93,11 +93,11 @@ async def execute_ingestion(
     try:
         # Original external gateway extraction
         result = await gateway.ingest_document(request)
-        
+
         # New AI Layer execution (vector/graph persistence)
         if result.status == "succeeded":
             await run_production_ingestion_pipeline(db, document)
-        
+
         run.response_payload_hash = _hash_payload(result.model_dump(mode="json"))
         run.status = result.status
         run.chunks_created = result.chunks_created

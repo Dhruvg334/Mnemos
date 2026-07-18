@@ -19,6 +19,7 @@ class AssetTimelineEvent(BaseModel):
     severity: str | None = None
     provenance: EvidenceSource | None = None
 
+
 class AssetPassport(BaseModel):
     asset_id: str
     tag: str
@@ -34,6 +35,7 @@ class AssetPassport(BaseModel):
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)
     contradictions: list[Contradiction] = Field(default_factory=list)
 
+
 class RCACaseReport(BaseModel):
     problem_statement: str
     chronology: list[dict[str, Any]]
@@ -46,6 +48,7 @@ class RCACaseReport(BaseModel):
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)
     contradictions: list[Contradiction] = Field(default_factory=list)
 
+
 class ComplianceAuditPackage(BaseModel):
     requirement_mappings: list[dict[str, Any]]
     verified_evidence: list[EvidenceSource]
@@ -55,6 +58,7 @@ class ComplianceAuditPackage(BaseModel):
     overall_compliance_status: str
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)
 
+
 class LessonsLearnedSummary(BaseModel):
     recurring_failure_modes: list[str]
     similar_incident_ids: list[str]
@@ -62,17 +66,25 @@ class LessonsLearnedSummary(BaseModel):
     effectiveness_score: float | None
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)
 
+
 class FinalReport(BaseModel):
     title: str
     summary: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    sections: dict[str, Any] # Contains AssetPassport, RCACaseReport, etc.
+    sections: dict[str, Any]  # Contains AssetPassport, RCACaseReport, etc.
     grounded_claims: list[GroundedClaim] = Field(default_factory=list)
     recommended_actions: list[RecommendedAction] = Field(default_factory=list)
     contradictions: list[Contradiction] = Field(default_factory=list)
     missing_evidence: list[str] = Field(default_factory=list)
     graph_paths: list[list[str]] = Field(default_factory=list)
     confidence_statement: str
-    disclaimer: str = "This report is generated based on available evidence and requires human validation."
-    approval_decisions: list[dict[str, Any]] = Field(default_factory=list, description="Human approval decisions recorded during investigation")
-    document_versions: list[dict[str, Any]] = Field(default_factory=list, description="Document versions referenced in evidence with currency status")
+    disclaimer: str = (
+        "This report is generated based on available evidence and requires human validation."
+    )
+    approval_decisions: list[dict[str, Any]] = Field(
+        default_factory=list, description="Human approval decisions recorded during investigation"
+    )
+    document_versions: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Document versions referenced in evidence with currency status",
+    )

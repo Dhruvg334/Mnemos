@@ -43,9 +43,7 @@ class SourceReliabilityScorer:
     4. Multiple-source corroboration
     """
 
-    def score_bundle(
-        self, bundle: EvidenceBundle
-    ) -> dict[str, float]:
+    def score_bundle(self, bundle: EvidenceBundle) -> dict[str, float]:
         """Score reliability for all source types in the bundle."""
         type_counts: dict[str, int] = {}
         for src in bundle.verified_evidence:
@@ -58,9 +56,7 @@ class SourceReliabilityScorer:
 
         return reliabilities
 
-    def score_type(
-        self, source_type: str, corroboration_count: int = 1
-    ) -> float:
+    def score_type(self, source_type: str, corroboration_count: int = 1) -> float:
         """Calculate reliability for a source type."""
         base = SOURCE_TYPE_SCORES.get(source_type, 0.50)
 
@@ -89,8 +85,6 @@ class SourceReliabilityScorer:
             reasoning=f"Base={base:.2f}, validation_bonus={validation_bonus:.2f}",
         )
 
-    def score_evidence_sources(
-        self, sources: list[EvidenceSource]
-    ) -> list[SourceReliability]:
+    def score_evidence_sources(self, sources: list[EvidenceSource]) -> list[SourceReliability]:
         """Score all evidence sources."""
         return [self.score_source(s) for s in sources]

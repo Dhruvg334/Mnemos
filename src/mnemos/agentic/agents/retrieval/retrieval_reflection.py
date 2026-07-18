@@ -168,9 +168,7 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
 
         # Confidence check
         avg_confidence = (
-            sum(s.confidence_score for s in verified) / len(verified)
-            if verified
-            else 0.0
+            sum(s.confidence_score for s in verified) / len(verified) if verified else 0.0
         )
         if avg_confidence < plan.min_average_confidence:
             gaps.append(
@@ -183,9 +181,7 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
 
         # Entity resolution failure
         if not bundle.resolved_entities and plan.target_entities:
-            gaps.append(
-                f"Entity resolution failed for {len(plan.target_entities)} mentions"
-            )
+            gaps.append(f"Entity resolution failed for {len(plan.target_entities)} mentions")
 
         # All strategies empty
         if plan.strategies and not bundle.raw_vector_data and not bundle.raw_graph_data:
@@ -207,30 +203,20 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
         if RetrievalStrategy.GRAPH_TRAVERSAL in plan.strategies:
             if not bundle.raw_graph_data:
                 gaps.append("No graph traversal results returned")
-            elif all(
-                not data.get("nodes") for data in bundle.raw_graph_data.values()
-            ):
+            elif all(not data.get("nodes") for data in bundle.raw_graph_data.values()):
                 gaps.append("Graph traversal returned empty nodes")
 
         # Contradiction check
         if bundle.contradictions:
-            high_severity = [
-                c for c in bundle.contradictions if c.severity == "high"
-            ]
+            high_severity = [c for c in bundle.contradictions if c.severity == "high"]
             if high_severity:
-                gaps.append(
-                    f"{len(high_severity)} high-severity contradictions detected"
-                )
+                gaps.append(f"{len(high_severity)} high-severity contradictions detected")
 
         # Missing evidence
         if bundle.missing_evidence:
-            high_priority_missing = [
-                m for m in bundle.missing_evidence if m.priority == "high"
-            ]
+            high_priority_missing = [m for m in bundle.missing_evidence if m.priority == "high"]
             if high_priority_missing:
-                gaps.append(
-                    f"{len(high_priority_missing)} high-priority missing evidence types"
-                )
+                gaps.append(f"{len(high_priority_missing)} high-priority missing evidence types")
 
         return gaps
 
@@ -248,14 +234,10 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
     ) -> dict[str, Any]:
         """Build detailed assessment dict."""
         avg_confidence = (
-            sum(s.confidence_score for s in verified) / len(verified)
-            if verified
-            else 0.0
+            sum(s.confidence_score for s in verified) / len(verified) if verified else 0.0
         )
         avg_relevance = (
-            sum(s.relevance_score for s in verified) / len(verified)
-            if verified
-            else 0.0
+            sum(s.relevance_score for s in verified) / len(verified) if verified else 0.0
         )
 
         sources_used: set[str] = set()
@@ -314,9 +296,7 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
         # Default: try retrieving again with same strategies
         return ReflectionDecision.RETRIEVE_AGAIN
 
-    def _is_query_ambiguous(
-        self, bundle: EvidenceBundle, plan: RetrievalPlan
-    ) -> bool:
+    def _is_query_ambiguous(self, bundle: EvidenceBundle, plan: RetrievalPlan) -> bool:
         """Check if the query is too ambiguous to retrieve meaningfully."""
         # No entities extracted and no vector results -> query might be too vague
         no_entities = not bundle.resolved_entities and plan.target_entities
@@ -333,12 +313,8 @@ class RetrievalReflectionAgent(_BaseRetrievalAgent):
         """Check if graph expansion would help."""
         has_graph_gap = any("graph" in g.lower() for g in gaps)
         graph_requested = RetrievalStrategy.GRAPH_TRAVERSAL in plan.strategies
-        sparse_graph = (
-            bundle.raw_graph_data
-            and all(
-                len(data.get("nodes", [])) < 3
-                for data in bundle.raw_graph_data.values()
-            )
+        sparse_graph = bundle.raw_graph_data and all(
+            len(data.get("nodes", [])) < 3 for data in bundle.raw_graph_data.values()
         )
         return (has_graph_gap or sparse_graph) and graph_requested
 

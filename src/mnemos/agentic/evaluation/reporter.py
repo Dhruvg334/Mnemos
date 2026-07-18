@@ -63,8 +63,7 @@ class EvalReporter:
         lines.append(f"- **Total Duration**: {report.total_duration_ms:.1f} ms")
         lines.append(f"- **Avg Latency**: {report.avg_latency_ms:.1f} ms")
         lines.append(
-            f"- **Samples**: {report.success_count} succeeded, "
-            f"{report.failure_count} failed"
+            f"- **Samples**: {report.success_count} succeeded, {report.failure_count} failed"
         )
         lines.append("")
 
@@ -86,8 +85,12 @@ class EvalReporter:
             if sr.error:
                 lines.append(f"- **Error**: {sr.error}")
             lines.append(f"- **Phase**: {sr.phase or 'N/A'}")
-            lines.append(f"- **Claims**: {sr.claim_count} total, {sr.grounded_claim_count} grounded")
-            lines.append(f"- **Hallucination**: {'detected' if sr.hallucination_detected else 'none'}")
+            lines.append(
+                f"- **Claims**: {sr.claim_count} total, {sr.grounded_claim_count} grounded"
+            )
+            lines.append(
+                f"- **Hallucination**: {'detected' if sr.hallucination_detected else 'none'}"
+            )
             lines.append("")
 
             if sr.metrics:
@@ -128,17 +131,13 @@ class EvalReporter:
                 deltas[key] = 0.0
 
         return ComparisonReport(
-            comparison_id=_deterministic_id(
-                primary.benchmark_id, secondary.benchmark_id
-            ),
+            comparison_id=_deterministic_id(primary.benchmark_id, secondary.benchmark_id),
             name=f"{primary.benchmark_name} vs {secondary.benchmark_name}",
             report_primary=primary,
             report_secondary=secondary,
             deltas=deltas,
             timestamp=datetime.fromtimestamp(
-                _deterministic_timestamp(
-                    primary.benchmark_id, secondary.benchmark_id
-                ),
+                _deterministic_timestamp(primary.benchmark_id, secondary.benchmark_id),
                 tz=UTC,
             ),
         )
@@ -169,9 +168,7 @@ class EvalReporter:
             val_s = comparison.report_secondary.summary_metrics.get(key, 0.0)
             delta = comparison.deltas[key]
             direction = "+" if delta >= 0 else ""
-            lines.append(
-                f"| {key} | {val_p:.4f} | {val_s:.4f} | {direction}{delta:.2f}% |"
-            )
+            lines.append(f"| {key} | {val_p:.4f} | {val_s:.4f} | {direction}{delta:.2f}% |")
 
         lines.append("")
 

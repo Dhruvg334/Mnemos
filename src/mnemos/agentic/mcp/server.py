@@ -96,8 +96,12 @@ class MnemosMCPServer:
         self.dispatch.register_handler(MCPToolName.APPROVAL_RECORDING, self._approval_recording)
         self.dispatch.register_handler(MCPToolName.ACTION_CREATION, self._action_creation)
         self.dispatch.register_handler(MCPToolName.REPORT_GENERATION, self._report_generation)
-        self.dispatch.register_handler(MCPToolName.GET_CURRENT_PROCEDURE, self._get_current_procedure)
-        self.dispatch.register_handler(MCPToolName.GENERATE_SOURCE_PREVIEW, self._generate_source_preview)
+        self.dispatch.register_handler(
+            MCPToolName.GET_CURRENT_PROCEDURE, self._get_current_procedure
+        )
+        self.dispatch.register_handler(
+            MCPToolName.GENERATE_SOURCE_PREVIEW, self._generate_source_preview
+        )
 
     async def call(
         self,
@@ -137,6 +141,7 @@ class MnemosMCPServer:
             )
         async with self._session_factory() as db:
             from mnemos.agentic.retrieval.identity_resolver import AssetIdentityResolver
+
             resolver = AssetIdentityResolver(db)
             results = await resolver.resolve(input.mention, site_id=input.site_id)
 
@@ -190,19 +195,20 @@ class MnemosMCPServer:
         """
         if not self._graph_client:
             raise RuntimeError(
-                "graph_traversal: graph client unavailable — "
-                "cannot traverse the knowledge graph"
+                "graph_traversal: graph client unavailable — cannot traverse the knowledge graph"
             )
 
         graph_type_str = input.graph_type
         try:
             from mnemos.agentic.schemas.base import GraphType
+
             graph_type = GraphType(graph_type_str)
         except ValueError:
             graph_type = None
 
         if graph_type:
             from mnemos.agentic.retrieval.graph_rag import GRAPH_TYPE_QUERIES
+
             cypher = GRAPH_TYPE_QUERIES.get(graph_type)
         else:
             rel_filter = ""
@@ -223,7 +229,10 @@ class MnemosMCPServer:
 
         if not cypher:
             return GraphTraversalOutput(
-                nodes=[], edges=[], total_nodes=0, truncated=False,
+                nodes=[],
+                edges=[],
+                total_nodes=0,
+                truncated=False,
             )
 
         records = await self._graph_client.query(
@@ -234,7 +243,9 @@ class MnemosMCPServer:
         if not records:
             return GraphTraversalOutput(
                 nodes=[{"id": input.start_node_id, "type": "asset"}],
-                edges=[], total_nodes=1, truncated=False,
+                edges=[],
+                total_nodes=1,
+                truncated=False,
             )
 
         data = records[0]
@@ -345,13 +356,17 @@ class MnemosMCPServer:
 
             rca_r = await db.execute(rca_q)
             for case in rca_r.scalars().all():
-                events.append({
-                    "event_id": case.id, "event_type": "failure",
-                    "title": case.title,
-                    "description": case.problem_statement,
-                    "status": case.status, "severity": case.severity,
-                    "timestamp": case.created_at.isoformat() if case.created_at else None,
-                })
+                events.append(
+                    {
+                        "event_id": case.id,
+                        "event_type": "failure",
+                        "title": case.title,
+                        "description": case.problem_statement,
+                        "status": case.status,
+                        "severity": case.severity,
+                        "timestamp": case.created_at.isoformat() if case.created_at else None,
+                    }
+                )
                 if "maintenance" in input.event_types or not input.event_types:
                     act_q = (
                         select(RCAAction)
@@ -360,12 +375,18 @@ class MnemosMCPServer:
                     )
                     act_r = await db.execute(act_q)
                     for act in act_r.scalars().all():
-                        events.append({
-                            "event_id": act.id, "event_type": "maintenance",
-                            "title": act.title, "description": act.description,
-                            "status": act.status,
-                            "timestamp": act.completed_at.isoformat() if act.completed_at else None,
-                        })
+                        events.append(
+                            {
+                                "event_id": act.id,
+                                "event_type": "maintenance",
+                                "title": act.title,
+                                "description": act.description,
+                                "status": act.status,
+                                "timestamp": act.completed_at.isoformat()
+                                if act.completed_at
+                                else None,
+                            }
+                        )
 
             if "knowledge_card" in input.event_types or not input.event_types:
                 kc_q = (
@@ -377,19 +398,23 @@ class MnemosMCPServer:
                 )
                 kc_r = await db.execute(kc_q)
                 for card in kc_r.scalars().all():
-                    events.append({
-                        "event_id": card.id, "event_type": "knowledge_card",
-                        "title": card.title,
-                        "description": card.content[:200] if card.content else "",
-                        "status": card.status,
-                        "timestamp": card.updated_at.isoformat() if card.updated_at else None,
-                    })
+                    events.append(
+                        {
+                            "event_id": card.id,
+                            "event_type": "knowledge_card",
+                            "title": card.title,
+                            "description": card.content[:200] if card.content else "",
+                            "status": card.status,
+                            "timestamp": card.updated_at.isoformat() if card.updated_at else None,
+                        }
+                    )
 
             events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
-            events = events[:input.limit]
+            events = events[: input.limit]
 
             return TimelineOutput(
-                asset_id=input.asset_id, events=events,
+                asset_id=input.asset_id,
+                events=events,
                 total_events=len(events),
                 date_range={"from": input.date_from, "to": input.date_to},
             )
@@ -412,19 +437,22 @@ class MnemosMCPServer:
                     input.asset_id,
                 )
                 for node in graph_failures:
-                    similar.append({
-                        "failure_id": node.id,
-                        "failure_type": "graph_related",
-                        "properties": node.properties,
-                        "source": "knowledge_graph",
-                        "similarity_score": 0.7,
-                    })
+                    similar.append(
+                        {
+                            "failure_id": node.id,
+                            "failure_type": "graph_related",
+                            "properties": node.properties,
+                            "source": "knowledge_graph",
+                            "similarity_score": 0.7,
+                        }
+                    )
             except Exception:
                 logger.warning("Graph failure lookup failed, falling back to SQL")
 
         if self._session_factory and len(similar) < input.max_results:
             async with self._session_factory() as db:
                 from mnemos.models.entities import RCACase
+
                 remaining = input.max_results - len(similar)
                 q = (
                     select(RCACase)
@@ -435,33 +463,33 @@ class MnemosMCPServer:
                 )
                 r = await db.execute(q)
                 for case in r.scalars().all():
-                    similar.append({
-                        "failure_id": case.id,
-                        "failure_type": case.severity,
-                        "title": case.title,
-                        "description": (case.problem_statement[:200]
-                                        if case.problem_statement else ""),
-                        "status": case.status,
-                        "created_at": (case.created_at.isoformat()
-                                       if case.created_at else None),
-                        "source": "rca_history",
-                        "similarity_score": 0.5,
-                    })
+                    similar.append(
+                        {
+                            "failure_id": case.id,
+                            "failure_type": case.severity,
+                            "title": case.title,
+                            "description": (
+                                case.problem_statement[:200] if case.problem_statement else ""
+                            ),
+                            "status": case.status,
+                            "created_at": (
+                                case.created_at.isoformat() if case.created_at else None
+                            ),
+                            "source": "rca_history",
+                            "similarity_score": 0.5,
+                        }
+                    )
 
         filtered = [
-            s for s in similar
-            if s.get("similarity_score", 0) >= input.similarity_threshold
-        ][:input.max_results]
+            s for s in similar if s.get("similarity_score", 0) >= input.similarity_threshold
+        ][: input.max_results]
 
         pattern_summary = None
         if filtered:
             types = [s.get("failure_type", "unknown") for s in filtered]
             counts = Counter(types)
             top = counts.most_common(3)
-            pattern_summary = (
-                "Recurring patterns: "
-                + ", ".join(f"{t} ({c}x)" for t, c in top)
-            )
+            pattern_summary = "Recurring patterns: " + ", ".join(f"{t} ({c}x)" for t, c in top)
 
         return SimilarFailuresOutput(
             asset_id=input.asset_id,
@@ -495,14 +523,15 @@ class MnemosMCPServer:
             if not doc:
                 return RevisionCheckOutput(
                     document_id=input.document_id,
-                    current_version=0, is_current=False,
+                    current_version=0,
+                    is_current=False,
                     status="not_found",
                     details=f"Document {input.document_id} not found",
                 )
 
             current = doc.version
             expected = input.expected_version or current
-            is_current = (expected == current)
+            is_current = expected == current
 
             latest_q = (
                 select(DocumentVersion)
@@ -552,26 +581,19 @@ class MnemosMCPServer:
         async with self._session_factory() as db:
             from mnemos.models.entities import ComplianceRequirement
 
-            q = select(ComplianceRequirement).where(
-                ComplianceRequirement.status == "active"
-            )
+            q = select(ComplianceRequirement).where(ComplianceRequirement.status == "active")
             if input.site_id:
                 q = q.where(ComplianceRequirement.organisation_id == input.site_id)
 
             search_terms = input.query.lower().split()
             if search_terms:
                 from sqlalchemy import or_
+
                 conditions = []
                 for term in search_terms:
-                    conditions.append(
-                        ComplianceRequirement.title.ilike(f"%{term}%")
-                    )
-                    conditions.append(
-                        ComplianceRequirement.description.ilike(f"%{term}%")
-                    )
-                    conditions.append(
-                        ComplianceRequirement.code.ilike(f"%{term}%")
-                    )
+                    conditions.append(ComplianceRequirement.title.ilike(f"%{term}%"))
+                    conditions.append(ComplianceRequirement.description.ilike(f"%{term}%"))
+                    conditions.append(ComplianceRequirement.code.ilike(f"%{term}%"))
                 q = q.where(or_(*conditions))
 
             q = q.limit(50)
@@ -678,7 +700,9 @@ class MnemosMCPServer:
     # Tool 11: get_current_procedure  [Wired]
     # ==================================================================
 
-    async def _get_current_procedure(self, input: GetCurrentProcedureInput) -> GetCurrentProcedureOutput:
+    async def _get_current_procedure(
+        self, input: GetCurrentProcedureInput
+    ) -> GetCurrentProcedureOutput:
         """Retrieve the current approved procedure for an asset.
 
         Queries KnowledgeCard with status='approved' for the asset,
@@ -686,8 +710,11 @@ class MnemosMCPServer:
         """
         if not self._session_factory:
             return GetCurrentProcedureOutput(
-                asset_id=input.asset_id, procedures=[], total_found=0,
-                all_approved=True, outdated_procedures=[],
+                asset_id=input.asset_id,
+                procedures=[],
+                total_found=0,
+                all_approved=True,
+                outdated_procedures=[],
             )
 
         async with self._session_factory() as db:
@@ -730,7 +757,9 @@ class MnemosMCPServer:
     # Tool 12: generate_source_preview  [Real]
     # ==================================================================
 
-    async def _generate_source_preview(self, input: GenerateSourcePreviewInput) -> GenerateSourcePreviewOutput:
+    async def _generate_source_preview(
+        self, input: GenerateSourcePreviewInput
+    ) -> GenerateSourcePreviewOutput:
         """Generate a preview link for an evidence source."""
         import uuid
         from datetime import UTC, datetime, timedelta

@@ -13,6 +13,7 @@ from mnemos.agentic.utils.logging import StructuredLogger
 
 logger = StructuredLogger("ragas_evaluator")
 
+
 class RagasEvaluatorImpl(RAGEvaluator):
     """
     Concrete RAGAS evaluator for Mnemos.
@@ -25,19 +26,13 @@ class RagasEvaluatorImpl(RAGEvaluator):
             model=agent_settings.primary_llm.model_name,
             temperature=0,
             openai_api_key=agent_settings.primary_llm.api_key,
-            base_url=agent_settings.primary_llm.base_url
+            base_url=agent_settings.primary_llm.base_url,
         )
         self.embeddings = OpenAIEmbeddings(
-            model=agent_settings.embedding_model,
-            openai_api_key=agent_settings.primary_llm.api_key
+            model=agent_settings.embedding_model, openai_api_key=agent_settings.primary_llm.api_key
         )
 
-        self.metrics = [
-            faithfulness,
-            answer_relevancy,
-            context_precision,
-            context_recall
-        ]
+        self.metrics = [faithfulness, answer_relevancy, context_precision, context_recall]
 
     async def evaluate_sample(self, sample: EvalSample, result: SampleResult) -> list[MetricResult]:
         """
@@ -48,7 +43,7 @@ class RagasEvaluatorImpl(RAGEvaluator):
             "question": [sample.query],
             "answer": [result.answer],
             "contexts": [result.retrieved_contexts],
-            "ground_truth": [sample.ground_truth] if sample.ground_truth else [None]
+            "ground_truth": [sample.ground_truth] if sample.ground_truth else [None],
         }
 
         dataset = Dataset.from_dict(data)
@@ -58,27 +53,28 @@ class RagasEvaluatorImpl(RAGEvaluator):
             score_results = await loop.run_in_executor(
                 None,
                 lambda: evaluate(
-                    dataset,
-                    metrics=self.metrics,
-                    llm=self.critic_llm,
-                    embeddings=self.embeddings
-                )
+                    dataset, metrics=self.metrics, llm=self.critic_llm, embeddings=self.embeddings
+                ),
             )
 
             metric_results: list[MetricResult] = []
             for name, score in score_results.items():
-                metric_results.append(MetricResult(
-                    name=name,
-                    score=float(score),
-                    reasoning=f"Calculated via RAGAS using {agent_settings.primary_llm.model_name} as critic."
-                ))
+                metric_results.append(
+                    MetricResult(
+                        name=name,
+                        score=float(score),
+                        reasoning=f"Calculated via RAGAS using {agent_settings.primary_llm.model_name} as critic.",
+                    )
+                )
 
             return metric_results
         except Exception as e:
             logger.error(f"RAGAS evaluation failed: {str(e)}", exc_info=True)
             return []
 
-    async def evaluate(self, input_data: Any, output_data: Any, context: dict[str, Any]) -> list[EvaluationResult]:
+    async def evaluate(
+        self, input_data: Any, output_data: Any, context: dict[str, Any]
+    ) -> list[EvaluationResult]:
         raise NotImplementedError("Use evaluate_sample() instead")
 
     async def evaluate_faithfulness(self, answer: str, context: list[str]) -> EvaluationResult:

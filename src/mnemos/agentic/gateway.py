@@ -31,15 +31,17 @@ from mnemos.schemas.agent import (
 logger = logging.getLogger(__name__)
 
 # Sanitised error codes that may safely surface to the caller.
-_SAFE_ERROR_CODES = frozenset({
-    "AGENT_RESPONSE_INVALID",
-    "AGENT_EVIDENCE_FORBIDDEN",
-    "AGENT_EVIDENCE_INVALID",
-    "AGENT_EVIDENCE_OUT_OF_SCOPE",
-    "AI_ORCHESTRATION_FAILED",
-    "AI_ORCHESTRATION_TIMEOUT",
-    "AI_APPROVAL_PENDING",
-})
+_SAFE_ERROR_CODES = frozenset(
+    {
+        "AGENT_RESPONSE_INVALID",
+        "AGENT_EVIDENCE_FORBIDDEN",
+        "AGENT_EVIDENCE_INVALID",
+        "AGENT_EVIDENCE_OUT_OF_SCOPE",
+        "AI_ORCHESTRATION_FAILED",
+        "AI_ORCHESTRATION_TIMEOUT",
+        "AI_APPROVAL_PENDING",
+    }
+)
 
 
 def _sanitize_error(exc: BaseException) -> tuple[str, str]:

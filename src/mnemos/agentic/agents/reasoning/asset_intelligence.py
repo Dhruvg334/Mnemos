@@ -134,7 +134,9 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
             ],
             next_actions=next_actions,
             next_recommended_agents=(
-                ["rca_agent"] if any(c.status == ClaimSupportStatus.UNCERTAIN for c in claims) else []
+                ["rca_agent"]
+                if any(c.status == ClaimSupportStatus.UNCERTAIN for c in claims)
+                else []
             ),
             reasoning_summary=(
                 f"Extracted {len(claims)} grounded claims from "
@@ -160,9 +162,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
     # Claim extraction
     # ------------------------------------------------------------------
 
-    def _extract_claims(
-        self, evidence: list[EvidenceSource]
-    ) -> list[GroundedClaim]:
+    def _extract_claims(self, evidence: list[EvidenceSource]) -> list[GroundedClaim]:
         """Extract grounded claims from verified evidence.
 
         Each claim traces to specific evidence sources.
@@ -210,9 +210,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
             return ClaimSupportStatus.NO_EVIDENCE
         return ClaimSupportStatus.PARTIALLY_SUPPORTED
 
-    def _explain_grounding(
-        self, source: EvidenceSource, status: ClaimSupportStatus
-    ) -> str:
+    def _explain_grounding(self, source: EvidenceSource, status: ClaimSupportStatus) -> str:
         return (
             f"Claim grounded in evidence from {source.provenance.source_filename} "
             f"(v{source.provenance.document_version}), "
@@ -225,9 +223,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
     # Citations
     # ------------------------------------------------------------------
 
-    def _build_citations(
-        self, evidence: list[EvidenceSource]
-    ) -> list[Citation]:
+    def _build_citations(self, evidence: list[EvidenceSource]) -> list[Citation]:
         citations: list[Citation] = []
         for source in evidence:
             p = source.provenance
@@ -263,22 +259,21 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
         source_rel = sum(s.relevance_score for s in evidence) / len(evidence)
 
         supported = sum(
-            1 for c in claims
+            1
+            for c in claims
             if c.status in (ClaimSupportStatus.SUPPORTED, ClaimSupportStatus.PARTIALLY_SUPPORTED)
         )
         claim_ratio = supported / len(claims) if claims else 0.0
 
         provenance_count = sum(
-            1 for s in evidence
+            1
+            for s in evidence
             if s.verification_status in ("provenance_validated", "human_reviewed")
         )
         provenance_ratio = provenance_count / len(evidence)
 
         confidence = (
-            0.35 * source_conf
-            + 0.25 * source_rel
-            + 0.25 * claim_ratio
-            + 0.15 * provenance_ratio
+            0.35 * source_conf + 0.25 * source_rel + 0.25 * claim_ratio + 0.15 * provenance_ratio
         )
         return round(min(confidence, 1.0), 3)
 
@@ -328,9 +323,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
     ) -> list[RecommendedAction]:
         actions: list[RecommendedAction] = []
 
-        uncertain = [
-            c for c in claims if c.status == ClaimSupportStatus.UNCERTAIN
-        ]
+        uncertain = [c for c in claims if c.status == ClaimSupportStatus.UNCERTAIN]
         if uncertain:
             actions.append(
                 RecommendedAction(
@@ -346,9 +339,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
                 )
             )
 
-        partially = [
-            c for c in claims if c.status == ClaimSupportStatus.PARTIALLY_SUPPORTED
-        ]
+        partially = [c for c in claims if c.status == ClaimSupportStatus.PARTIALLY_SUPPORTED]
         if partially:
             actions.append(
                 RecommendedAction(
@@ -443,7 +434,8 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
 
         # Check for unresolved actions on similar assets
         unresolved_assets = [
-            n for n in similar_asset_evidence
+            n
+            for n in similar_asset_evidence
             if str(n.get("status", "")).lower() in ("active", "open", "pending", "in_progress")
         ]
         if unresolved_assets:

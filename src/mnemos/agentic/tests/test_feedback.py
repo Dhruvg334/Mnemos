@@ -85,26 +85,32 @@ class TestFeedbackStore:
     def test_add_and_count(self):
         store = FeedbackStore()
         assert store.count() == 0
-        store.add(FeedbackEntry(
-            investigation_id="inv_001",
-            agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+            )
+        )
         assert store.count() == 1
 
     def test_count_by_agent(self):
         store = FeedbackStore()
         for _ in range(5):
-            store.add(FeedbackEntry(
+            store.add(
+                FeedbackEntry(
+                    investigation_id="inv_001",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                )
+            )
+        store.add(
+            FeedbackEntry(
                 investigation_id="inv_001",
-                agent_name="rca",
+                agent_name="compliance",
                 feedback_type=FeedbackType.USER_RATING,
-            ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001",
-            agent_name="compliance",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
+            )
+        )
         assert store.count("rca") == 5
         assert store.count("compliance") == 1
         assert store.count() == 6
@@ -112,11 +118,13 @@ class TestFeedbackStore:
     def test_get_for_agent(self):
         store = FeedbackStore()
         for i in range(3):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}",
-                agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                )
+            )
         results = store.get_for_agent("rca")
         assert len(results) == 3
         assert all(e.agent_name == "rca" for e in results)
@@ -137,54 +145,79 @@ class TestFeedbackStore:
     def test_get_for_agent_limit(self):
         store = FeedbackStore()
         for _ in range(10):
-            store.add(FeedbackEntry(
-                investigation_id="inv_001",
-                agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id="inv_001",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                )
+            )
         results = store.get_for_agent("rca", limit=3)
         assert len(results) == 3
 
     def test_get_for_investigation(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="compliance",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_002", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="compliance",
+                feedback_type=FeedbackType.USER_RATING,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_002",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+            )
+        )
         results = store.get_for_investigation("inv_001")
         assert len(results) == 2
 
     def test_get_by_type(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.OUTCOME_TRACKING,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.OUTCOME_TRACKING,
+            )
+        )
         results = store.get_by_type(FeedbackType.USER_RATING)
         assert len(results) == 1
 
     def test_avg_rating(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.8,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.6,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.8,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.6,
+            )
+        )
         avg = store.avg_rating("rca")
         assert avg is not None
         assert abs(avg - 0.7) < 1e-9
@@ -196,28 +229,46 @@ class TestFeedbackStore:
 
     def test_avg_rating_all_entries(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.8,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="compliance",
-            feedback_type=FeedbackType.USER_RATING, rating=0.4,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.8,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="compliance",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.4,
+            )
+        )
         avg = store.avg_rating()
         assert avg is not None
         assert abs(avg - 0.6) < 1e-9
 
     def test_agent_summary(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.9, is_positive=True,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.3, is_positive=False,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.9,
+                is_positive=True,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.3,
+                is_positive=False,
+            )
+        )
         s = store.agent_summary("rca")
         assert s["agent_name"] == "rca"
         assert s["total_feedback"] == 2
@@ -234,14 +285,21 @@ class TestFeedbackStore:
 
     def test_summary(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.7,
-        ))
-        store.add(FeedbackEntry(
-            investigation_id="inv_002", agent_name="compliance",
-            feedback_type=FeedbackType.OUTCOME_TRACKING,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.7,
+            )
+        )
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_002",
+                agent_name="compliance",
+                feedback_type=FeedbackType.OUTCOME_TRACKING,
+            )
+        )
         s = store.summary()
         assert s["total_entries"] == 2
         assert "user_rating" in s["type_counts"]
@@ -250,18 +308,25 @@ class TestFeedbackStore:
     def test_max_entries_limit(self):
         store = FeedbackStore(max_entries=3)
         for i in range(5):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}", agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                )
+            )
         assert store.count() == 3
 
     def test_to_list_and_from_list(self):
         store = FeedbackStore()
-        store.add(FeedbackEntry(
-            investigation_id="inv_001", agent_name="rca",
-            feedback_type=FeedbackType.USER_RATING, rating=0.8,
-        ))
+        store.add(
+            FeedbackEntry(
+                investigation_id="inv_001",
+                agent_name="rca",
+                feedback_type=FeedbackType.USER_RATING,
+                rating=0.8,
+            )
+        )
         data = store.to_list()
         assert len(data) == 1
         restored = FeedbackStore.from_list(data)
@@ -277,14 +342,16 @@ class TestFeedbackAnalyzer:
     def _make_store_with_negative_feedback(self, agent: str, count: int = 4) -> FeedbackStore:
         store = FeedbackStore()
         for i in range(count):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}",
-                agent_name=agent,
-                feedback_type=FeedbackType.USER_RATING,
-                rating=0.2,
-                is_positive=False,
-                comment=f"Issue {i}",
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name=agent,
+                    feedback_type=FeedbackType.USER_RATING,
+                    rating=0.2,
+                    is_positive=False,
+                    comment=f"Issue {i}",
+                )
+            )
         return store
 
     def test_detect_recurring_negative(self):
@@ -297,10 +364,14 @@ class TestFeedbackAnalyzer:
     def test_detect_low_rating(self):
         store = FeedbackStore()
         for i in range(3):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}", agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING, rating=0.25,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                    rating=0.25,
+                )
+            )
         analyzer = FeedbackAnalyzer(store)
         patterns = analyzer.detect_patterns("rca")
         pattern_types = [p.pattern_type for p in patterns]
@@ -309,11 +380,14 @@ class TestFeedbackAnalyzer:
     def test_detect_outcome_pattern(self):
         store = FeedbackStore()
         for i in range(3):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}", agent_name="rca",
-                feedback_type=FeedbackType.OUTCOME_TRACKING,
-                outcome="false_positive",
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.OUTCOME_TRACKING,
+                    outcome="false_positive",
+                )
+            )
         analyzer = FeedbackAnalyzer(store)
         patterns = analyzer.detect_patterns("rca")
         pattern_types = [p.pattern_type for p in patterns]
@@ -322,10 +396,15 @@ class TestFeedbackAnalyzer:
     def test_no_patterns_for_good_agent(self):
         store = FeedbackStore()
         for i in range(3):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}", agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING, rating=0.9, is_positive=True,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                    rating=0.9,
+                    is_positive=True,
+                )
+            )
         analyzer = FeedbackAnalyzer(store)
         patterns = analyzer.detect_patterns("rca")
         assert len(patterns) == 0
@@ -346,10 +425,14 @@ class TestFeedbackAnalyzer:
     def test_generate_suggestions_for_low_rating(self):
         store = FeedbackStore()
         for i in range(3):
-            store.add(FeedbackEntry(
-                investigation_id=f"inv_{i:03d}", agent_name="rca",
-                feedback_type=FeedbackType.USER_RATING, rating=0.25,
-            ))
+            store.add(
+                FeedbackEntry(
+                    investigation_id=f"inv_{i:03d}",
+                    agent_name="rca",
+                    feedback_type=FeedbackType.USER_RATING,
+                    rating=0.25,
+                )
+            )
         analyzer = FeedbackAnalyzer(store)
         suggestions = analyzer.generate_suggestions("rca")
         categories = [s.category for s in suggestions]
@@ -379,7 +462,7 @@ class TestAgentPerformanceTracker:
         for i in range(4):
             tracker.record("rca", f"inv_{i:03d}", success=True)
         for i in range(2):
-            tracker.record("rca", f"inv_{i+4:03d}", success=False)
+            tracker.record("rca", f"inv_{i + 4:03d}", success=False)
         rate = tracker.success_rate("rca")
         assert rate is not None
         assert abs(rate - 4 / 6) < 1e-9

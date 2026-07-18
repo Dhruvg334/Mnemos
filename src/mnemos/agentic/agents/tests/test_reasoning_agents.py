@@ -48,6 +48,7 @@ from mnemos.agentic.schemas.base import (
 # Fixtures
 # ======================================================================
 
+
 @pytest.fixture
 def mock_db() -> MagicMock:
     db = MagicMock(spec=AsyncSession)
@@ -147,6 +148,7 @@ def _initial_state(
 # Protocol conformance (all 5 agents)
 # ======================================================================
 
+
 class TestReasoningProtocolConformance:
     ALL_AGENTS = [
         AssetIntelligenceAgent,
@@ -193,6 +195,7 @@ class TestReasoningProtocolConformance:
 # ======================================================================
 # AssetIntelligenceAgent
 # ======================================================================
+
 
 class TestAssetIntelligenceAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
@@ -339,6 +342,7 @@ class TestAssetIntelligenceAgent:
 # ======================================================================
 # RCAAgent
 # ======================================================================
+
 
 class TestRCAAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
@@ -539,6 +543,7 @@ class TestRCAAgent:
 # ComplianceAgent
 # ======================================================================
 
+
 class TestComplianceAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = ComplianceAgent(mock_db)
@@ -731,6 +736,7 @@ class TestComplianceAgent:
 # ExpertKnowledgeAgent
 # ======================================================================
 
+
 class TestExpertKnowledgeAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = ExpertKnowledgeAgent(mock_db)
@@ -873,6 +879,7 @@ class TestExpertKnowledgeAgent:
 # LessonsLearnedAgent
 # ======================================================================
 
+
 class TestLessonsLearnedAgent:
     def test_registration_metadata(self, mock_db: MagicMock) -> None:
         agent = LessonsLearnedAgent(mock_db)
@@ -924,7 +931,9 @@ class TestLessonsLearnedAgent:
 
         patterns = result["context"]["reasoning_output"].metadata["patterns"]
         assert len(patterns) >= 1
-        assert any("bearing" in p["factor"].lower() or "failure" in p["factor"].lower() for p in patterns)
+        assert any(
+            "bearing" in p["factor"].lower() or "failure" in p["factor"].lower() for p in patterns
+        )
 
     @pytest.mark.asyncio
     async def test_generates_proactive_recommendations(self, mock_db: MagicMock) -> None:
@@ -1068,6 +1077,7 @@ class TestLessonsLearnedAgent:
 # Cross-agent collaboration
 # ======================================================================
 
+
 class TestCrossAgentCollaboration:
     @pytest.mark.asyncio
     async def test_asset_intelligence_suggests_rca(self, mock_db: MagicMock) -> None:
@@ -1135,6 +1145,7 @@ class TestCrossAgentCollaboration:
 # ======================================================================
 # ReasoningOutput schema
 # ======================================================================
+
 
 class TestReasoningOutputSchema:
     def test_output_has_required_fields(self) -> None:

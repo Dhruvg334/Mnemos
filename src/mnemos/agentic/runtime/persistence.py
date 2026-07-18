@@ -122,7 +122,8 @@ class DurableCheckpointManager(CheckpointManager):
         except Exception as exc:
             logger.error(
                 "DurableCheckpoint: failed to persist checkpoint %s: %s",
-                checkpoint.metadata.checkpoint_id, exc,
+                checkpoint.metadata.checkpoint_id,
+                exc,
             )
             raise
 
@@ -182,7 +183,8 @@ class DurableCheckpointManager(CheckpointManager):
             )
         except Exception as exc:
             logger.warning(
-                "DurableCheckpoint: failed to load from DB: %s", exc,
+                "DurableCheckpoint: failed to load from DB: %s",
+                exc,
             )
             return None
 
@@ -200,7 +202,9 @@ class DurableAuditLogger(AuditLogger):
     """
 
     def __init__(
-        self, investigation_id: str, db: AsyncSession | None = None,
+        self,
+        investigation_id: str,
+        db: AsyncSession | None = None,
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
@@ -228,12 +232,10 @@ class DurableAuditLogger(AuditLogger):
                     input_data=entry.input_data,
                     output_data=entry.output_data,
                     guardrail_checks=[
-                        c.value if hasattr(c, "value") else str(c)
-                        for c in entry.guardrail_checks
+                        c.value if hasattr(c, "value") else str(c) for c in entry.guardrail_checks
                     ],
                     guardrail_verdicts=[
-                        v.value if hasattr(v, "value") else str(v)
-                        for v in entry.guardrail_verdicts
+                        v.value if hasattr(v, "value") else str(v) for v in entry.guardrail_verdicts
                     ],
                     approval_gate=entry.approval_gate,
                     approval_decision=entry.approval_decision,
@@ -243,16 +245,15 @@ class DurableAuditLogger(AuditLogger):
                     duration_ms=entry.metadata.get("duration_ms", 0.0)
                     if isinstance(entry.metadata, dict)
                     else 0.0,
-                    metadata_json=entry.metadata
-                    if isinstance(entry.metadata, dict)
-                    else {},
+                    metadata_json=entry.metadata if isinstance(entry.metadata, dict) else {},
                     created_at=entry.timestamp,
                 )
             )
             return
         except Exception as exc:
             logger.warning(
-                "DurableAuditLogger: failed to stage DB persist: %s", exc,
+                "DurableAuditLogger: failed to stage DB persist: %s",
+                exc,
             )
         try:
             loop = asyncio.get_event_loop()
@@ -267,9 +268,7 @@ class DurableAuditLogger(AuditLogger):
                     self._async_persist(entry),
                 )
             except Exception:
-                logger.warning(
-                    "DurableAuditLogger: could not schedule DB persist"
-                )
+                logger.warning("DurableAuditLogger: could not schedule DB persist")
 
     async def _async_persist(self, entry: AuditEntry) -> None:
         try:
@@ -308,12 +307,16 @@ class DurableAuditLogger(AuditLogger):
                     "input_data": json.dumps(entry.input_data, default=str),
                     "output_data": json.dumps(entry.output_data, default=str),
                     "guardrail_checks": json.dumps(
-                        [c.value if hasattr(c, "value") else str(c)
-                         for c in entry.guardrail_checks],
+                        [
+                            c.value if hasattr(c, "value") else str(c)
+                            for c in entry.guardrail_checks
+                        ],
                     ),
                     "guardrail_verdicts": json.dumps(
-                        [v.value if hasattr(v, "value") else str(v)
-                         for v in entry.guardrail_verdicts],
+                        [
+                            v.value if hasattr(v, "value") else str(v)
+                            for v in entry.guardrail_verdicts
+                        ],
                     ),
                     "approval_gate": entry.approval_gate,
                     "approval_decision": entry.approval_decision,
@@ -324,7 +327,8 @@ class DurableAuditLogger(AuditLogger):
                     if isinstance(entry.metadata, dict)
                     else 0.0,
                     "metadata_json": json.dumps(
-                        entry.metadata, default=str,
+                        entry.metadata,
+                        default=str,
                     )
                     if isinstance(entry.metadata, dict)
                     else json.dumps({}),
@@ -334,7 +338,8 @@ class DurableAuditLogger(AuditLogger):
             await self._db.flush()
         except Exception as exc:
             logger.warning(
-                "DurableAuditLogger: failed to persist to DB: %s", exc,
+                "DurableAuditLogger: failed to persist to DB: %s",
+                exc,
             )
 
 
@@ -351,7 +356,9 @@ class DurableEventLog(InvestigationEventLog):
     """
 
     def __init__(
-        self, investigation_id: str, db: AsyncSession | None = None,
+        self,
+        investigation_id: str,
+        db: AsyncSession | None = None,
     ) -> None:
         super().__init__(investigation_id)
         self._db = db
@@ -380,7 +387,8 @@ class DurableEventLog(InvestigationEventLog):
             return
         except Exception as exc:
             logger.warning(
-                "DurableEventLog: failed to stage DB persist: %s", exc,
+                "DurableEventLog: failed to stage DB persist: %s",
+                exc,
             )
         try:
             loop = asyncio.get_event_loop()
@@ -395,9 +403,7 @@ class DurableEventLog(InvestigationEventLog):
                     self._async_persist(event),
                 )
             except Exception:
-                logger.warning(
-                    "DurableEventLog: could not schedule DB persist"
-                )
+                logger.warning("DurableEventLog: could not schedule DB persist")
 
     async def _async_persist(self, event: Any) -> None:  # noqa: ANN401
         try:
@@ -432,7 +438,8 @@ class DurableEventLog(InvestigationEventLog):
             await self._db.flush()
         except Exception as exc:
             logger.warning(
-                "DurableEventLog: failed to persist to DB: %s", exc,
+                "DurableEventLog: failed to persist to DB: %s",
+                exc,
             )
 
 
@@ -454,8 +461,7 @@ class DurableNodeRegistry:
         # In-memory cache so same-process lookups don't hit DB every time
         self._cache: dict[str, bool] = {}
 
-    def mark_complete(self, idempotency_key: str, investigation_id: str,
-                      node_name: str) -> None:
+    def mark_complete(self, idempotency_key: str, investigation_id: str, node_name: str) -> None:
         self._cache[idempotency_key] = True
         try:
             self._db.add(
@@ -465,15 +471,15 @@ class DurableNodeRegistry:
                     event_type="node_completed",
                     phase="idempotency",
                     agent_name=node_name,
-                    data_json={"idempotency_key": idempotency_key,
-                               "node_name": node_name},
+                    data_json={"idempotency_key": idempotency_key, "node_name": node_name},
                     created_at=_utcnow(),
                 )
             )
         except Exception as exc:
             logger.warning(
-                "DurableNodeRegistry: failed to persist node completion "
-                "%s: %s", idempotency_key, exc
+                "DurableNodeRegistry: failed to persist node completion %s: %s",
+                idempotency_key,
+                exc,
             )
 
     def is_complete(self, idempotency_key: str) -> bool:
@@ -500,6 +506,7 @@ class DurableNodeRegistry:
                 if isinstance(data, str):
                     try:
                         import json as _json
+
                         data = _json.loads(data)
                     except Exception:
                         data = {}
@@ -511,6 +518,7 @@ class DurableNodeRegistry:
         except Exception as exc:
             logger.warning(
                 "DurableNodeRegistry: failed to load completions for %s: %s",
-                investigation_id, exc,
+                investigation_id,
+                exc,
             )
             return set()

@@ -45,8 +45,6 @@ from mnemos.services.email_delivery import send_verification_email
 router = APIRouter(tags=["auth"])
 
 
-
-
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -58,8 +56,6 @@ def _as_utc(value: datetime | None) -> datetime | None:
 def _client_identity(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
     return forwarded or (request.client.host if request.client else "unknown")
-
-
 
 
 def _site_code(name: str) -> str:
@@ -113,8 +109,6 @@ async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
         refresh_token=raw,
         expires_in=settings.access_token_expire_minutes * 60,
     )
-
-
 
 
 @router.post(
@@ -196,9 +190,7 @@ async def verify_email(
     now = datetime.now(UTC)
     token = await db.scalar(
         select(EmailVerificationToken)
-        .where(
-            EmailVerificationToken.token_hash == hash_refresh_token(payload.token)
-        )
+        .where(EmailVerificationToken.token_hash == hash_refresh_token(payload.token))
         .with_for_update()
     )
     if token is None or token.consumed_at is not None or _as_utc(token.expires_at) <= now:
@@ -236,9 +228,7 @@ async def resend_verification(
         limit=settings.rate_limit_login_requests,
         window_seconds=settings.rate_limit_login_window_seconds,
     )
-    user = await db.scalar(
-        select(User).where(User.email == str(payload.email).lower())
-    )
+    user = await db.scalar(select(User).where(User.email == str(payload.email).lower()))
     if user is not None and not user.is_active:
         raw = await _create_verification_token(db, user)
         await db.commit()

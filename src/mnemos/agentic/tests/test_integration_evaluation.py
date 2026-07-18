@@ -19,24 +19,19 @@ import pytest
 from mnemos.agentic.agents.retrieval.evidence_retrieval import (
     EvidenceRetrievalAgent,
 )
-from mnemos.agentic.retrieval.confidence import ConfidenceCalculator
-from mnemos.agentic.retrieval.contradiction import ContradictionDetector
 from mnemos.agentic.retrieval.citation_extractor import CitationExtractor
+from mnemos.agentic.retrieval.confidence import ConfidenceCalculator
 from mnemos.agentic.retrieval.dedup import DuplicateRemover
 from mnemos.agentic.schemas.base import (
     Citation,
-    ClaimSupportStatus,
     Contradiction,
     EvidenceBundle,
     EvidenceSource,
-    GroundedClaim,
     ProvenanceChain,
     QueryIntent,
     RetrievalPlan,
     RetrievalStrategy,
-    VerificationStatus,
 )
-from mnemos.agentic.schemas.state import AgentState
 
 
 def _make_bundle(
@@ -120,7 +115,8 @@ def _make_plan(
 ) -> RetrievalPlan:
     return RetrievalPlan(
         intent=intent,
-        strategies=strategies or [RetrievalStrategy.VECTOR_SEARCH, RetrievalStrategy.LEXICAL_SEARCH],
+        strategies=strategies
+        or [RetrievalStrategy.VECTOR_SEARCH, RetrievalStrategy.LEXICAL_SEARCH],
         reasoning="Test plan",
         target_entities=[],
         top_k_per_strategy=5,
@@ -145,10 +141,16 @@ async def test_intent_classification_accuracy():
         ("compliance", ["compliance_agent"]),
         ("asset_info", ["asset_intelligence"]),
         ("lessons_learned", ["lessons_learned_agent", "expert_knowledge_agent"]),
-        ("general", [
-            "rca_agent", "compliance_agent", "asset_intelligence",
-            "lessons_learned_agent", "expert_knowledge_agent",
-        ]),
+        (
+            "general",
+            [
+                "rca_agent",
+                "compliance_agent",
+                "asset_intelligence",
+                "lessons_learned_agent",
+                "expert_knowledge_agent",
+            ],
+        ),
     ]
 
     for intent, expected_agents in test_cases:
@@ -173,19 +175,33 @@ def test_recall_at_k():
     """DuplicateRemover preserves unique candidates and removes duplicates."""
     dedup = DuplicateRemover()
     candidates = [
-        {"content": "Pump P-101 bearing wear detected.", "metadata": {"document_id": "doc_1"}, "score": 0.9},
-        {"content": "Pump bearing wear found on P-101.", "metadata": {"document_id": "doc_2"}, "score": 0.85},
-        {"content": "Pump P-101 bearing wear detected.", "metadata": {"document_id": "doc_3"}, "score": 0.8},
-        {"content": "Completely different content about ISO compliance.", "metadata": {"document_id": "doc_4"}, "score": 0.7},
+        {
+            "content": "Pump P-101 bearing wear detected.",
+            "metadata": {"document_id": "doc_1"},
+            "score": 0.9,
+        },
+        {
+            "content": "Pump bearing wear found on P-101.",
+            "metadata": {"document_id": "doc_2"},
+            "score": 0.85,
+        },
+        {
+            "content": "Pump P-101 bearing wear detected.",
+            "metadata": {"document_id": "doc_3"},
+            "score": 0.8,
+        },
+        {
+            "content": "Completely different content about ISO compliance.",
+            "metadata": {"document_id": "doc_4"},
+            "score": 0.7,
+        },
     ]
 
     filtered = dedup.remove_duplicates(candidates)
     unique_contents = {v["content"] for v in filtered}
     assert "Pump P-101 bearing wear detected." in unique_contents
     assert "Completely different content about ISO compliance." in unique_contents
-    assert len(filtered) == 3, (
-        f"Expected 3 unique docs after dedup, got {len(filtered)}"
-    )
+    assert len(filtered) == 3, f"Expected 3 unique docs after dedup, got {len(filtered)}"
 
 
 # ===========================================================================
@@ -216,9 +232,7 @@ def test_unsupported_claims_flagged():
     bundle = _make_bundle(vector_count=0)  # empty vector data = low confidence
 
     confidence, signals = calculator.calculate_bundle_confidence(bundle, {})
-    assert confidence < 0.5, (
-        f"Expected low confidence for empty bundle, got {confidence}"
-    )
+    assert confidence < 0.5, f"Expected low confidence for empty bundle, got {confidence}"
 
 
 # ===========================================================================
@@ -229,9 +243,7 @@ def test_unsupported_claims_flagged():
 def test_contradiction_detection():
     """ContradictionDetector surfaces conflicts in evidence."""
     bundle = _make_bundle(with_contradictions=True)
-    assert len(bundle.contradictions) > 0, (
-        "Contradictory evidence should be surfaced"
-    )
+    assert len(bundle.contradictions) > 0, "Contradictory evidence should be surfaced"
     assert bundle.contradictions[0].severity == "high"
 
 
@@ -254,9 +266,7 @@ async def test_abstention_on_insufficient_evidence():
 
     result = await agent.reflect(empty_state)
     # With no evidence, should identify gaps and suggest re-retrieval
-    assert len(result.identified_gaps) > 0, (
-        "Reflection should identify gaps with no evidence"
-    )
+    assert len(result.identified_gaps) > 0, "Reflection should identify gaps with no evidence"
     assert result.evidence_completeness < 0.5, (
         "Evidence completeness should be low with no evidence"
     )
@@ -266,7 +276,9 @@ async def test_abstention_on_insufficient_evidence():
     )
 
 
-def create_initial_state(*, investigation_id: str, query: str, context: dict[str, Any]) -> dict[str, Any]:
+def create_initial_state(
+    *, investigation_id: str, query: str, context: dict[str, Any]
+) -> dict[str, Any]:
     """Minimal initial state helper (avoids importing runtime.state which may fail)."""
     return {
         "investigation_id": investigation_id,
@@ -311,9 +323,7 @@ def test_cross_tenant_isolation():
     }
 
     filtered = agent._filter_by_permissions(org_a_bundle, ctx_org_b)
-    assert len(filtered.verified_evidence) == 0, (
-        "No evidence from org A should leak to org B"
-    )
+    assert len(filtered.verified_evidence) == 0, "No evidence from org A should leak to org B"
 
 
 # ===========================================================================
@@ -333,9 +343,7 @@ def test_workflow_completion_rate():
             context={"intent": intent},
         )
         selected = _select_specialized_agents(state)
-        assert len(selected) > 0, (
-            f"Expected at least 1 agent for intent '{intent}'"
-        )
+        assert len(selected) > 0, f"Expected at least 1 agent for intent '{intent}'"
 
 
 # ===========================================================================
@@ -349,18 +357,22 @@ def test_tool_selection_accuracy():
 
     # Every registered agent must have an allowlist
     registered_agents = [
-        "query_router", "retrieval_planner", "evidence_retrieval",
-        "evidence_verification", "retrieval_reflection", "rca_agent",
-        "compliance_agent", "asset_intelligence", "lessons_learned_agent",
-        "expert_knowledge_agent", "report_composer", "unknown",
+        "query_router",
+        "retrieval_planner",
+        "evidence_retrieval",
+        "evidence_verification",
+        "retrieval_reflection",
+        "rca_agent",
+        "compliance_agent",
+        "asset_intelligence",
+        "lessons_learned_agent",
+        "expert_knowledge_agent",
+        "report_composer",
+        "unknown",
     ]
     for agent in registered_agents:
-        assert agent in _AGENT_TOOL_ALLOWLISTS, (
-            f"Agent '{agent}' has no tool allowlist"
-        )
-        assert len(_AGENT_TOOL_ALLOWLISTS[agent]) > 0, (
-            f"Agent '{agent}' has empty tool allowlist"
-        )
+        assert agent in _AGENT_TOOL_ALLOWLISTS, f"Agent '{agent}' has no tool allowlist"
+        assert len(_AGENT_TOOL_ALLOWLISTS[agent]) > 0, f"Agent '{agent}' has empty tool allowlist"
 
 
 # ===========================================================================
@@ -377,11 +389,13 @@ def test_budget_allocation_proportional():
     """BudgetOptimiser allocates proportionally to strategy weight."""
     from mnemos.agentic.retrieval.budget import RetrievalBudgetOptimiser
 
-    plan = _make_plan(strategies=[
-        RetrievalStrategy.VECTOR_SEARCH,
-        RetrievalStrategy.GRAPH_TRAVERSAL,
-        RetrievalStrategy.LEXICAL_SEARCH,
-    ])
+    plan = _make_plan(
+        strategies=[
+            RetrievalStrategy.VECTOR_SEARCH,
+            RetrievalStrategy.GRAPH_TRAVERSAL,
+            RetrievalStrategy.LEXICAL_SEARCH,
+        ]
+    )
     optimiser = RetrievalBudgetOptimiser(max_total_candidates=100)
     allocation = optimiser.allocate_per_strategy(plan)
 
@@ -491,12 +505,22 @@ def test_region_dedup():
     """DuplicateRemover removes region-level duplicates."""
     dedup = DuplicateRemover()
     candidates = [
-        {"content": "The pump failed due to seal wear.", "metadata": {"evidence_region_id": "reg_001"}, "score": 0.9},
-        {"content": "The pump failed due to seal wear.", "metadata": {"evidence_region_id": "reg_001"}, "score": 0.85},
-        {"content": "The pump failed due to bearing damage.", "metadata": {"evidence_region_id": "reg_002"}, "score": 0.8},
+        {
+            "content": "The pump failed due to seal wear.",
+            "metadata": {"evidence_region_id": "reg_001"},
+            "score": 0.9,
+        },
+        {
+            "content": "The pump failed due to seal wear.",
+            "metadata": {"evidence_region_id": "reg_001"},
+            "score": 0.85,
+        },
+        {
+            "content": "The pump failed due to bearing damage.",
+            "metadata": {"evidence_region_id": "reg_002"},
+            "score": 0.8,
+        },
     ]
 
     filtered = dedup.remove_region_duplicates(candidates)
-    assert len(filtered) == 2, (
-        f"Expected 2 unique regions after dedup, got {len(filtered)}"
-    )
+    assert len(filtered) == 2, f"Expected 2 unique regions after dedup, got {len(filtered)}"

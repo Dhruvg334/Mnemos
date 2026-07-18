@@ -41,6 +41,7 @@ from mnemos.agentic.evaluation.models import EvalSample, SampleResult
 # Synthetic state builder — deterministic, no LLM required (P0 #21)
 # ---------------------------------------------------------------------------
 
+
 def _make_state(sample: EvalSample) -> dict[str, Any]:
     """Build a deterministic synthetic investigation state for a sample.
 
@@ -58,40 +59,42 @@ def _make_state(sample: EvalSample) -> dict[str, Any]:
     # Synthetic evidence with resolved entities and document provenance
     evidence = []
     for doc_id in doc_ids:
-        evidence.append({
-            "verified_evidence": [
-                {
-                    "text_excerpt": f"Evidence from {doc_id}",
-                    "provenance": {
-                        "document_id": doc_id,
-                        "chunk_id": f"chk_{doc_id}_001",
-                    },
-                    "confidence_score": 0.85,
-                }
-            ],
-            "grounded_relationships": [
-                {"source_id": eid, "target_id": "plant_system", "type": "belongs_to"}
-                for eid in entities
-            ],
-            "resolved_entities": [
-                {"entity_id": eid, "canonical_name": eid}
-                for eid in entities
-            ],
-            "citations": [
-                {"citation_id": cid, "document_id": doc_id}
-                for cid in citation_ids[:2]
-            ],
-        })
+        evidence.append(
+            {
+                "verified_evidence": [
+                    {
+                        "text_excerpt": f"Evidence from {doc_id}",
+                        "provenance": {
+                            "document_id": doc_id,
+                            "chunk_id": f"chk_{doc_id}_001",
+                        },
+                        "confidence_score": 0.85,
+                    }
+                ],
+                "grounded_relationships": [
+                    {"source_id": eid, "target_id": "plant_system", "type": "belongs_to"}
+                    for eid in entities
+                ],
+                "resolved_entities": [
+                    {"entity_id": eid, "canonical_name": eid} for eid in entities
+                ],
+                "citations": [
+                    {"citation_id": cid, "document_id": doc_id} for cid in citation_ids[:2]
+                ],
+            }
+        )
 
     # Synthetic claims
     claims: list[dict] = []
     if root_cause:
-        claims.append({
-            "claim_id": "clm_001",
-            "text": root_cause,
-            "status": "supported",
-            "sources": [{"confidence_score": 0.85}],
-        })
+        claims.append(
+            {
+                "claim_id": "clm_001",
+                "text": root_cause,
+                "status": "supported",
+                "sources": [{"confidence_score": 0.85}],
+            }
+        )
 
     # Synthetic compliance checks
     compliance_checks: list[dict] = []
@@ -144,6 +147,7 @@ def _make_state(sample: EvalSample) -> dict[str, Any]:
 # Run evaluation over all samples
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def eval_results() -> tuple[list[SampleResult], dict[str, float]]:
     """Run the evaluator over all dataset samples and return results + summary."""
@@ -165,6 +169,7 @@ def eval_results() -> tuple[list[SampleResult], dict[str, float]]:
 # Dataset metadata gate
 # ---------------------------------------------------------------------------
 
+
 def test_dataset_version_is_set():
     """Dataset version must be explicitly set."""
     assert DATASET_VERSION, "Dataset version must not be empty"
@@ -178,8 +183,12 @@ def test_dataset_has_samples():
     )
     categories = {s.metadata.get("category") for s in DATASET_V1.samples}
     required = {
-        "intent_classification", "retrieval_recall", "citation_validity",
-        "abstention", "workflow_completion", "tool_selection",
+        "intent_classification",
+        "retrieval_recall",
+        "citation_validity",
+        "abstention",
+        "workflow_completion",
+        "tool_selection",
     }
     missing = required - categories
     assert not missing, f"Dataset missing required categories: {missing}"
@@ -188,9 +197,12 @@ def test_dataset_has_samples():
 def test_ci_thresholds_are_defined():
     """All required threshold keys must be present."""
     required_keys = {
-        "avg_routing_accuracy", "avg_retrieval_recall",
-        "avg_grounded_answer_rate", "avg_abstention_quality",
-        "avg_workflow_completion", "overall_weighted_score",
+        "avg_routing_accuracy",
+        "avg_retrieval_recall",
+        "avg_grounded_answer_rate",
+        "avg_abstention_quality",
+        "avg_workflow_completion",
+        "overall_weighted_score",
     }
     missing = required_keys - set(CI_THRESHOLDS.keys())
     assert not missing, f"Missing CI threshold keys: {missing}"
@@ -199,6 +211,7 @@ def test_ci_thresholds_are_defined():
 # ---------------------------------------------------------------------------
 # Per-metric threshold gates (P0 #20)
 # ---------------------------------------------------------------------------
+
 
 def test_routing_accuracy_threshold(eval_results):
     _, summary = eval_results
@@ -283,6 +296,7 @@ def test_latency_budget(eval_results):
 # P0 #21: Reproducible evaluation report
 # ---------------------------------------------------------------------------
 
+
 def test_eval_report_is_reproducible(eval_results):
     """
     Running the evaluator twice on the same synthetic states must
@@ -300,8 +314,7 @@ def test_eval_report_is_reproducible(eval_results):
 
     for key in summary1:
         assert abs(summary1[key] - summary2.get(key, 0.0)) < 1e-9, (
-            f"Non-reproducible score for '{key}': "
-            f"{summary1[key]} vs {summary2.get(key)}"
+            f"Non-reproducible score for '{key}': {summary1[key]} vs {summary2.get(key)}"
         )
 
 
@@ -329,9 +342,7 @@ def test_eval_report_scores_are_in_range(eval_results):
     _, summary = eval_results
     for key, val in summary.items():
         if key.startswith("avg_") or key == "overall_weighted_score":
-            assert 0.0 <= val <= 1.0, (
-                f"Metric '{key}' score {val} is outside [0, 1]"
-            )
+            assert 0.0 <= val <= 1.0, f"Metric '{key}' score {val} is outside [0, 1]"
 
 
 def test_no_hallucination_in_synthetic_states(eval_results):
@@ -339,8 +350,7 @@ def test_no_hallucination_in_synthetic_states(eval_results):
     results, _ = eval_results
     for r in results:
         assert not r.hallucination_detected, (
-            f"Hallucination detected in sample {r.sample_index}: "
-            f"query='{r.query[:60]}'"
+            f"Hallucination detected in sample {r.sample_index}: query='{r.query[:60]}'"
         )
 
 
@@ -348,6 +358,4 @@ def test_all_samples_evaluated_without_error(eval_results):
     """Every sample must complete without an error."""
     results, _ = eval_results
     errors = [(r.sample_index, r.error) for r in results if r.error]
-    assert not errors, (
-        f"Evaluation errors in samples: {errors}"
-    )
+    assert not errors, f"Evaluation errors in samples: {errors}"

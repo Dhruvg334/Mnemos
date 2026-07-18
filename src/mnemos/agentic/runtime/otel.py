@@ -59,6 +59,7 @@ _TRACER: Any = None
 
 try:
     import opentelemetry  # noqa: F401
+
     _OTEL_AVAILABLE = True
 except ImportError:
     logger.debug("opentelemetry-sdk not installed; using no-op tracer")
@@ -79,11 +80,13 @@ def _build_tracer() -> Any:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-    resource = Resource(attributes={
-        SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "mnemos-agentic"),
-        "service.version": os.getenv("APP_VERSION", "0.1.0"),
-        "deployment.environment": os.getenv("APP_ENV", "development"),
-    })
+    resource = Resource(
+        attributes={
+            SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "mnemos-agentic"),
+            "service.version": os.getenv("APP_VERSION", "0.1.0"),
+            "deployment.environment": os.getenv("APP_ENV", "development"),
+        }
+    )
 
     provider = TracerProvider(resource=resource)
 
@@ -93,6 +96,7 @@ def _build_tracer() -> Any:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
                 OTLPSpanExporter,
             )
+
             otlp_exporter = OTLPSpanExporter(
                 endpoint=otlp_endpoint,
                 headers={
@@ -104,9 +108,7 @@ def _build_tracer() -> Any:
                 },
             )
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            logger.info(
-                "OpenTelemetry OTLP exporter configured: %s", otlp_endpoint
-            )
+            logger.info("OpenTelemetry OTLP exporter configured: %s", otlp_endpoint)
         except ImportError:
             logger.warning(
                 "opentelemetry-exporter-otlp-proto-http not installed; "
@@ -152,6 +154,7 @@ def set_span_error(span: Any, exc: BaseException) -> None:
     try:
         if _OTEL_AVAILABLE:
             from opentelemetry.trace import Status, StatusCode
+
             span.set_status(Status(StatusCode.ERROR))
             # Record only the error type, not the full message (P0 #14)
             span.set_attribute("error.type", type(exc).__name__)
@@ -189,9 +192,7 @@ class _NoOpTracer:
     """Minimal no-op tracer returned when opentelemetry-sdk is unavailable."""
 
     @contextmanager
-    def start_as_current_span(
-        self, name: str, **kwargs: Any
-    ) -> Generator[_NoOpSpan, None, None]:
+    def start_as_current_span(self, name: str, **kwargs: Any) -> Generator[_NoOpSpan, None, None]:
         yield _NoOpSpan()
 
     def start_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
@@ -216,10 +217,10 @@ class SpanName:
     GRAPH_TRAVERSAL = "mnemos.pipeline.graph_traversal"
     CANDIDATE_FUSION = "mnemos.pipeline.candidate_fusion"
     RERANKING = "mnemos.pipeline.reranking"
-    SPECIALIST_AGENT = "mnemos.agent"          # suffix with agent name
+    SPECIALIST_AGENT = "mnemos.agent"  # suffix with agent name
     REFLECTION = "mnemos.pipeline.reflection"
     EVIDENCE_VERIFICATION = "mnemos.pipeline.evidence_verification"
     ANSWER_COMPOSITION = "mnemos.pipeline.answer_composition"
     APPROVAL_GATE = "mnemos.pipeline.approval_gate"
-    TOOL_CALL = "mnemos.tool"                  # suffix with tool name
+    TOOL_CALL = "mnemos.tool"  # suffix with tool name
     PERSISTENCE = "mnemos.persistence"

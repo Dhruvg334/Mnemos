@@ -30,7 +30,7 @@ from mnemos.agentic.runtime.approval_queue import (
     ApprovalDecision,
     ApprovalQueueBase,
 )
-from mnemos.api.deps import Principal, get_principal, require_site_access
+from mnemos.api.deps import Principal, get_principal
 
 _VALID_DECISIONS = frozenset({"approve", "reject", "request_changes"})
 
@@ -60,9 +60,7 @@ class DecisionRequest(BaseModel):
     @classmethod
     def validate_decision(cls, v: str) -> str:
         if v not in _VALID_DECISIONS:
-            raise ValueError(
-                f"decision must be one of: {sorted(_VALID_DECISIONS)}"
-            )
+            raise ValueError(f"decision must be one of: {sorted(_VALID_DECISIONS)}")
         return v
 
 
@@ -89,10 +87,7 @@ def _require_approval_role(
     # Check membership-based authorization
     required_roles = {"approver", "platform_admin", "organisation_admin", "site_admin"}
 
-    if not any(
-        membership.role in required_roles
-        for membership in principal.memberships
-    ):
+    if not any(membership.role in required_roles for membership in principal.memberships):
         raise HTTPException(
             status_code=403,
             detail=(
@@ -252,9 +247,7 @@ def create_approval_router(
         if not cancelled:
             raise HTTPException(
                 status_code=404,
-                detail=(
-                    f"Request '{request_id}' not found or is not pending."
-                ),
+                detail=(f"Request '{request_id}' not found or is not pending."),
             )
         return {
             "success": True,

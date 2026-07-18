@@ -86,9 +86,7 @@ class EvalRunner:
             async with sem:
                 return await self._run_one(idx, sample)
 
-        tasks = [
-            _guarded(idx, sample) for idx, sample in enumerate(dataset.samples)
-        ]
+        tasks = [_guarded(idx, sample) for idx, sample in enumerate(dataset.samples)]
         sample_results = await asyncio.gather(*tasks, return_exceptions=False)
 
         total_duration_ms = (time.perf_counter() - run_start) * 1000
@@ -146,13 +144,14 @@ class EvalRunner:
             )
             latency_ms = (time.perf_counter() - start) * 1000
             return self.evaluator.evaluate(
-                state, sample, sample_index=idx, latency_ms=latency_ms,
+                state,
+                sample,
+                sample_index=idx,
+                latency_ms=latency_ms,
             )
         except TimeoutError:
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.error(
-                f"Sample {idx} timed out after {self.timeout_seconds}s"
-            )
+            logger.error(f"Sample {idx} timed out after {self.timeout_seconds}s")
             return SampleResult(
                 sample_index=idx,
                 query=sample.query,

@@ -23,8 +23,8 @@ from mnemos.agentic.runtime import (
     AgentRegistration,
     AgentRegistry,
     AgentRole,
-    RetryStrategy,
     InvestigationPipeline,
+    RetryStrategy,
 )
 from mnemos.agentic.runtime.workflow import _ApprovalPendingError
 from mnemos.agentic.schemas.base import AgentResponse
@@ -95,11 +95,13 @@ class MnemosAIOrchestrator:
             {
                 "name": "query_router",
                 "role": AgentRole.RETRIEVAL,
-                "capabilities": [AgentCapability(
-                    name="query_classification",
-                    description="Classify query intent and extract entities",
-                    output_types=["intent", "entities"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="query_classification",
+                        description="Classify query intent and extract entities",
+                        output_types=["intent", "entities"],
+                    )
+                ],
                 "max_retries": 2,
                 "timeout_seconds": 60.0,
                 "retry_strategy": RetryStrategy.EXPONENTIAL_BACKOFF,
@@ -108,114 +110,136 @@ class MnemosAIOrchestrator:
             {
                 "name": "retrieval_planner",
                 "role": AgentRole.RETRIEVAL,
-                "capabilities": [AgentCapability(
-                    name="retrieval_planning",
-                    description="Build retrieval plan with strategies and filters",
-                    output_types=["retrieval_plan"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="retrieval_planning",
+                        description="Build retrieval plan with strategies and filters",
+                        output_types=["retrieval_plan"],
+                    )
+                ],
             },
             {
                 "name": "evidence_retrieval",
                 "role": AgentRole.RETRIEVAL,
-                "capabilities": [AgentCapability(
-                    name="evidence_retrieval",
-                    description="Execute retrieval plan via HybridRetrievalEngine",
-                    output_types=["evidence"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="evidence_retrieval",
+                        description="Execute retrieval plan via HybridRetrievalEngine",
+                        output_types=["evidence"],
+                    )
+                ],
             },
             {
                 "name": "evidence_verification",
                 "role": AgentRole.VERIFICATION,
-                "capabilities": [AgentCapability(
-                    name="evidence_verification",
-                    description="Verify evidence provenance, citations, confidence",
-                    output_types=["verified_evidence", "citations"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="evidence_verification",
+                        description="Verify evidence provenance, citations, confidence",
+                        output_types=["verified_evidence", "citations"],
+                    )
+                ],
             },
             {
                 "name": "retrieval_reflection",
                 "role": AgentRole.REFLECTION,
-                "capabilities": [AgentCapability(
-                    name="retrieval_reflection",
-                    description="Evaluate evidence sufficiency and identify gaps",
-                    output_types=["reflection_decision", "gaps"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="retrieval_reflection",
+                        description="Evaluate evidence sufficiency and identify gaps",
+                        output_types=["reflection_decision", "gaps"],
+                    )
+                ],
             },
             {
                 "name": "rca_agent",
                 "role": AgentRole.ANALYSIS,
-                "capabilities": [AgentCapability(
-                    name="rca",
-                    description="Root cause analysis of failures",
-                    input_types=["evidence"],
-                    output_types=["rca_findings", "recommended_actions"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="rca",
+                        description="Root cause analysis of failures",
+                        input_types=["evidence"],
+                        output_types=["rca_findings", "recommended_actions"],
+                    )
+                ],
             },
             {
                 "name": "compliance_agent",
                 "role": AgentRole.ANALYSIS,
-                "capabilities": [AgentCapability(
-                    name="compliance",
-                    description="Regulatory and standards compliance checking",
-                    input_types=["evidence"],
-                    output_types=["compliance_results"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="compliance",
+                        description="Regulatory and standards compliance checking",
+                        input_types=["evidence"],
+                        output_types=["compliance_results"],
+                    )
+                ],
             },
             {
                 "name": "asset_intelligence",
                 "role": AgentRole.ANALYSIS,
-                "capabilities": [AgentCapability(
-                    name="asset_intelligence",
-                    description="Asset maintenance and performance intelligence",
-                    input_types=["evidence"],
-                    output_types=["asset_insights"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="asset_intelligence",
+                        description="Asset maintenance and performance intelligence",
+                        input_types=["evidence"],
+                        output_types=["asset_insights"],
+                    )
+                ],
             },
             {
                 "name": "lessons_learned_agent",
                 "role": AgentRole.ANALYSIS,
-                "capabilities": [AgentCapability(
-                    name="lessons_learned",
-                    description="Historical lessons learned retrieval",
-                    input_types=["evidence"],
-                    output_types=["lessons"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="lessons_learned",
+                        description="Historical lessons learned retrieval",
+                        input_types=["evidence"],
+                        output_types=["lessons"],
+                    )
+                ],
             },
             {
                 "name": "expert_knowledge_agent",
                 "role": AgentRole.ANALYSIS,
-                "capabilities": [AgentCapability(
-                    name="expert_knowledge",
-                    description="Expert knowledge retrieval and reasoning",
-                    input_types=["evidence"],
-                    output_types=["expert_insights"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="expert_knowledge",
+                        description="Expert knowledge retrieval and reasoning",
+                        input_types=["evidence"],
+                        output_types=["expert_insights"],
+                    )
+                ],
             },
             {
                 "name": "report_composer",
                 "role": AgentRole.COMPOSITION,
-                "capabilities": [AgentCapability(
-                    name="report_composition",
-                    description="Synthesize all outputs into FinalReport",
-                    input_types=["evidence", "reasoning_outputs"],
-                    output_types=["final_report"],
-                )],
+                "capabilities": [
+                    AgentCapability(
+                        name="report_composition",
+                        description="Synthesize all outputs into FinalReport",
+                        input_types=["evidence", "reasoning_outputs"],
+                        output_types=["final_report"],
+                    )
+                ],
                 "can_run_in_parallel": False,
             },
         ]
 
         for defn in agent_defs:
             name = defn["name"]
-            self._registry.register(AgentRegistration(
-                name=name,
-                role=defn.get("role", AgentRole.GENERIC),
-                capabilities=defn.get("capabilities", []),
-                max_retries=defn.get("max_retries", 2),
-                timeout_seconds=defn.get("timeout_seconds", 120.0),
-                retry_strategy=defn.get("retry_strategy", RetryStrategy.EXPONENTIAL_BACKOFF),
-                can_run_in_parallel=defn.get("can_run_in_parallel", True),
-                requires_human_approval=defn.get("requires_human_approval", False),
-            ))
+            self._registry.register(
+                AgentRegistration(
+                    name=name,
+                    role=defn.get("role", AgentRole.GENERIC),
+                    capabilities=defn.get("capabilities", []),
+                    max_retries=defn.get("max_retries", 2),
+                    timeout_seconds=defn.get("timeout_seconds", 120.0),
+                    retry_strategy=defn.get("retry_strategy", RetryStrategy.EXPONENTIAL_BACKOFF),
+                    can_run_in_parallel=defn.get("can_run_in_parallel", True),
+                    requires_human_approval=defn.get("requires_human_approval", False),
+                )
+            )
 
         logger.info(
             f"Registered {len(agent_defs)} production agents with the runtime",
@@ -241,16 +265,18 @@ class MnemosAIOrchestrator:
         """Register an agent function with the runtime (backward compat)."""
         self._agent_functions[name] = fn
         if not self._registry.is_registered(name):
-            self._registry.register(AgentRegistration(
-                name=name,
-                role=role,
-                capabilities=capabilities or [],
-                max_retries=max_retries,
-                timeout_seconds=timeout_seconds,
-                retry_strategy=retry_strategy,
-                can_run_in_parallel=can_run_in_parallel,
-                requires_human_approval=requires_human_approval,
-            ))
+            self._registry.register(
+                AgentRegistration(
+                    name=name,
+                    role=role,
+                    capabilities=capabilities or [],
+                    max_retries=max_retries,
+                    timeout_seconds=timeout_seconds,
+                    retry_strategy=retry_strategy,
+                    can_run_in_parallel=can_run_in_parallel,
+                    requires_human_approval=requires_human_approval,
+                )
+            )
 
     # ------------------------------------------------------------------
     # Execution
@@ -289,12 +315,8 @@ class MnemosAIOrchestrator:
         response = result.get("final_response")
         if response is None:
             if result.get("errors"):
-                raise RuntimeError(
-                    f"Workflow failed with errors: {result['errors']}"
-                )
-            raise RuntimeError(
-                "Workflow terminated without a final response."
-            )
+                raise RuntimeError(f"Workflow failed with errors: {result['errors']}")
+            raise RuntimeError("Workflow terminated without a final response.")
 
         if isinstance(response, dict):
             return AgentResponse(**response)

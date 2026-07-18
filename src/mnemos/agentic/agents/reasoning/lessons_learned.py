@@ -131,9 +131,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
                 ),
             ],
             next_actions=next_actions,
-            next_recommended_agents=(
-                ["rca_agent"] if patterns else []
-            ),
+            next_recommended_agents=(["rca_agent"] if patterns else []),
             reasoning_summary=self._build_summary(
                 comparisons, patterns, recommendations, confidence
             ),
@@ -164,9 +162,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
     # Historical incident extraction
     # ------------------------------------------------------------------
 
-    def _extract_historical_incidents(
-        self, evidence: list[EvidenceSource]
-    ) -> list[dict[str, Any]]:
+    def _extract_historical_incidents(self, evidence: list[EvidenceSource]) -> list[dict[str, Any]]:
         """Extract historical incident information from evidence."""
         incidents: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -183,15 +179,17 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
             if not incident_id:
                 incident_id = f"hist_{uuid.uuid4().hex[:8]}"
 
-            incidents.append({
-                "id": incident_id,
-                "title": text[:200],
-                "asset_id": metadata.get("asset_id", ""),
-                "timestamp": metadata.get("timestamp", ""),
-                "severity": metadata.get("severity", "medium"),
-                "evidence_source": source,
-                "status": metadata.get("status", "unknown"),
-            })
+            incidents.append(
+                {
+                    "id": incident_id,
+                    "title": text[:200],
+                    "asset_id": metadata.get("asset_id", ""),
+                    "timestamp": metadata.get("timestamp", ""),
+                    "severity": metadata.get("severity", "medium"),
+                    "evidence_source": source,
+                    "status": metadata.get("status", "unknown"),
+                }
+            )
 
         return incidents
 
@@ -225,9 +223,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
                     similarity_score=round(similarity, 3),
                     matching_factors=matching[:10],
                     differing_factors=differing[:10],
-                    applicable_actions=[
-                        f"Review corrective actions from case {incident['id']}"
-                    ],
+                    applicable_actions=[f"Review corrective actions from case {incident['id']}"],
                     reasoning=(
                         f"Historical case shares {len(matching)} factors "
                         f"with current situation (similarity={similarity:.2f})"
@@ -238,9 +234,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
         comparisons.sort(key=lambda c: c.similarity_score, reverse=True)
         return comparisons[:5]
 
-    def _compare_texts(
-        self, text_a: str, text_b: str
-    ) -> tuple[list[str], list[str]]:
+    def _compare_texts(self, text_a: str, text_b: str) -> tuple[list[str], list[str]]:
         """Compare two texts and extract matching/differing factors."""
         words_a = set(text_a.split())
         words_b = set(text_b.split())
@@ -257,9 +251,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
     # Corrective action evaluation
     # ------------------------------------------------------------------
 
-    def _evaluate_actions(
-        self, comparisons: list[HistoricalComparison]
-    ) -> dict[str, Any]:
+    def _evaluate_actions(self, comparisons: list[HistoricalComparison]) -> dict[str, Any]:
         """Evaluate effectiveness of historical corrective actions."""
         total_applicable = sum(len(c.applicable_actions) for c in comparisons)
         high_similarity = [c for c in comparisons if c.similarity_score >= 0.6]
@@ -320,27 +312,31 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
 
         for factor, count in factor_frequency.items():
             if count >= 2:
-                patterns.append({
-                    "pattern_id": f"pat_{uuid.uuid4().hex[:8]}",
-                    "description": f"Recurring factor: '{factor}' appears in {count} historical cases",
-                    "frequency": count,
-                    "factor": factor,
-                    "severity": "high" if count >= 3 else "medium",
-                })
+                patterns.append(
+                    {
+                        "pattern_id": f"pat_{uuid.uuid4().hex[:8]}",
+                        "description": f"Recurring factor: '{factor}' appears in {count} historical cases",
+                        "frequency": count,
+                        "factor": factor,
+                        "severity": "high" if count >= 3 else "medium",
+                    }
+                )
 
         if len(comparisons) >= 3:
             high_sim = [c for c in comparisons if c.similarity_score >= 0.5]
             if len(high_sim) >= 2:
-                patterns.append({
-                    "pattern_id": f"pat_{uuid.uuid4().hex[:8]}",
-                    "description": (
-                        f"{len(high_sim)} historical cases show high similarity "
-                        f"to current situation — possible recurring issue"
-                    ),
-                    "frequency": len(high_sim),
-                    "factor": "situational_similarity",
-                    "severity": "high",
-                })
+                patterns.append(
+                    {
+                        "pattern_id": f"pat_{uuid.uuid4().hex[:8]}",
+                        "description": (
+                            f"{len(high_sim)} historical cases show high similarity "
+                            f"to current situation — possible recurring issue"
+                        ),
+                        "frequency": len(high_sim),
+                        "factor": "situational_similarity",
+                        "severity": "high",
+                    }
+                )
 
         return patterns
 
@@ -459,9 +455,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
     # Citations
     # ------------------------------------------------------------------
 
-    def _build_citations(
-        self, evidence: list[EvidenceSource]
-    ) -> list[Citation]:
+    def _build_citations(self, evidence: list[EvidenceSource]) -> list[Citation]:
         citations: list[Citation] = []
         for source in evidence:
             p = source.provenance
@@ -496,16 +490,10 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
         best_sim = max(c.similarity_score for c in comparisons)
         avg_sim = sum(c.similarity_score for c in comparisons) / len(comparisons)
         evidence_quality = (
-            sum(s.confidence_score for s in evidence) / len(evidence)
-            if evidence
-            else 0.0
+            sum(s.confidence_score for s in evidence) / len(evidence) if evidence else 0.0
         )
 
-        confidence = (
-            0.4 * best_sim
-            + 0.3 * avg_sim
-            + 0.3 * evidence_quality
-        )
+        confidence = 0.4 * best_sim + 0.3 * avg_sim + 0.3 * evidence_quality
         return round(min(confidence, 1.0), 3)
 
     # ------------------------------------------------------------------
@@ -579,9 +567,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
                 RecommendedAction(
                     action_id=f"act_{uuid.uuid4().hex[:8]}",
                     type="TRAINING",
-                    description=(
-                        f"Review {len(patterns)} recurring patterns with operations team"
-                    ),
+                    description=(f"Review {len(patterns)} recurring patterns with operations team"),
                     priority="high",
                     reasoning="Recurring patterns suggest systemic issues requiring team awareness",
                 )
@@ -619,8 +605,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
         if comparisons:
             best = comparisons[0]
             parts.append(
-                f"Best match: {best.historical_title[:80]} "
-                f"(similarity={best.similarity_score:.2f})"
+                f"Best match: {best.historical_title[:80]} (similarity={best.similarity_score:.2f})"
             )
         parts.append(f"Detected {len(patterns)} recurring patterns.")
         parts.append(f"Generated {len(recommendations)} proactive recommendations.")

@@ -46,10 +46,7 @@ class StructuredRetriever:
         date_to: str | None = None,
     ) -> list[dict[str, Any]]:
         """Retrieve historical RCA cases for an asset with optional date range."""
-        stmt = (
-            select(RCACase)
-            .where(RCACase.asset_id == asset_id)
-        )
+        stmt = select(RCACase).where(RCACase.asset_id == asset_id)
         if date_from:
             stmt = stmt.where(RCACase.created_at >= date_from)
         if date_to:
@@ -79,9 +76,8 @@ class StructuredRetriever:
         date_to: str | None = None,
     ) -> list[dict[str, Any]]:
         """Retrieve approved Knowledge Cards for an asset with optional date range."""
-        stmt = (
-            select(KnowledgeCard)
-            .where(KnowledgeCard.asset_id == asset_id, KnowledgeCard.status == "approved")
+        stmt = select(KnowledgeCard).where(
+            KnowledgeCard.asset_id == asset_id, KnowledgeCard.status == "approved"
         )
         if date_from:
             stmt = stmt.where(KnowledgeCard.created_at >= date_from)

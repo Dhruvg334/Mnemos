@@ -332,28 +332,32 @@ class TestAbstentionQuality:
     def test_abstention_quality_correct_abstain(self) -> None:
         """Abstained when ground truth unavailable → 1.0."""
         result = ProductionMetrics.abstention_quality(
-            abstained=True, ground_truth_available=False,
+            abstained=True,
+            ground_truth_available=False,
         )
         assert result.score == 1.0
 
     def test_abstention_quality_incorrect_abstain(self) -> None:
         """Abstained when ground truth available → 0.0."""
         result = ProductionMetrics.abstention_quality(
-            abstained=True, ground_truth_available=True,
+            abstained=True,
+            ground_truth_available=True,
         )
         assert result.score == 0.0
 
     def test_abstention_quality_correct_non_abstain(self) -> None:
         """Answered when ground truth available → 1.0."""
         result = ProductionMetrics.abstention_quality(
-            abstained=False, ground_truth_available=True,
+            abstained=False,
+            ground_truth_available=True,
         )
         assert result.score == 1.0
 
     def test_abstention_quality_no_gt_no_abstain(self) -> None:
         """Answered without ground truth → 0.25."""
         result = ProductionMetrics.abstention_quality(
-            abstained=False, ground_truth_available=False,
+            abstained=False,
+            ground_truth_available=False,
         )
         assert result.score == 0.25
 
@@ -376,7 +380,8 @@ class TestToolRecovery:
         """All tool calls failed → 0.0."""
         calls = [{"tool_name": "a"}, {"tool_name": "b"}]
         result = ProductionMetrics.tool_recovery(
-            tool_calls=calls, failed_tool_calls=calls,
+            tool_calls=calls,
+            failed_tool_calls=calls,
         )
         assert result.score == 0.0
 
@@ -404,28 +409,36 @@ class TestWorkflowCompletion:
     def test_workflow_completion_success(self) -> None:
         """Workflow completed and expected complete → 1.0."""
         result = ProductionMetrics.workflow_completion(
-            is_complete=True, termination_reason=None, expected_complete=True,
+            is_complete=True,
+            termination_reason=None,
+            expected_complete=True,
         )
         assert result.score == 1.0
 
     def test_workflow_completion_failure(self) -> None:
         """Workflow incomplete but expected complete → 0.0."""
         result = ProductionMetrics.workflow_completion(
-            is_complete=False, termination_reason="timeout", expected_complete=True,
+            is_complete=False,
+            termination_reason="timeout",
+            expected_complete=True,
         )
         assert result.score == 0.0
 
     def test_workflow_completion_expected_incomplete(self) -> None:
         """Workflow incomplete and expected incomplete → 1.0."""
         result = ProductionMetrics.workflow_completion(
-            is_complete=False, termination_reason="early_exit", expected_complete=False,
+            is_complete=False,
+            termination_reason="early_exit",
+            expected_complete=False,
         )
         assert result.score == 1.0
 
     def test_workflow_completion_unexpected_complete(self) -> None:
         """Workflow completed but expected incomplete → 0.0."""
         result = ProductionMetrics.workflow_completion(
-            is_complete=True, termination_reason=None, expected_complete=False,
+            is_complete=True,
+            termination_reason=None,
+            expected_complete=False,
         )
         assert result.score == 0.0
 

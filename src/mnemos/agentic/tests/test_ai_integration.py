@@ -33,8 +33,8 @@ async def test_orchestrator_initialization(mock_db):
     """Verifies that the orchestrator initializes correctly."""
     orchestrator = MnemosAIOrchestrator(mock_db)
 
-    assert hasattr(orchestrator, '_registry')
-    assert hasattr(orchestrator, '_agent_functions')
+    assert hasattr(orchestrator, "_registry")
+    assert hasattr(orchestrator, "_agent_functions")
     assert isinstance(orchestrator._registry, AgentRegistry)
 
     async def stub_agent(state):
@@ -44,11 +44,13 @@ async def test_orchestrator_initialization(mock_db):
         "test_agent",
         stub_agent,
         role=AgentRole.ANALYSIS,
-        capabilities=[AgentCapability(
-            name="test",
-            input_types=[],
-            output_types=["test_out"],
-        )],
+        capabilities=[
+            AgentCapability(
+                name="test",
+                input_types=[],
+                output_types=["test_out"],
+            )
+        ],
     )
     assert "test_agent" in orchestrator._agent_functions
     assert orchestrator._registry.is_registered("test_agent")
@@ -72,16 +74,18 @@ async def test_orchestrator_run_query_no_persistence(mock_db):
         scope=AgentScope(),
     )
 
-    with patch('mnemos.agentic.orchestrator.InvestigationPipeline', autospec=True) as MockPipeline:
+    with patch("mnemos.agentic.orchestrator.InvestigationPipeline", autospec=True) as MockPipeline:
         mock_inst = MockPipeline.return_value
-        mock_inst.run = AsyncMock(return_value={
-            "final_response": AgentResponse(
-                answer="Test answer from orchestrator",
-                confidence_score=0.9,
-                claims=[],
-                metadata={},
-            ),
-        })
+        mock_inst.run = AsyncMock(
+            return_value={
+                "final_response": AgentResponse(
+                    answer="Test answer from orchestrator",
+                    confidence_score=0.9,
+                    claims=[],
+                    metadata={},
+                ),
+            }
+        )
 
         result = await orchestrator.run_query(request=request)
 
@@ -108,14 +112,16 @@ async def test_gateway_wrapping():
 
     gateway = LangGraphAgentGateway()
 
-    with patch('mnemos.agentic.gateway.MnemosAIOrchestrator', autospec=True) as MockOrch:
+    with patch("mnemos.agentic.gateway.MnemosAIOrchestrator", autospec=True) as MockOrch:
         mock_inst = MockOrch.return_value
-        mock_inst.run_query = AsyncMock(return_value=AgentResponse(
-            answer="Gateway Success",
-            confidence_score=1.0,
-            claims=[],
-            metadata={},
-        ))
+        mock_inst.run_query = AsyncMock(
+            return_value=AgentResponse(
+                answer="Gateway Success",
+                confidence_score=1.0,
+                claims=[],
+                metadata={},
+            )
+        )
 
         result = await gateway.execute_query(request)
 

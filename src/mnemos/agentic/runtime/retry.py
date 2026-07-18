@@ -67,6 +67,7 @@ class RetryPolicy:
 
         if self.jitter:
             import random
+
             delay *= 0.5 + random.random() * 0.5
 
         return delay
@@ -102,9 +103,7 @@ class TimeoutManager:
         try:
             return await asyncio.wait_for(coro, timeout=timeout_seconds)
         except TimeoutError:
-            raise AgentTimeoutError(
-                f"Agent exceeded timeout of {timeout_seconds}s"
-            ) from None
+            raise AgentTimeoutError(f"Agent exceeded timeout of {timeout_seconds}s") from None
 
 
 class AgentTimeoutError(Exception):
@@ -144,9 +143,7 @@ async def execute_with_retry(
             return result, AgentStatus.COMPLETED, attempt
 
         except AgentTimeoutError:
-            last_error = AgentTimeoutError(
-                f"Timeout on attempt {attempt}/{max_attempts}"
-            )
+            last_error = AgentTimeoutError(f"Timeout on attempt {attempt}/{max_attempts}")
             if attempt < max_attempts and retry_policy.should_retry:
                 delay = retry_policy.get_delay(attempt)
                 if on_retry:

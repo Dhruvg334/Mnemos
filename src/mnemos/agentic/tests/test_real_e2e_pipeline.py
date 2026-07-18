@@ -36,7 +36,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from mnemos.agentic.agents.retrieval.planner import PlannerLLMOutput
 from mnemos.agentic.agents.retrieval.query_router import QueryClassification
-from mnemos.agentic.gateway import LangGraphAgentGateway
 from mnemos.agentic.graph.interfaces import GraphQueryResult
 from mnemos.agentic.schemas.base import QueryIntent, RetrievalStrategy
 from mnemos.agentic.services.llm import LLMService
@@ -46,11 +45,9 @@ from mnemos.schemas.agent import (
     AgentCitation,
     AgentClaim,
     AgentConfidence,
-    AgentOptions,
     AgentQueryRequest,
     AgentQueryResult,
     AgentRunMetadata,
-    AgentScope,
 )
 from mnemos.services.query_execution import execute_query_background
 
@@ -134,17 +131,20 @@ async def test_real_e2e_pipeline_success_path(
 
     # Seed the referenced document so validation passes
     from mnemos.models import Document as DocModel
-    db_session.add(DocModel(
-        id="doc_maintenance_log",
-        organisation_id=org_id,
-        site_id=site_id,
-        filename="Maintenance Log 2025",
-        mime_type="application/pdf",
-        size_bytes=1024,
-        sha256="abc123",
-        document_type="log",
-        status="ready",
-    ))
+
+    db_session.add(
+        DocModel(
+            id="doc_maintenance_log",
+            organisation_id=org_id,
+            site_id=site_id,
+            filename="Maintenance Log 2025",
+            mime_type="application/pdf",
+            size_bytes=1024,
+            sha256="abc123",
+            document_type="log",
+            status="ready",
+        )
+    )
     await db_session.commit()
 
     # ------------------------------------------------------------------
@@ -164,12 +164,8 @@ async def test_real_e2e_pipeline_success_path(
         captured_args["query_type"] = request.query_type
         captured_args["scope_asset_ids"] = list(request.scope.asset_ids)
         captured_args["scope_document_ids"] = list(request.scope.document_ids)
-        captured_args["scope_document_types"] = list(
-            request.scope.allowed_document_types
-        )
-        captured_args["scope_classifications"] = list(
-            request.scope.access_classifications
-        )
+        captured_args["scope_document_types"] = list(request.scope.allowed_document_types)
+        captured_args["scope_classifications"] = list(request.scope.access_classifications)
 
         cit1 = AgentCitation(
             id="cit_0_0",
@@ -206,15 +202,17 @@ async def test_real_e2e_pipeline_success_path(
     mock_gw.name = "langgraph_ai_layer"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_llm_response)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "langgraph"
         mock_settings.app_env = "test"
 
@@ -228,17 +226,13 @@ async def test_real_e2e_pipeline_success_path(
     assert captured_args.get("question") == query.question, (
         f"Question was lost or blank: {captured_args.get('question')!r}"
     )
-    assert captured_args["organisation_id"] == org_id, (
-        "organisation_id was not propagated"
-    )
+    assert captured_args["organisation_id"] == org_id, "organisation_id was not propagated"
     assert captured_args["site_id"] == site_id, "site_id was not propagated"
     assert captured_args["user_id"] == user_id, "user_id was not propagated"
     assert captured_args["query_type"] == "rca", (
         f"query_type was lost: {captured_args.get('query_type')}"
     )
-    assert "asset_pump_101" in captured_args["scope_asset_ids"], (
-        "asset_ids were not propagated"
-    )
+    assert "asset_pump_101" in captured_args["scope_asset_ids"], "asset_ids were not propagated"
     assert "doc_maintenance_log" in captured_args["scope_document_ids"], (
         "document_ids were not propagated"
     )
@@ -247,40 +241,18 @@ async def test_real_e2e_pipeline_success_path(
     async with session_factory() as s:
         q = await s.get(Query, query_id)
         assert q is not None
-        assert q.status == "succeeded", (
-            f"Expected succeeded, got {q.status}"
-        )
-        assert q.answer is not None and len(q.answer) > 0, (
-            "Answer was not persisted"
-        )
+        assert q.status == "succeeded", f"Expected succeeded, got {q.status}"
+        assert q.answer is not None and len(q.answer) > 0, "Answer was not persisted"
 
-        runs = (
-            await s.scalars(
-                select(AgentRun).where(AgentRun.query_id == query_id)
-            )
-        ).all()
-        assert len(runs) == 1, (
-            f"Expected exactly 1 AgentRun, got {len(runs)}"
-        )
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
+        assert len(runs) == 1, f"Expected exactly 1 AgentRun, got {len(runs)}"
         assert runs[0].status == "succeeded"
 
-        claims = (
-            await s.scalars(
-                select(QueryClaim).where(QueryClaim.query_id == query_id)
-            )
-        ).all()
-        assert len(claims) == 1, (
-            f"Expected 1 claim, got {len(claims)}"
-        )
+        claims = (await s.scalars(select(QueryClaim).where(QueryClaim.query_id == query_id))).all()
+        assert len(claims) == 1, f"Expected 1 claim, got {len(claims)}"
 
-        citations = (
-            await s.scalars(
-                select(Citation).where(Citation.query_id == query_id)
-            )
-        ).all()
-        assert len(citations) == 1, (
-            f"Expected 1 citation, got {len(citations)}"
-        )
+        citations = (await s.scalars(select(Citation).where(Citation.query_id == query_id))).all()
+        assert len(citations) == 1, f"Expected 1 citation, got {len(citations)}"
 
         events = (
             await s.scalars(
@@ -342,9 +314,7 @@ async def test_real_e2e_question_not_blank(
         assert q is not None
         # Must not be 'succeeded' with no answer
         if q.status == "succeeded":
-            assert q.answer and len(q.answer) > 0, (
-                "Query succeeded but answer was empty/blank"
-            )
+            assert q.answer and len(q.answer) > 0, "Query succeeded but answer was empty/blank"
 
 
 # ===========================================================================
@@ -391,15 +361,17 @@ async def test_real_e2e_scope_preserved_across_approval(
     mock_gw.name = "langgraph_ai_layer"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_pending_with_scope)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "langgraph"
         mock_settings.app_env = "test"
 
@@ -547,15 +519,17 @@ async def test_pending_approval_persisted_through_gateway(
     mock_gw.name = "langgraph_ai_layer"
     mock_gw.execute_query = AsyncMock(side_effect=_fake_pause)
 
-    with patch(
-        "mnemos.services.query_execution.get_agent_gateway",
-        return_value=mock_gw,
-    ), patch(
-        "mnemos.services.query_execution.SessionLocal",
-        new=session_factory,
-    ), patch(
-        "mnemos.services.agent_validation.settings"
-    ) as mock_settings:
+    with (
+        patch(
+            "mnemos.services.query_execution.get_agent_gateway",
+            return_value=mock_gw,
+        ),
+        patch(
+            "mnemos.services.query_execution.SessionLocal",
+            new=session_factory,
+        ),
+        patch("mnemos.services.agent_validation.settings") as mock_settings,
+    ):
         mock_settings.agent_gateway_mode = "langgraph"
         mock_settings.app_env = "test"
 
@@ -568,11 +542,7 @@ async def test_pending_approval_persisted_through_gateway(
         assert q.status == "pending_approval"
         assert q.completed_at is None
 
-        runs = (
-            await s.scalars(
-                select(AgentRun).where(AgentRun.query_id == query_id)
-            )
-        ).all()
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
         assert len(runs) == 1
         assert runs[0].status == "pending_approval"
         assert runs[0].completed_at is None
@@ -597,9 +567,7 @@ async def test_pending_approval_persisted_through_gateway(
     from mnemos.models.entities import RuntimeApprovalRequest as RAR
 
     async with session_factory() as s:
-        row = await s.scalar(
-            select(RAR).where(RAR.id == submitted_request_id)
-        )
+        row = await s.scalar(select(RAR).where(RAR.id == submitted_request_id))
         assert row is not None
         assert row.status == "approved"
         assert row.reviewer == "eng_reviewer"
@@ -650,17 +618,20 @@ async def test_real_e2e_pipeline_through_real_gateway(
 
     # Seed the referenced document so validation passes
     from mnemos.models import Document as DocModel
-    db_session.add(DocModel(
-        id="doc_maintenance_log",
-        organisation_id=org_id,
-        site_id=site_id,
-        filename="Maintenance Log 2025",
-        mime_type="application/pdf",
-        size_bytes=1024,
-        sha256="abc123",
-        document_type="log",
-        status="ready",
-    ))
+
+    db_session.add(
+        DocModel(
+            id="doc_maintenance_log",
+            organisation_id=org_id,
+            site_id=site_id,
+            filename="Maintenance Log 2025",
+            mime_type="application/pdf",
+            size_bytes=1024,
+            sha256="abc123",
+            document_type="log",
+            status="ready",
+        )
+    )
     await db_session.commit()
 
     # ------------------------------------------------------------------
@@ -670,7 +641,9 @@ async def test_real_e2e_pipeline_through_real_gateway(
 
     # 1. LLM structured calls — return deterministic model instances
     async def _mock_call_structured(
-        prompt: str, response_model: type, **kwargs: object,
+        prompt: str,
+        response_model: type,
+        **kwargs: object,
     ) -> object:
         if response_model is QueryClassification:
             return QueryClassification(
@@ -754,27 +727,15 @@ async def test_real_e2e_pipeline_through_real_gateway(
     async with session_factory() as s:
         q = await s.get(Query, query_id)
         assert q is not None
-        assert q.status in {"succeeded", "failed"}, (
-            f"Expected succeeded or failed, got {q.status}"
-        )
+        assert q.status in {"succeeded", "failed"}, f"Expected succeeded or failed, got {q.status}"
         # The query transitioned through running at some point
-        assert q.status in {"succeeded", "failed"}, (
-            f"Expected terminal status, got {q.status}"
-        )
+        assert q.status in {"succeeded", "failed"}, f"Expected terminal status, got {q.status}"
 
         if q.status == "succeeded":
-            assert q.answer is not None and len(q.answer) > 0, (
-                "Answer was not persisted"
-            )
+            assert q.answer is not None and len(q.answer) > 0, "Answer was not persisted"
 
-        runs = (
-            await s.scalars(
-                select(AgentRun).where(AgentRun.query_id == query_id)
-            )
-        ).all()
-        assert len(runs) == 1, (
-            f"Expected exactly 1 AgentRun, got {len(runs)}"
-        )
+        runs = (await s.scalars(select(AgentRun).where(AgentRun.query_id == query_id))).all()
+        assert len(runs) == 1, f"Expected exactly 1 AgentRun, got {len(runs)}"
 
         events = (
             await s.scalars(
@@ -784,9 +745,7 @@ async def test_real_e2e_pipeline_through_real_gateway(
             )
         ).all()
         stages = [e.stage for e in events]
-        assert "classifying_query" in stages, (
-            "classifying_query stage missing from events"
-        )
+        assert "classifying_query" in stages, "classifying_query stage missing from events"
 
         # Verify the gateway used was the real LangGraphAgentGateway
         assert runs[0].gateway == "langgraph_ai_layer", (

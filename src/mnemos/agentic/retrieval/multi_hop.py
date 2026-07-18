@@ -83,19 +83,23 @@ class MultiHopRetriever:
                         if m_id and m_id not in visited_nodes:
                             visited_nodes.add(m_id)
                             next_frontier.append(m_id)
-                            all_nodes.append({
-                                "id": m_id,
-                                "label": rec["label"],
-                                "properties": rec["properties"],
-                                "hop": hop + 1,
-                            })
-                            all_rels.append({
-                                "source_id": node_id,
-                                "target_id": m_id,
-                                "type": rec["rel_type"],
-                                "properties": rec["rel_props"],
-                                "hop": hop + 1,
-                            })
+                            all_nodes.append(
+                                {
+                                    "id": m_id,
+                                    "label": rec["label"],
+                                    "properties": rec["properties"],
+                                    "hop": hop + 1,
+                                }
+                            )
+                            all_rels.append(
+                                {
+                                    "source_id": node_id,
+                                    "target_id": m_id,
+                                    "type": rec["rel_type"],
+                                    "properties": rec["rel_props"],
+                                    "hop": hop + 1,
+                                }
+                            )
                 except Exception:
                     continue
 
