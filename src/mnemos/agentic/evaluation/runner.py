@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import asyncio
 import time
 import uuid
 from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
 from typing import Any
 
 from mnemos.agentic.evaluation.evaluator import InvestigationEvaluator
@@ -21,6 +23,17 @@ from mnemos.agentic.utils.logging import StructuredLogger
 logger = StructuredLogger("eval_runner")
 
 WorkflowFn = Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+
+
+def _deterministic_id(*parts: str) -> str:
+    combined = "|".join(str(p) for p in parts)
+    return hashlib.sha256(combined.encode()).hexdigest()[:16]
+
+
+def _deterministic_timestamp(*parts: str) -> float:
+    combined = "|".join(str(p) for p in parts)
+    h = hashlib.sha256(combined.encode()).hexdigest()[:8]
+    return int(h, 16) / 16_777_216
 
 
 class EvalRunner:
@@ -101,10 +114,14 @@ class EvalRunner:
         summary["failure_count"] = float(failure_count)
 
         report = BenchmarkReport(
-            benchmark_id=uuid.uuid4().hex[:16],
+            benchmark_id=_deterministic_id(dataset.name, self.pipeline_type.value),
             benchmark_name=benchmark_name or f"{dataset.name}_{self.pipeline_type.value}",
             pipeline_type=self.pipeline_type,
             dataset_name=dataset.name,
+            timestamp=datetime.fromtimestamp(
+                _deterministic_timestamp(dataset.name, self.pipeline_type.value),
+                tz=UTC,
+            ),
             summary_metrics=summary,
             sample_results=list(sample_results),
             total_duration_ms=total_duration_ms,

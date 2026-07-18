@@ -485,7 +485,13 @@ class ProductionMetrics:
                 reasoning="No compliance checks were produced.",
             )
 
-        statuses = [cc.status for cc in compliance_checks]
+        # Handle both dict and object compliance checks
+        def _get_status(cc):
+            if isinstance(cc, dict):
+                return cc.get("status", "")
+            return getattr(cc, "status", "")
+
+        statuses = [_get_status(cc) for cc in compliance_checks]
         pass_count = statuses.count("pass")
         fail_count = statuses.count("fail")
         warn_count = statuses.count("warning")

@@ -96,11 +96,21 @@ def create_initial_state(
     trace_id: str | None = None,
     max_iterations: int = 10,
 ) -> InvestigationState:
-    """Factory for a clean initial InvestigationState."""
+    """Factory for a clean initial InvestigationState.
+
+    Automatically initializes an AgentMemory instance in context["memory"]
+    scoped to this investigation.
+    """
+    from mnemos.agentic.runtime.memory import AgentMemory
+
+    ctx = context or {}
+    if "memory" not in ctx:
+        ctx["memory"] = AgentMemory(investigation_id=investigation_id)
+
     return InvestigationState(
         investigation_id=investigation_id,
         query=query,
-        context=context or {},
+        context=ctx,
         phase=InvestigationPhase.INITIALIZATION,
         evidence=[],
         claims=[],

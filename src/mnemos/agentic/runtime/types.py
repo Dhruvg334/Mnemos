@@ -52,6 +52,7 @@ class InvestigationPhase(StrEnum):
     COMPLETION = "completion"
     ABSTENTION = "abstention"
     FAILED = "failed"
+    OBSERVABILITY = "observability"
 
 
 class AgentStatus(StrEnum):
@@ -100,6 +101,8 @@ class EventType(StrEnum):
     REFLECTION_COMPLETED = "reflection_completed"
     STATE_RECOVERED = "state_recovered"
     CONCURRENT_AGENTS_DISPATCHED = "concurrent_agents_dispatched"
+    SPAN_COMPLETED = "span_completed"
+    TELEMETRY_RECORDED = "telemetry_recorded"
 
 
 class TerminationReason(StrEnum):

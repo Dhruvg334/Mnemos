@@ -1,13 +1,16 @@
-"""MCP Tool Dispatch with guardrails enforcement and audit logging.
+"""MCP Tool Dispatch with guardrails enforcement, per-agent allowlists,
+and full audit logging (P0 #15).
 
 Every tool call goes through this dispatch layer which:
 1. Validates input against typed schemas
-2. Runs guardrails checks
-3. Executes the tool
-4. Logs every action to the audit log
-5. Wraps results in MCPToolResult
+2. Enforces the calling agent's tool allowlist (P0 #15)
+3. Runs guardrail policy checks
+4. Executes the tool
+5. Logs every action to the audit log
+6. Wraps results in MCPToolResult
 
 No agent may bypass this dispatch to access databases directly.
+No agent may call a tool that is not in its explicit allowlist.
 """
 
 from __future__ import annotations
@@ -41,9 +44,95 @@ from mnemos.agentic.schemas.base import (
 )
 from mnemos.agentic.utils.guardrails import MnemosGuardrails
 from mnemos.agentic.utils.logging import StructuredLogger
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 
 logger = StructuredLogger("mcp.dispatch")
 
+
+# ---------------------------------------------------------------------------
+# Per-agent tool allowlists (P0 #15)
+# Every agent must have an explicit list of tools it may call.
+# A tool call from an agent not in the allowlist is rejected.
+# ---------------------------------------------------------------------------
+
+_AGENT_TOOL_ALLOWLISTS: dict[str, frozenset[str]] = {
+    "query_router": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+    }),
+    "retrieval_planner": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.REVISION_CHECK,
+        MCPToolName.EVIDENCE_RULES,
+    }),
+    "evidence_retrieval": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.GRAPH_TRAVERSAL,
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.TIMELINE,
+        MCPToolName.SIMILAR_FAILURES,
+        MCPToolName.REVISION_CHECK,
+        MCPToolName.EVIDENCE_RULES,
+        MCPToolName.GET_CURRENT_PROCEDURE,
+        MCPToolName.GENERATE_SOURCE_PREVIEW,
+    }),
+    "evidence_verification": frozenset({
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.REVISION_CHECK,
+        MCPToolName.EVIDENCE_RULES,
+        MCPToolName.GENERATE_SOURCE_PREVIEW,
+    }),
+    "retrieval_reflection": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.EVIDENCE_RULES,
+    }),
+    "rca_agent": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.GRAPH_TRAVERSAL,
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.TIMELINE,
+        MCPToolName.SIMILAR_FAILURES,
+        MCPToolName.GET_CURRENT_PROCEDURE,
+        MCPToolName.EVIDENCE_RULES,
+        MCPToolName.ACTION_CREATION,
+        MCPToolName.REPORT_GENERATION,
+    }),
+    "compliance_agent": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.EVIDENCE_RULES,
+        MCPToolName.REVISION_CHECK,
+        MCPToolName.REPORT_GENERATION,
+    }),
+    "asset_intelligence": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.GRAPH_TRAVERSAL,
+        MCPToolName.TIMELINE,
+        MCPToolName.GET_CURRENT_PROCEDURE,
+        MCPToolName.SIMILAR_FAILURES,
+    }),
+    "lessons_learned_agent": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.SIMILAR_FAILURES,
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.TIMELINE,
+    }),
+    "expert_knowledge_agent": frozenset({
+        MCPToolName.RESOLVE_ASSET_TAG,
+        MCPToolName.DOCUMENT_RETRIEVAL,
+        MCPToolName.GRAPH_TRAVERSAL,
+        MCPToolName.GET_CURRENT_PROCEDURE,
+        MCPToolName.EVIDENCE_RULES,
+    }),
+    "report_composer": frozenset({
+        MCPToolName.GENERATE_SOURCE_PREVIEW,
+        MCPToolName.REPORT_GENERATION,
+        MCPToolName.APPROVAL_RECORDING,
+    }),
+    # Supervisor / system agents are allowed all tools
+    "supervisor": frozenset(t.value for t in MCPToolName),
+    "unknown": frozenset(t.value for t in MCPToolName),  # fallback for tests
+    "test_agent": frozenset(t.value for t in MCPToolName),  # used in unit tests
+}
 
 # Input schema mapping for validation
 _TOOL_INPUT_SCHEMAS: dict[str, type] = {
@@ -99,6 +188,7 @@ class MCPToolDispatch:
     ) -> None:
         self.audit_logger = audit_logger
         self.guardrails = guardrails or MnemosGuardrails()
+        self._policy_engine = GuardrailPolicyEngine()
         self._tool_handlers: dict[str, Callable[..., Awaitable[Any]]] = {}
 
     def register_handler(
@@ -129,6 +219,57 @@ class MCPToolDispatch:
                 guardrail_passed=False,
             )
 
+        # 1b. Enforce per-agent tool allowlist (P0 #15)
+        allowed_tools = _AGENT_TOOL_ALLOWLISTS.get(agent_name)
+        if allowed_tools is None:
+            # Agent not in allowlist — deny by default
+            self.audit_logger.log(
+                action=AuditAction.GUARDRAIL_VIOLATION,
+                agent_name=agent_name,
+                investigation_id=investigation_id,
+                trace_id=trace_id,
+                tool_name=tool_name,
+                resource_type="tool_allowlist",
+                success=False,
+                error=(
+                    f"Agent '{agent_name}' has no tool allowlist — "
+                    "all tool calls denied"
+                ),
+            )
+            return MCPToolResult(
+                tool_name=tool_name,
+                success=False,
+                error=(
+                    f"Agent '{agent_name}' is not authorized to call any tools. "
+                    "Add it to the agent tool allowlist."
+                ),
+                guardrail_passed=False,
+            )
+        if tool_name not in allowed_tools:
+            self.audit_logger.log(
+                action=AuditAction.GUARDRAIL_VIOLATION,
+                agent_name=agent_name,
+                investigation_id=investigation_id,
+                trace_id=trace_id,
+                tool_name=tool_name,
+                resource_type="tool_allowlist",
+                success=False,
+                error=(
+                    f"Agent '{agent_name}' is not allowed to call "
+                    f"tool '{tool_name}'"
+                ),
+            )
+            return MCPToolResult(
+                tool_name=tool_name,
+                success=False,
+                error=(
+                    f"Agent '{agent_name}' is not permitted to call tool "
+                    f"'{tool_name}'. Permitted tools: "
+                    f"{sorted(allowed_tools)}"
+                ),
+                guardrail_passed=False,
+            )
+
         # 2. Validate input schema
         schema_class = _TOOL_INPUT_SCHEMAS.get(tool_name)
         if schema_class:
@@ -155,7 +296,49 @@ class MCPToolDispatch:
         else:
             validated_input = arguments
 
-        # 3. Run guardrails checks
+        # 3. Run policy engine checks (P0 #16) — explicit policy outcomes
+        ctx = user_context or {}
+        policy_decisions = self._policy_engine.evaluate_tool_call(
+            tool_name, arguments, ctx
+        )
+        for decision in policy_decisions:
+            if not decision.auditable:
+                continue
+            self.audit_logger.log(
+                action=AuditAction.GUARDRAIL_CHECK,
+                agent_name=agent_name,
+                investigation_id=investigation_id,
+                trace_id=trace_id,
+                tool_name=tool_name,
+                resource_type="policy",
+                input_data={"policy": decision.policy_name,
+                            "outcome": decision.outcome.value,
+                            "reason": decision.reason},
+                success=not decision.blocks_execution,
+            )
+            if decision.outcome == PolicyOutcome.BLOCK:
+                return MCPToolResult(
+                    tool_name=tool_name,
+                    success=False,
+                    error=f"Policy blocked [{decision.policy_name}]: {decision.reason}",
+                    guardrail_passed=False,
+                )
+            if decision.outcome == PolicyOutcome.REQUIRE_HUMAN_APPROVAL:
+                return MCPToolResult(
+                    tool_name=tool_name,
+                    success=False,
+                    error=f"Human approval required [{decision.policy_name}]: {decision.reason}",
+                    guardrail_passed=False,
+                )
+            if decision.outcome == PolicyOutcome.ABSTAIN:
+                return MCPToolResult(
+                    tool_name=tool_name,
+                    success=False,
+                    error=f"Agent must abstain [{decision.policy_name}]: {decision.reason}",
+                    guardrail_passed=False,
+                )
+
+        # 4. Run legacy guardrails checks (field-level)
         guardrail_result = self._run_guardrails(tool_name, arguments, user_context)
 
         self.audit_logger.log(

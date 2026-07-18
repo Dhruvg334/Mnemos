@@ -7,6 +7,9 @@ from mnemos.core.config import settings
 from mnemos.core.errors import AppError
 from mnemos.models import Document, EvidenceRegion, Query
 from mnemos.schemas.agent import AgentQueryResult
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
+
+_policy_engine = GuardrailPolicyEngine()
 
 
 async def validate_agent_result(
@@ -17,6 +20,28 @@ async def validate_agent_result(
 ) -> None:
     if result.run_id == "":
         raise AppError("AGENT_RESPONSE_INVALID", "Agent run identifier is missing.", 502)
+
+    # P0 #16: Run explicit policy checks on claims before persistence
+    if result.claims:
+        for claim in result.claims:
+            claim_dict = claim.model_dump()
+            decisions = _policy_engine.evaluate_claim(claim_dict, {
+                "org_id": query.organisation_id,
+                "site_id": query.site_id,
+            })
+            for decision in decisions:
+                if decision.outcome == PolicyOutcome.BLOCK:
+                    raise AppError(
+                        "AGENT_RESPONSE_INVALID",
+                        f"Claim blocked by policy [{decision.policy_name}].",
+                        502,
+                    )
+                if decision.outcome == PolicyOutcome.ABSTAIN:
+                    raise AppError(
+                        "AGENT_RESPONSE_INVALID",
+                        f"Claim requires abstention [{decision.policy_name}].",
+                        502,
+                    )
 
     document_ids = {
         citation.document_id for citation in result.citations if citation.document_id is not None

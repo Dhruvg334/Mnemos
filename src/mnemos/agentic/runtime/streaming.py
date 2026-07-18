@@ -333,21 +333,12 @@ class StreamingSupervisor:
                         "summary": current_state.get("query", ""),
                     },
                 )
-                # Auto-approve after event emission (streaming mode)
-                approval_result = {
-                    "decision": "approve",
-                    "reviewer": "streaming_auto",
-                    "comments": "Auto-approved in streaming mode",
-                    "conditions": [],
-                    "gate_type": current_state.get("context", {}).get(
-                        "approval_gate_type", "general"
-                    ),
-                }
-                current_state["approval_result"] = approval_result
-                current_state["approval_required"] = False
-                current_state["pending_approval_request"] = None
-                current_state["phase"] = InvestigationPhase.ANALYSIS
-                continue
+                current_state["approval_required"] = True
+                current_state["approval_result"] = None
+                current_state["phase"] = InvestigationPhase.APPROVAL
+                current_state["is_complete"] = False
+                current_state["termination_reason"] = "pending_approval"
+                break
 
             # ---- Reflection --------------------------------------------------
             if new_phase_str == InvestigationPhase.REFLECTION:

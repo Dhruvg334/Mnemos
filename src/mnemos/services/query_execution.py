@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine, PolicyOutcome
 from mnemos.core.db import SessionLocal
 from mnemos.core.errors import AppError
 from mnemos.integrations.agents import get_agent_gateway
@@ -14,10 +15,30 @@ from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import AgentOptions, AgentQueryRequest, AgentScope
 from mnemos.services.agent_validation import validate_agent_result
 
+_query_policy = GuardrailPolicyEngine()
+
+
+_SAFE_ERROR_MESSAGES = {
+    "AGENT_EXECUTION_FAILED": "Agent execution failed.",
+    "AI_ORCHESTRATION_FAILED": "The analysis could not be completed.",
+    "AI_ORCHESTRATION_TIMEOUT": "The analysis request timed out.",
+    "AGENT_RESPONSE_INVALID": "The agent returned an invalid response.",
+    "AGENT_EVIDENCE_FORBIDDEN": "The agent returned forbidden evidence.",
+    "AGENT_EVIDENCE_INVALID": "The agent returned invalid evidence.",
+    "AGENT_EVIDENCE_OUT_OF_SCOPE": "The agent returned out-of-scope evidence.",
+}
+
 
 def _hash_payload(payload: dict) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _safe_error(exc: Exception) -> tuple[str, str]:
+    code = getattr(exc, "code", "AGENT_EXECUTION_FAILED")
+    if not isinstance(code, str) or not code:
+        code = "AGENT_EXECUTION_FAILED"
+    return code, _SAFE_ERROR_MESSAGES.get(code, "Query execution failed.")
 
 
 async def add_query_event(
@@ -123,7 +144,10 @@ async def execute_query_background(query_id: str) -> None:
             query.conflicts = result.conflicts
             query.related_entities = [item.model_dump() for item in result.related_entities]
             query.status = result.status
-            query.completed_at = datetime.now(UTC)
+            if result.status == "pending_approval":
+                query.completed_at = None
+            else:
+                query.completed_at = datetime.now(UTC)
 
             claim_map: dict[str, QueryClaim] = {}
             for item in result.claims:
@@ -168,17 +192,28 @@ async def execute_query_background(query_id: str) -> None:
             run.status = result.status
             run.pipeline_version = result.run_metadata.pipeline_version
             run.latency_ms = result.run_metadata.latency_ms
-            run.completed_at = datetime.now(UTC)
-            await add_query_event(
-                db,
-                query_id=query.id,
-                stage="completed",
-                progress_percent=100,
-                message="Query completed",
-            )
+            if result.status == "pending_approval":
+                run.completed_at = None
+                await add_query_event(
+                    db,
+                    query_id=query.id,
+                    stage="pending_approval",
+                    progress_percent=90,
+                    message="Query paused pending human approval",
+                )
+            else:
+                run.completed_at = datetime.now(UTC)
+                await add_query_event(
+                    db,
+                    query_id=query.id,
+                    stage="completed",
+                    progress_percent=100,
+                    message="Query completed",
+                )
             await db.commit()
         except Exception as exc:
             await db.rollback()
+            error_code, error_message = _safe_error(exc)
             query = await db.get(Query, query_id)
             run = await db.get(AgentRun, run_id)
             if query is not None:
@@ -186,8 +221,8 @@ async def execute_query_background(query_id: str) -> None:
                 query.completed_at = datetime.now(UTC)
             if run is not None:
                 run.status = "failed"
-                run.error_code = getattr(exc, "code", "AGENT_EXECUTION_FAILED")
-                run.error_message = str(exc)
+                run.error_code = error_code
+                run.error_message = error_message
                 run.completed_at = datetime.now(UTC)
             await add_query_event(
                 db,

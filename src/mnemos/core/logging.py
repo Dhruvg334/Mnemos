@@ -32,6 +32,10 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, separators=(",", ":"), default=str)
 
 
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
+
+
 def configure_logging() -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())

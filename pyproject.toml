@@ -47,8 +47,12 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "src"]
 pythonpath = ["src"]
+markers = [
+  "integration: marks tests that require a live DB, LLM API key, and seeded data (deselect with -m 'not integration')",
+]
+addopts = "-m 'not integration'"
 
 [tool.ruff]
 line-length = 100

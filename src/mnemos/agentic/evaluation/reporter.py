@@ -20,6 +20,12 @@ def _deterministic_id(*parts: str) -> str:
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
+def _deterministic_timestamp(*parts: str) -> float:
+    combined = "|".join(str(p) for p in parts)
+    h = hashlib.sha256(combined.encode()).hexdigest()[:8]
+    return int(h, 16) / 16_777_216
+
+
 class EvalReporter:
     """Generate human-readable and machine-parsable reports from benchmark data.
 
@@ -129,7 +135,12 @@ class EvalReporter:
             report_primary=primary,
             report_secondary=secondary,
             deltas=deltas,
-            timestamp=datetime.now(UTC),
+            timestamp=datetime.fromtimestamp(
+                _deterministic_timestamp(
+                    primary.benchmark_id, secondary.benchmark_id
+                ),
+                tz=UTC,
+            ),
         )
 
     @staticmethod

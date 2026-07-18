@@ -80,7 +80,7 @@ class AgentRunMetadata(APIModel):
 
 class AgentQueryResult(APIModel):
     run_id: str
-    status: Literal["succeeded", "partially_succeeded", "failed"]
+    status: Literal["succeeded", "partially_succeeded", "failed", "pending_approval"]
     answer: str | None = None
     confidence: AgentConfidence | None = None
     claims: list[AgentClaim] = Field(default_factory=list)
@@ -97,6 +97,10 @@ class AgentQueryResult(APIModel):
         if self.status == "failed":
             if not self.error_code:
                 raise ValueError("Failed agent results require error_code")
+            return self
+        if self.status == "pending_approval":
+            # Workflow paused for human review — answer and confidence are not
+            # available yet.  Skip content validation.
             return self
         if not self.answer or self.confidence is None:
             raise ValueError("Successful agent results require answer and confidence")

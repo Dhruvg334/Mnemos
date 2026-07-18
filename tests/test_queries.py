@@ -16,6 +16,7 @@ async def _create_and_get(client, token, payload):
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 async def test_p117_query_returns_citations(client, north_token):
     response = await _create_and_get(
         client,
@@ -35,6 +36,7 @@ async def test_p117_query_returns_citations(client, north_token):
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 async def test_unsupported_question_abstains(client, north_token):
     response = await _create_and_get(
         client,

@@ -1,21 +1,49 @@
-"""Model Context Protocol (MCP) server for the Mnemos AI layer.
+"""Mnemos Internal Governed Tool Layer.
 
-Provides typed MCP tools that agents use to interact with external systems.
-All external actions go through MCP -- no agent may access databases directly.
+IMPORTANT — STATUS: INTERNAL TOOL LAYER (not protocol-compliant MCP)
+======================================================================
+The class ``MnemosMCPServer`` in this package is *not* a
+protocol-compliant Model Context Protocol (MCP) server.  It is an
+**internal, in-process governed tool dispatch layer** that:
 
-Tools:
-1. resolve_asset_tag - Resolve asset tags to canonical IDs
-2. graph_traversal - Traverse the knowledge graph
-3. document_retrieval - Retrieve documents with provenance
-4. timeline - Chronological event history
-5. similar_failures - Find similar failure patterns
-6. revision_check - Check document revision currency
-7. evidence_rules - Look up compliance rules
-8. approval_recording - Record human approvals
-9. action_creation - Create maintenance actions
-10. report_generation - Generate structured reports
-11. get_current_procedure - Retrieve current approved procedure
-12. generate_source_preview - Generate evidence source preview link
+- exposes 12 typed tools to reasoning agents
+- enforces guardrails and audit logging on every call
+- routes each tool to the real underlying service (PostgreSQL, Neo4j,
+  pgvector, document store, asset identity resolver)
+- prevents agents from accessing any datasource directly
+
+The name "MCP" was chosen to reflect the tool-dispatch pattern, not
+to imply compliance with the Anthropic Model Context Protocol
+specification (streamable-HTTP transport, capability negotiation,
+JSON-RPC sessions, etc.).
+
+If a true protocol-compliant MCP server is required in future, the
+following would be needed:
+  A. An official MCP SDK (e.g. ``mcp`` Python package)
+  B. Streamable HTTP or stdio transport
+  C. MCP initialisation handshake + capability negotiation
+  D. Protocol-based tool discovery (tools/list, tools/call)
+  E. Structured JSON-RPC request/response messages
+  F. Session management, cancellation, error responses
+  G. Authentication and authorisation at the protocol level
+  H. An MCP client used by each agent
+
+Until that work is complete this package should be described as an
+"internal governed tool layer", not as an MCP server.
+
+Tools provided (all wired to real backend services):
+1.  resolve_asset_tag       — fuzzy asset resolution via identity resolver
+2.  graph_traversal         — Neo4j graph queries via GraphRAG
+3.  document_retrieval      — document + version fetch from PostgreSQL
+4.  timeline                — chronological failure/maintenance history
+5.  similar_failures        — graph + SQL similar-failure search
+6.  revision_check          — document currency check against latest version
+7.  evidence_rules          — compliance requirement lookup
+8.  approval_recording      — audit-log a human approval decision
+9.  action_creation         — create a maintenance/inspection action
+10. report_generation       — generate a structured investigation report
+11. get_current_procedure   — retrieve current approved procedure
+12. generate_source_preview — generate an evidence source preview link
 """
 
 from mnemos.agentic.mcp.dispatch import MCPToolDispatch

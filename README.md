@@ -275,7 +275,45 @@ Mnemos is evaluated against explicit, reproducible criteria:
 
 ## Differentiation
 
+<<<<<<< Updated upstream
 Most knowledge systems follow:
+=======
+## Implementation status
+
+The table below documents which capabilities are production-ready, which are integrated but need real configuration, and which are scaffolded or planned.
+
+| Capability | Status | Notes |
+|---|---|---|
+| Backend API (auth, queries, RCA, compliance, documents, audit) | **Implemented & tested** | All routes operational with full lifecycle |
+| Query execution pipeline | **Implemented & tested** | Single persistence transaction in `query_execution.py` |
+| Agentic orchestrator boundary | **Implemented** | Orchestrator does no persistence; backend owns all writes |
+| Canonical workflow (`InvestigationPipeline`) | **Implemented** | 11-stage pipeline with bounded reflection loop |
+| Intent-selective agent dispatch | **Implemented** | Query router classifies intent; only relevant agents run |
+| Bounded reflection loop | **Implemented** | Max 3 cycles; forces continue on exhaustion |
+| Human approval gates | **Implemented** | Raises `_ApprovalPendingError`; never auto-approves |
+| Durable checkpoints (PostgreSQL) | **Implemented** | `DurableCheckpointManager` writes to `runtime_checkpoints` |
+| Durable audit log (PostgreSQL) | **Implemented** | `DurableAuditLogger` writes to `runtime_audit_entries` |
+| Durable event log (PostgreSQL) | **Implemented** | `DurableEventLog` writes to `runtime_investigation_events` |
+| Durable approval queue (PostgreSQL) | **Implemented** | `DurableApprovalQueue` writes to `runtime_approval_requests` |
+| Approval REST API | **Implemented** | `/approvals` router with decision, cancel, list, summary |
+| Error sanitization | **Implemented** | No raw exceptions, SQL, paths, or stack traces in persisted errors |
+| E2E production-path tests | **Implemented** | 11 tests in `test_e2e_production_path.py` |
+| MCP tool layer (12 tools, real backends) | **Implemented** | Wired to PostgreSQL, Neo4j, asset resolver — see note below |
+| Specialist agents (RCA, compliance, asset intel, etc.) | **Integrated** | Require real LLM API key (`OPENAI_API_KEY` or configured provider) |
+| Vector retrieval (pgvector) | **Integrated** | Requires `DATABASE_URL` pointing to a pgvector-enabled PostgreSQL |
+| Graph retrieval (Neo4j) | **Integrated** | Requires `NEO4J_URI` and populated graph |
+| OpenTelemetry tracing | **Scaffolded** | Span definitions exist in `runtime/spans.py`; no exporter configured |
+| Model routing / fallback / cost budgets | **Scaffolded** | `model_router.py` present; not wired to production routing |
+| CI evaluation gates | **Scaffolded** | `evaluation/` directory present; not wired to CI |
+| Reproducible evaluation report | **Scaffolded** | Requires real seeded corpus and LLM configuration |
+| Frontend–backend integration | **In progress** | Auth forms present; token lifecycle integration ongoing |
+
+### MCP note
+
+`MnemosMCPServer` is an **internal governed tool dispatch layer**, not a protocol-compliant Model Context Protocol server. It does not implement the MCP specification (streamable-HTTP transport, JSON-RPC sessions, capability negotiation, cancellation). If protocol-compliant MCP is required, the `mcp` Python SDK and a full transport layer would need to be added. See `src/mnemos/agentic/mcp/__init__.py` for the full status.
+
+## Current status
+>>>>>>> Stashed changes
 
 ```text
 Document → Chunk → Answer

@@ -8,6 +8,7 @@ All reasoning agents:
 2. Produce a ``ReasoningOutput`` stored in ``context["reasoning_output"]``
 3. Never hallucinate facts — every claim must trace to verified evidence
 4. Can request collaboration from other agents via ``next_recommended_agents``
+5. Can call tools via the MCP dispatch layer (P0 #13)
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.agents.interfaces import CollaborativeAgent
+from mnemos.agentic.agents.interfaces import CollaborativeAgent, ToolCallingAgent
 from mnemos.agentic.deps import get_llm_service, get_prompt_manager
 from mnemos.agentic.runtime.types import AgentRegistration, AgentRole
 from mnemos.agentic.schemas.base import EvidenceBundle, ReasoningOutput
@@ -34,6 +35,7 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
     - Shared ``as_function()`` adapter for the runtime workflow
     - Abstract ``execute()`` for concrete agent logic
     - Common evidence extraction and output storage
+    - Dynamic tool calling via ``call_tool()`` (P0 #13)
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -42,6 +44,72 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
         self.prompt_manager = get_prompt_manager()
         self.guardrails = MnemosGuardrails()
         self.logger = StructuredLogger(f"agents.reasoning.{self.name}")
+        self._mcp_server: Any = None  # injected via set_mcp_server()
+
+    # ------------------------------------------------------------------
+    # P0 #13: Dynamic tool calling
+    # ------------------------------------------------------------------
+
+    def set_mcp_server(self, server: Any) -> None:
+        """Inject the MCP server so this agent can call tools."""
+        self._mcp_server = server
+
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        *,
+        state: dict[str, Any] | None = None,
+    ) -> Any:
+        """Execute a tool via the MCP dispatch layer (P0 #13).
+
+        The agent inspects the current workflow state to build the correct
+        user_context (org_id, site_id, role, access_classifications) so
+        the allowlist and guardrail checks receive the right scope.
+        """
+        if self._mcp_server is None:
+            return {"success": False, "error": "MCP server not injected"}
+
+        investigation_id = ""
+        trace_id = None
+        user_context: dict[str, Any] = {}
+        if state:
+            investigation_id = state.get("investigation_id", "")
+            trace_id = state.get("trace_id")
+            ctx = state.get("context", {})
+            user_context = {
+                "org_id": ctx.get("org_id", ""),
+                "site_id": ctx.get("site_id", ""),
+                "user_id": ctx.get("user_id", ""),
+                "role": ctx.get("role", "engineer"),
+                "access_classifications": ctx.get(
+                    "access_classifications", ["internal"]
+                ),
+                "asset_ids": ctx.get("asset_ids", []),
+                "document_ids": ctx.get("document_ids", []),
+            }
+
+        result = await self._mcp_server.call(
+            tool_name=tool_name,
+            arguments=arguments,
+            agent_name=self.name,
+            investigation_id=investigation_id,
+            trace_id=trace_id,
+            user_context=user_context,
+        )
+        if hasattr(result, "data") and getattr(result, "success", False):
+            return result.data
+        if hasattr(result, "error"):
+            return {"success": False, "error": result.error}
+        return result
+
+    def discover_permitted_tools(self) -> frozenset[str]:
+        """Return tools this agent is allowed to call (P0 #13)."""
+        try:
+            from mnemos.agentic.mcp.dispatch import _AGENT_TOOL_ALLOWLISTS
+            return _AGENT_TOOL_ALLOWLISTS.get(self.name, frozenset())
+        except ImportError:
+            return frozenset()
 
     # ------------------------------------------------------------------
     # BaseAgent abstract property satisfies
@@ -134,6 +202,79 @@ class _BaseReasoningAgent(CollaborativeAgent, ABC):
             )
             self._store_reasoning_output(state, output)
         return bundle
+
+    # ------------------------------------------------------------------
+    # Memory helpers
+    # ------------------------------------------------------------------
+
+    def _get_memory(self, state: AgentState):
+        """Get the AgentMemory instance from state context."""
+        ctx = state.get("context", {})
+        return ctx.get("memory")
+
+    def _record_memory(
+        self,
+        state: AgentState,
+        memory_type,
+        content: str,
+        *,
+        metadata: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
+    ):
+        """Record a memory in the conversation buffer."""
+        memory = self._get_memory(state)
+        if memory is None:
+            return None
+        return memory.record(
+            agent_name=self.name,
+            memory_type=memory_type,
+            content=content,
+            metadata=metadata,
+            tags=tags,
+        )
+
+    def _remember(
+        self,
+        state: AgentState,
+        key: str,
+        memory_type,
+        content: str,
+        *,
+        metadata: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
+    ):
+        """Store/update a working memory entry."""
+        memory = self._get_memory(state)
+        if memory is None:
+            return None
+        return memory.remember(
+            key=key,
+            agent_name=self.name,
+            memory_type=memory_type,
+            content=content,
+            metadata=metadata,
+            tags=tags,
+        )
+
+    def _recall(self, state: AgentState, key: str):
+        """Retrieve a working memory entry."""
+        memory = self._get_memory(state)
+        if memory is None:
+            return None
+        return memory.recall(key)
+
+    def _search_memory(
+        self,
+        state: AgentState,
+        text: str | None = None,
+        memory_type=None,
+        limit: int = 10,
+    ):
+        """Search conversation memory."""
+        memory = self._get_memory(state)
+        if memory is None:
+            return []
+        return memory.search(text=text, memory_type=memory_type, limit=limit)
 
     # ------------------------------------------------------------------
     # Subclass hooks

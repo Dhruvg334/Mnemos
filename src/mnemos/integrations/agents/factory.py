@@ -7,7 +7,7 @@ from mnemos.integrations.agents.mock import MockAgentGateway
 def get_agent_gateway() -> AgentGateway:
     mode = settings.agent_gateway_mode.strip().lower()
 
-    if mode == "langgraph":
+    if mode in ("langgraph", "production"):
         from mnemos.agentic.gateway import LangGraphAgentGateway
         return LangGraphAgentGateway()
 

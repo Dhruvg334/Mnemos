@@ -5,13 +5,18 @@ This module implements the ``AgentGateway`` protocol used by
 ``query_execution.py``.  It translates system-level request/response
 schemas into the AI layer's internal format and delegates to the
 ``MnemosAIOrchestrator``.
+
+The gateway performs NO persistence.  The backend query-execution
+service validates and persists the result in exactly one transaction.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
+from mnemos.agentic.runtime.workflow import _ApprovalPendingError
 from mnemos.agentic.schemas.base import ClaimSupportStatus
 from mnemos.core.db import SessionLocal
 from mnemos.schemas.agent import (
@@ -24,6 +29,39 @@ from mnemos.schemas.agent import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Sanitised error codes that may safely surface to the caller.
+_SAFE_ERROR_CODES = frozenset({
+    "AGENT_RESPONSE_INVALID",
+    "AGENT_EVIDENCE_FORBIDDEN",
+    "AGENT_EVIDENCE_INVALID",
+    "AGENT_EVIDENCE_OUT_OF_SCOPE",
+    "AI_ORCHESTRATION_FAILED",
+    "AI_ORCHESTRATION_TIMEOUT",
+    "AI_APPROVAL_PENDING",
+})
+
+
+def _sanitize_error(exc: BaseException) -> tuple[str, str]:
+    """Return a safe (error_code, error_message) pair.
+
+    Never expose raw exception text, provider payloads, SQL messages,
+    service URLs, or internal stack traces.
+    """
+    code = getattr(exc, "code", None)
+    if code and code in _SAFE_ERROR_CODES:
+        return code, str(getattr(exc, "message", str(exc)[:200]))
+
+    if isinstance(exc, TimeoutError):
+        return "AI_ORCHESTRATION_TIMEOUT", "The analysis request timed out."
+
+    if isinstance(exc, ValueError):
+        return "AI_ORCHESTRATION_FAILED", "Invalid input for analysis."
+
+    if isinstance(exc, RuntimeError):
+        return "AI_ORCHESTRATION_FAILED", "The analysis could not be completed."
+
+    return "AI_ORCHESTRATION_FAILED", "An internal error occurred during analysis."
 
 
 class LangGraphAgentGateway:
@@ -41,6 +79,8 @@ class LangGraphAgentGateway:
         Maps the system's ``AgentQueryRequest`` to the internal AI Layer
         state and returns the mapped ``AgentQueryResult``.
         """
+        started = time.perf_counter()
+
         async with SessionLocal() as db:
             orchestrator = MnemosAIOrchestrator(db)
 
@@ -49,6 +89,8 @@ class LangGraphAgentGateway:
                     query_id=request.query_id,
                     run_id=request.run_id,
                 )
+
+                latency_ms = int((time.perf_counter() - started) * 1000)
 
                 return AgentQueryResult(
                     run_id=request.run_id,
@@ -82,17 +124,45 @@ class LangGraphAgentGateway:
                     ],
                     missing_evidence=agent_response.missing_evidence,
                     run_metadata=AgentRunMetadata(
-                        pipeline_version="v2.0-multi-agent-runtime"
+                        pipeline_version="v2.0-multi-agent-runtime",
+                        latency_ms=latency_ms,
                     ),
                 )
 
-            except Exception as e:
-                logger.error(f"AI Gateway Execution Failed: {str(e)}", exc_info=True)
+            except _ApprovalPendingError:
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                return AgentQueryResult(
+                    run_id=request.run_id,
+                    status="pending_approval",
+                    answer="",
+                    confidence=AgentConfidence(label="low", score=0.0),
+                    run_metadata=AgentRunMetadata(
+                        pipeline_version="v2.0-multi-agent-runtime",
+                        latency_ms=latency_ms,
+                    ),
+                )
+
+            except Exception as exc:
+                error_code, error_message = _sanitize_error(exc)
+                logger.error(
+                    "LangGraph agent execution failed: code=%s",
+                    error_code,
+                    extra={
+                        "query_id": request.query_id,
+                        "run_id": request.run_id,
+                        "safe_error_code": error_code,
+                    },
+                )
+                latency_ms = int((time.perf_counter() - started) * 1000)
                 return AgentQueryResult(
                     run_id=request.run_id,
                     status="failed",
-                    error_code="AI_ORCHESTRATION_ERROR",
-                    error_message=str(e),
+                    error_code=error_code,
+                    error_message=error_message,
+                    run_metadata=AgentRunMetadata(
+                        pipeline_version="v2.0-multi-agent-runtime",
+                        latency_ms=latency_ms,
+                    ),
                 )
 
     @staticmethod

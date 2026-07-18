@@ -246,3 +246,101 @@ class MnemosGuardrails:
             raise GuardrailViolation(
                 "Potential prompt injection detected in user query."
             )
+
+    # ------------------------------------------------------------------
+    # 7. Output validation guardrails
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def validate_reasoning_output(output: dict[str, Any]) -> None:
+        """Validate that a reasoning agent output has proper structure.
+
+        Checks that the output contains required fields and that
+        supported claims have evidence backing.
+        """
+        if "reasoning_decision" not in output:
+            raise GuardrailViolation(
+                "Agent output missing required 'reasoning_decision' field."
+            )
+
+        valid_decisions = {
+            "sufficient", "insufficient", "needs_human_review",
+            "abstain", "needs_more_evidence", "conflicting_evidence",
+        }
+        decision = output["reasoning_decision"]
+        if decision not in valid_decisions:
+            raise GuardrailViolation(
+                f"Invalid reasoning_decision '{decision}'. "
+                f"Must be one of: {', '.join(sorted(valid_decisions))}"
+            )
+
+        if "confidence" in output:
+            conf = output["confidence"]
+            if not isinstance(conf, int | float) or conf < 0 or conf > 1:
+                raise GuardrailViolation(
+                    f"Invalid confidence value '{conf}'. Must be between 0 and 1."
+                )
+
+    @staticmethod
+    def validate_confidence_threshold(
+        output: dict[str, Any],
+        min_confidence: float = 0.3,
+    ) -> None:
+        """Validate that agent output meets minimum confidence threshold.
+
+        Low-confidence outputs should trigger review, not be passed
+        as authoritative findings.
+        """
+        conf = output.get("confidence")
+        if conf is None:
+            return
+
+        if isinstance(conf, int | float) and conf < min_confidence:
+            raise GuardrailViolation(
+                f"Agent confidence {conf:.2f} is below minimum threshold "
+                f"{min_confidence:.2f}. Output requires human review."
+            )
+
+    @staticmethod
+    def validate_output_completeness(
+        output: dict[str, Any],
+        required_fields: list[str],
+    ) -> None:
+        """Validate that agent output contains all required fields.
+
+        Prevents incomplete outputs from being treated as authoritative.
+        """
+        missing = [f for f in required_fields if f not in output]
+        if missing:
+            raise GuardrailViolation(
+                f"Agent output missing required fields: {', '.join(missing)}"
+            )
+
+    @staticmethod
+    def validate_output_no_hallucinated_facts(
+        output: dict[str, Any],
+        known_facts: list[str] | None = None,
+    ) -> None:
+        """Basic check that agent output doesn't contain obvious hallucination patterns.
+
+        Checks for common LLM hallucination markers like "according to my training",
+        "as an AI", "I believe without evidence", etc.
+        """
+        text_fields = ["reasoning_summary", "content", "description", "summary"]
+        hallucination_markers = [
+            "as an ai", "according to my training", "i believe without evidence",
+            "based on my knowledge cutoff", "i don't have access to",
+            "this is hypothetical", "assume without evidence",
+        ]
+
+        for field in text_fields:
+            value = output.get(field, "")
+            if not isinstance(value, str):
+                continue
+            value_lower = value.lower()
+            for marker in hallucination_markers:
+                if marker in value_lower:
+                    raise GuardrailViolation(
+                        f"Potential hallucination detected in output field '{field}': "
+                        f"contains '{marker}'. Agent output may not be grounded."
+                    )

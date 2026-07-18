@@ -39,7 +39,12 @@ class InvestigationEvaluator:
             Wall-clock time for the workflow invocation in milliseconds.
         """
         phase = state.get("phase")
-        phase_str = phase.value if phase is not None else None
+        if phase is None:
+            phase_str = None
+        elif isinstance(phase, str):
+            phase_str = phase
+        else:
+            phase_str = phase.value
 
         # --- extract data from state ---
         predicted_intent = self._extract_intent(state)
@@ -77,7 +82,9 @@ class InvestigationEvaluator:
         metrics.append(
             ProductionMetrics.workflow_completion(
                 is_complete,
-                termination_reason.value if termination_reason is not None else None,
+                termination_reason.value
+                if termination_reason is not None and hasattr(termination_reason, "value")
+                else str(termination_reason) if termination_reason is not None else None,
             )
         )
 

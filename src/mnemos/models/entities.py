@@ -614,3 +614,115 @@ class KnowledgeCard(Base):
     )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ======================================================================
+# Runtime persistence models (P0 #4, P0 #5)
+# ======================================================================
+
+
+class RuntimeCheckpoint(Base):
+    """Durable workflow checkpoint (P0 #4).
+
+    Stores investigation state snapshots for pause/resume and recovery.
+    """
+
+    __tablename__ = "runtime_checkpoints"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("rckp"))
+    investigation_id: Mapped[str] = mapped_column(String(64), index=True)
+    checkpoint_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    phase: Mapped[str] = mapped_column(String(64), nullable=False)
+    agent_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    state_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    event_log_offset: Mapped[int] = mapped_column(default=0)
+    version: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class RuntimeAuditEntry(Base):
+    """Durable audit log for the agentic runtime (P0 #5).
+
+    Every agent invocation, tool call, decision, approval, and guardrail
+    check is written here.  Survives process restarts and deployments.
+    """
+
+    __tablename__ = "runtime_audit_entries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("raud"))
+    investigation_id: Mapped[str] = mapped_column(String(64), index=True)
+    trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    agent_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    tool_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    resource_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    resource_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    input_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    output_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    guardrail_checks: Mapped[list] = mapped_column(JSON, default=list)
+    guardrail_verdicts: Mapped[list] = mapped_column(JSON, default=list)
+    approval_gate: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    approval_decision: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    success: Mapped[bool] = mapped_column(default=True)
+    error_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[float] = mapped_column(default=0.0)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class RuntimeInvestigationEvent(Base):
+    """Durable investigation event log (P0 #5).
+
+    Records every state transition during an investigation lifecycle.
+    """
+
+    __tablename__ = "runtime_investigation_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("revt"))
+    investigation_id: Mapped[str] = mapped_column(String(64), index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    phase: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    agent_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    data_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    correlation_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class RuntimeApprovalRequest(Base):
+    """Durable approval request record (P0 #3).
+
+    When a workflow hits a mandatory human approval gate it creates one
+    of these records in the database and suspends execution.  Reviewers
+    submit decisions via the approvals API which updates this record.
+    The workflow resumes from the stored state snapshot.
+    """
+
+    __tablename__ = "runtime_approval_requests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("apr"))
+    investigation_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    gate_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    findings_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    options_json: Mapped[list] = mapped_column(JSON, default=list)
+    triggered_by: Mapped[str] = mapped_column(String(128), nullable=False, default="supervisor")
+
+    # Status lifecycle: pending → approved | rejected | changes_requested | expired | cancelled
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
+
+    # Reviewer fields — populated when a decision is submitted
+    reviewer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reviewer_decision: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    reviewer_comments: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conditions_json: Mapped[list] = mapped_column(JSON, default=list)
+
+    # Frozen investigation state for workflow resume
+    state_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
