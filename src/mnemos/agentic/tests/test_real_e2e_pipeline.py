@@ -39,6 +39,7 @@ from mnemos.agentic.agents.retrieval.query_router import QueryClassification
 from mnemos.agentic.graph.interfaces import GraphQueryResult
 from mnemos.agentic.schemas.base import QueryIntent, RetrievalStrategy
 from mnemos.agentic.services.llm import LLMService
+from mnemos.core.config import settings
 from mnemos.core.db import Base
 from mnemos.models import AgentRun, Citation, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import (
@@ -709,6 +710,11 @@ async def test_real_e2e_pipeline_through_real_gateway(
         patch(
             "mnemos.agentic.gateway.SessionLocal",
             new=session_factory,
+        ),
+        patch.object(
+            settings,
+            "agent_gateway_mode",
+            "langgraph",
         ),
         patch(
             "mnemos.services.agent_validation.settings",
