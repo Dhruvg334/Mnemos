@@ -53,8 +53,8 @@ async def test_orchestrator_passes_complete_context_to_canonical_pipeline() -> N
     orchestrator = MnemosAIOrchestrator(db)
     request = _request()
 
-    with patch("mnemos.agentic.orchestrator.InvestigationPipeline", autospec=True) as pipeline_cls:
-        pipeline = pipeline_cls.return_value
+    with patch("mnemos.agentic.orchestrator.build_investigation_pipeline", autospec=True) as build_pipeline:
+        pipeline = build_pipeline.return_value
         pipeline.run = AsyncMock(
             return_value={
                 "final_response": {

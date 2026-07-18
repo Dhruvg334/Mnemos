@@ -139,7 +139,12 @@ def create_approval_router(
         by_gate: dict[str, int] = {}
         for request in pending:
             by_gate[request.gate_type] = by_gate.get(request.gate_type, 0) + 1
-        return {"pending_count": len(pending), "pending_by_gate": by_gate}
+        return {
+            "total_requests": len(pending),
+            "status_counts": {"pending": len(pending)},
+            "pending_count": len(pending),
+            "pending_by_gate": by_gate,
+        }
 
     @router.get("/{request_id}")
     async def get_request(

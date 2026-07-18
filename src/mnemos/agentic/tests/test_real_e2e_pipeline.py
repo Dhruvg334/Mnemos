@@ -27,6 +27,7 @@ Critical assertions (P0 #6):
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -74,6 +75,29 @@ async def db_session(engine):
 @pytest_asyncio.fixture
 async def session_factory(engine):
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+@pytest.fixture(autouse=True)
+def authorised_runtime_membership(monkeypatch):
+    """Keep these E2E tests focused on runtime execution, not membership lookup."""
+
+    async def _resolve_membership(
+        db,
+        *,
+        user_id: str,
+        organisation_id: str,
+        site_id: str,
+    ):
+        del db, organisation_id, site_id
+        return SimpleNamespace(
+            id=f"mem_{user_id}",
+            role="reliability_engineer",
+        )
+
+    monkeypatch.setattr(
+        "mnemos.services.query_execution._resolve_query_membership",
+        _resolve_membership,
+    )
 
 
 def _seed_query(
@@ -353,6 +377,7 @@ async def test_real_e2e_scope_preserved_across_approval(
         return AgentQueryResult(
             run_id=request.run_id,
             status="pending_approval",
+            approval_request_id="apr_test_pending",
             answer="",
             confidence=AgentConfidence(label="low", score=0.0),
             run_metadata=AgentRunMetadata(pipeline_version="v2.0"),
@@ -422,6 +447,7 @@ async def test_durable_pause_and_resume_through_gateway(
         ApprovalDecision,
         InMemoryApprovalQueue,
     )
+    from mnemos.agentic.runtime.checkpoint import CheckpointManager
     from mnemos.agentic.runtime.events import InvestigationEventLog
     from mnemos.agentic.runtime.state import create_initial_state
     from mnemos.agentic.runtime.workflow import (
@@ -441,9 +467,14 @@ async def test_durable_pause_and_resume_through_gateway(
         context={"approval_gate_type": "rca_closure"},
     )
     event_log = InvestigationEventLog("inv_pause_resume")
+    checkpoint_manager = CheckpointManager("inv_pause_resume")
 
     with pytest.raises(_ApprovalPendingError):
-        await pipeline._stage_human_approval(state, event_log)
+        await pipeline._stage_human_approval(
+            state,
+            event_log,
+            checkpoint_manager,
+        )
 
     assert state.get("approval_required") is True
     assert state.get("pending_approval_request") is not None
@@ -511,6 +542,7 @@ async def test_pending_approval_persisted_through_gateway(
         return AgentQueryResult(
             run_id=request.run_id,
             status="pending_approval",
+            approval_request_id="apr_test_pending",
             answer="",
             confidence=AgentConfidence(label="low", score=0.0),
             run_metadata=AgentRunMetadata(pipeline_version="v2.0"),

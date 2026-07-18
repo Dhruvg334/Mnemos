@@ -239,7 +239,7 @@ class IdempotentNodeExecutor:
         max_retries: int = 2,
         base_delay_seconds: float = 0.5,
     ) -> None:
-        self._registry = registry or _registry
+        self._registry = registry or NodeCompletionRegistry()
         self._max_retries = max_retries
         self._base_delay = base_delay_seconds
 

@@ -5,11 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mnemos.agentic.gateway import LangGraphAgentGateway
 from mnemos.agentic.orchestrator import MnemosAIOrchestrator
-from mnemos.agentic.runtime import (
-    AgentCapability,
-    AgentRegistry,
-    AgentRole,
-)
 from mnemos.agentic.schemas.base import (
     AgentResponse,
 )
@@ -30,30 +25,12 @@ def mock_db():
 
 @pytest.mark.asyncio
 async def test_orchestrator_initialization(mock_db):
-    """Verifies that the orchestrator initializes correctly."""
+    """The orchestrator owns request adaptation, not a second agent registry."""
     orchestrator = MnemosAIOrchestrator(mock_db)
 
-    assert hasattr(orchestrator, "_registry")
-    assert hasattr(orchestrator, "_agent_functions")
-    assert isinstance(orchestrator._registry, AgentRegistry)
-
-    async def stub_agent(state):
-        return state
-
-    orchestrator.register_agent(
-        "test_agent",
-        stub_agent,
-        role=AgentRole.ANALYSIS,
-        capabilities=[
-            AgentCapability(
-                name="test",
-                input_types=[],
-                output_types=["test_out"],
-            )
-        ],
-    )
-    assert "test_agent" in orchestrator._agent_functions
-    assert orchestrator._registry.is_registered("test_agent")
+    assert orchestrator.db is mock_db
+    assert not hasattr(orchestrator, "_registry")
+    assert not hasattr(orchestrator, "_agent_functions")
 
 
 @pytest.mark.asyncio
@@ -76,8 +53,8 @@ async def test_orchestrator_run_query_no_persistence(mock_db):
         scope=AgentScope(),
     )
 
-    with patch("mnemos.agentic.orchestrator.InvestigationPipeline", autospec=True) as MockPipeline:
-        mock_inst = MockPipeline.return_value
+    with patch("mnemos.agentic.orchestrator.build_investigation_pipeline", autospec=True) as build_pipeline:
+        mock_inst = build_pipeline.return_value
         mock_inst.run = AsyncMock(
             return_value={
                 "final_response": AgentResponse(

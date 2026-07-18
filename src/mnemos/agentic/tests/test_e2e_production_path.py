@@ -20,6 +20,7 @@ assertions are verifiable without requiring a live PostgreSQL server.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -65,6 +66,29 @@ async def db_session(engine):
 @pytest_asyncio.fixture
 async def session_factory(engine):
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+@pytest.fixture(autouse=True)
+def authorised_runtime_membership(monkeypatch):
+    """Keep these E2E tests focused on runtime execution, not membership lookup."""
+
+    async def _resolve_membership(
+        db,
+        *,
+        user_id: str,
+        organisation_id: str,
+        site_id: str,
+    ):
+        del db, organisation_id, site_id
+        return SimpleNamespace(
+            id=f"mem_{user_id}",
+            role="reliability_engineer",
+        )
+
+    monkeypatch.setattr(
+        "mnemos.services.query_execution._resolve_query_membership",
+        _resolve_membership,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +575,7 @@ async def test_e2e_pending_approval_path(db_session: AsyncSession, session_facto
         return AgentQueryResult(
             run_id=request.run_id,
             status="pending_approval",
+            approval_request_id="apr_test_pending",
             answer="",
             confidence=AgentConfidence(label="low", score=0.0),
             run_metadata=AgentRunMetadata(pipeline_version="v2.0"),

@@ -27,6 +27,8 @@ class TestPendingApprovalRequest:
             investigation_id="inv_001",
             gate_type="rca_closure",
             summary="RCA needs review",
+            organisation_id="org_test",
+            requested_by_user_id="requester_user_id",
         )
         assert req.request_id.startswith("apr_")
         assert req.investigation_id == "inv_001"
@@ -87,6 +89,8 @@ class TestApprovalQueue:
             gate_type="rca_closure",
             state_snapshot={"phase": "approval"},
             summary="RCA needs review",
+            organisation_id="org_test",
+            requested_by_user_id="requester_user_id",
         )
         assert request.request_id.startswith("apr_")
         assert request.status == ApprovalStatus.PENDING
@@ -328,7 +332,8 @@ class TestApprovalAPI:
         fake_user.full_name = "Test Approver"
         fake_user.email = "approver@test.com"
         fake_membership = MagicMock()
-        fake_membership.role = "approver"
+        fake_membership.role = "organisation_admin"
+        fake_membership.organisation_id = "org_test"
         fake_membership.site_id = None
 
         async def fake_get_principal():
@@ -343,6 +348,8 @@ class TestApprovalAPI:
             gate_type="rca_closure",
             state_snapshot={"phase": "approval"},
             summary="RCA needs review",
+            organisation_id="org_test",
+            requested_by_user_id="requester_user_id",
         )
         return request.request_id
 

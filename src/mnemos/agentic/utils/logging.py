@@ -38,8 +38,11 @@ class StructuredLogger:
         self.logger.info(msg, extra=self._get_extra(kwargs))
 
     def error(self, msg: str, **kwargs: Any) -> None:
+        exc_info = kwargs.pop("exc_info", False)
         self.logger.error(
-            msg, extra=self._get_extra(kwargs), exc_info=kwargs.get("exc_info", False)
+            msg,
+            extra=self._get_extra(kwargs),
+            exc_info=exc_info,
         )
 
     def warning(self, msg: str, **kwargs: Any) -> None:
