@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GraphNode(BaseModel):
@@ -13,8 +13,10 @@ class GraphNode(BaseModel):
 class GraphRelationship(BaseModel):
     source_id: str
     target_id: str
-    type: str
+    relationship_type: str = Field(alias="type")
     properties: dict[str, Any] = {}
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class GraphQueryResult(BaseModel):

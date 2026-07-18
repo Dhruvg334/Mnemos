@@ -29,23 +29,28 @@ class StructuredLogger:
             full_extra.update(extra)
         return full_extra
 
-    def debug(self, msg: str, **kwargs):
+    def debug(self, msg: str, **kwargs: Any) -> None:
         self.logger.debug(msg, extra=self._get_extra(kwargs))
 
-    def info(self, msg: str, **kwargs):
+    def info(self, msg: str, **kwargs: Any) -> None:
         self.logger.info(msg, extra=self._get_extra(kwargs))
 
-    def error(self, msg: str, **kwargs):
+    def error(self, msg: str, **kwargs: Any) -> None:
         self.logger.error(msg, extra=self._get_extra(kwargs), exc_info=kwargs.get("exc_info", False))
 
-    def warning(self, msg: str, **kwargs):
+    def warning(self, msg: str, **kwargs: Any) -> None:
         self.logger.warning(msg, extra=self._get_extra(kwargs))
+
+    def exception(self, msg: str, **kwargs: Any) -> None:
+        self.logger.exception(msg, extra=self._get_extra(kwargs))
+
 
 def setup_trace(trace_id: str | None = None) -> str:
     """Initializes a new trace context."""
     tid = trace_id or f"mnm_{uuid.uuid4().hex[:12]}"
     trace_id_var.set(tid)
     return tid
+
 
 def get_trace_id() -> str:
     return trace_id_var.get()

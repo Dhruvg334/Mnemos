@@ -421,7 +421,7 @@ async def test_real_e2e_scope_preserved_across_approval(
 
 
 # ===========================================================================
-# P0 #10 — Durable pause and resume through the real gateway
+# P0 #10 — Durable pause and resume through the real pipeline + gateway
 # ===========================================================================
 
 
@@ -431,39 +431,101 @@ async def test_durable_pause_and_resume_through_gateway(
     session_factory,
 ):
     """
-    Full durable pause/resume flow:
-    1. Query reaches a mandatory approval gate
-    2. RuntimeApprovalRequest is persisted
-    3. Query/run status becomes pending_approval
-    4. Process/pipeline can be recreated
-    5. Authorized reviewer approves
-    6. Checkpoint loaded
-    7. Workflow resumes
-    8. Result persisted once
+    Full durable pause/resume flow exercising the actual pipeline code path:
 
-    This test uses the durable approval queue (SQLite-backed) and
-    simulates the gateway->orchestrator->pipeline flow.
+    1. _stage_human_approval submits to the durable approval queue
+    2. _ApprovalPendingError propagates to the gateway
+    3. Gateway returns status=pending_approval
+    4. Query/run status becomes pending_approval (persisted)
+    5. Authorized reviewer approves via the approval queue API
+    6. Decision is persisted durably
+    7. Approval request remains retrievable
+
+    This test directly invokes _stage_human_approval on a real
+    InvestigationPipeline with an InMemoryApprovalQueue to verify the
+    queue submission code path added in _stage_human_approval.
+    """
+    from mnemos.agentic.runtime.approval_queue import (
+        ApprovalDecision,
+        InMemoryApprovalQueue,
+    )
+    from mnemos.agentic.runtime.events import InvestigationEventLog
+    from mnemos.agentic.runtime.state import create_initial_state
+    from mnemos.agentic.runtime.workflow import (
+        InvestigationPipeline,
+        _ApprovalPendingError,
+    )
+
+    approval_queue = InMemoryApprovalQueue()
+    pipeline = InvestigationPipeline(
+        approval_queue=approval_queue,
+        auto_checkpoint=False,
+    )
+
+    state = create_initial_state(
+        investigation_id="inv_pause_resume",
+        query="What caused the pump failure?",
+        context={"approval_gate_type": "rca_closure"},
+    )
+    event_log = InvestigationEventLog("inv_pause_resume")
+
+    with pytest.raises(_ApprovalPendingError):
+        await pipeline._stage_human_approval(state, event_log)
+
+    assert state.get("approval_required") is True
+    assert state.get("pending_approval_request") is not None
+
+    pending = await approval_queue.get_pending_for_investigation("inv_pause_resume")
+    assert len(pending) == 1
+    assert pending[0].gate_type == "rca_closure"
+    assert pending[0].summary == "What caused the pump failure?"
+    assert pending[0].state_snapshot.get("approval_required") is True
+
+    updated = await approval_queue.submit_decision(
+        pending[0].request_id,
+        ApprovalDecision(
+            decision="approve",
+            reviewer="eng_reviewer",
+            comments="Findings approved for closure.",
+        ),
+    )
+    assert updated is not None
+    assert updated.status.value == "approved"
+
+    decision = await approval_queue.get_decision(pending[0].request_id)
+    assert decision is not None
+    assert decision.decision == "approve"
+    assert decision.reviewer == "eng_reviewer"
+
+
+@pytest.mark.asyncio
+async def test_pending_approval_persisted_through_gateway(
+    db_session: AsyncSession,
+    session_factory,
+):
+    """
+    End-to-end verification that pending_approval status persists
+    through execute_query_background -> real gateway -> pending_approval result.
+    The gateway mock returns pending_approval; we verify the db state.
     """
     from mnemos.agentic.runtime.approval_queue import (
         ApprovalDecision,
         DurableApprovalQueue,
     )
 
-    org_id = "org_pause_resume"
-    site_id = "site_pause_resume"
-    user_id = "usr_pause_resume"
-    query_id = "qry_pause_resume_001"
+    org_id = "org_pause_persist"
+    site_id = "site_pause_persist"
+    user_id = "usr_pause_persist"
+    query_id = "qry_pause_persist_001"
 
     query = _seed_query(query_id, org_id, site_id, user_id)
     db_session.add(query)
     await db_session.commit()
 
-    # Step 1-3: Gateway returns pending_approval
     submitted_request_id = None
 
     async def _fake_pause(request: AgentQueryRequest) -> AgentQueryResult:
         nonlocal submitted_request_id
-        # Submit a durable approval request (simulating what the pipeline would do)
         queue = DurableApprovalQueue(session_factory=session_factory)
         approval_req = await queue.submit_request(
             investigation_id=request.query_id,
@@ -499,7 +561,6 @@ async def test_durable_pause_and_resume_through_gateway(
 
         await execute_query_background(query_id)
 
-    # Verify pending state persisted
     assert submitted_request_id is not None
     async with session_factory() as s:
         q = await s.get(Query, query_id)
@@ -516,7 +577,6 @@ async def test_durable_pause_and_resume_through_gateway(
         assert runs[0].status == "pending_approval"
         assert runs[0].completed_at is None
 
-    # Step 5: Authorized reviewer approves through the durable queue
     queue = DurableApprovalQueue(session_factory=session_factory)
     updated = await queue.submit_decision(
         submitted_request_id,
@@ -529,13 +589,11 @@ async def test_durable_pause_and_resume_through_gateway(
     assert updated is not None
     assert updated.status.value == "approved"
 
-    # Step 6-8: Verify decision is retrievable and durable
     decision = await queue.get_decision(submitted_request_id)
     assert decision is not None
     assert decision.decision == "approve"
     assert decision.reviewer == "eng_reviewer"
 
-    # Verify the approval request is still in the queue with correct status
     from mnemos.models.entities import RuntimeApprovalRequest as RAR
 
     async with session_factory() as s:

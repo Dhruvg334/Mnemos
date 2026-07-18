@@ -489,8 +489,11 @@ class InvestigationPipeline:
                 await self._node_registry.load_completions(investigation_id)
                 registry = self._idempotent_executor._registry
                 registry._durable = self._node_registry
-            except Exception:
-                logger.warning("Failed to wire durable node registry from _node_registry")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to wire durable node registry from _node_registry: %s",
+                    exc,
+                )
 
         elif self.db is not None:
             try:
@@ -499,8 +502,11 @@ class InvestigationPipeline:
                 await durable_reg.load_completions(investigation_id)
                 registry = self._idempotent_executor._registry
                 registry._durable = durable_reg  # type: ignore[attr-defined]
-            except Exception:
-                logger.warning("Failed to wire durable node registry from db session")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to wire durable node registry from db session: %s",
+                    exc,
+                )
 
         get_llm_telemetry().set_export_sink(
             lambda entry: event_log.append(
@@ -849,10 +855,10 @@ class InvestigationPipeline:
                 )
 
                 return DurableEventLog(investigation_id, self.db)
-            except Exception:
+            except Exception as exc:
                 logger.warning(
                     "Falling back to in-memory event log "
-                    "(DurableEventLog unavailable)"
+                    "(DurableEventLog unavailable): %s", exc,
                 )
         return InvestigationEventLog(investigation_id)
 
@@ -866,10 +872,10 @@ class InvestigationPipeline:
                 )
 
                 return DurableAuditLogger(investigation_id, self.db)
-            except Exception:
+            except Exception as exc:
                 logger.warning(
                     "Falling back to in-memory audit logger "
-                    "(DurableAuditLogger unavailable)"
+                    "(DurableAuditLogger unavailable): %s", exc,
                 )
         return AuditLogger(investigation_id)
 
@@ -885,10 +891,10 @@ class InvestigationPipeline:
                 )
 
                 return DurableCheckpointManager(investigation_id, self.db)
-            except Exception:
+            except Exception as exc:
                 logger.warning(
                     "Falling back to in-memory checkpoint manager "
-                    "(DurableCheckpointManager unavailable)"
+                    "(DurableCheckpointManager unavailable): %s", exc,
                 )
         return CheckpointManager(investigation_id)
 
@@ -1639,6 +1645,20 @@ class InvestigationPipeline:
             gate_type=HumanApprovalNode.resolve_gate_type(gate_str),
         )
 
+        # Submit to the durable approval queue so the API can serve it
+        if self._approval_queue is not None:
+            findings = state.get("findings", {})
+            trace_id = state.get("trace_id")
+            await self._approval_queue.submit_request(
+                investigation_id=state.get("investigation_id", ""),
+                gate_type=gate_str,
+                state_snapshot=state,
+                summary=state.get("query", ""),
+                findings=findings if isinstance(findings, dict) else {},
+                trace_id=trace_id,
+                triggered_by="pipeline",
+            )
+
         _record_step(state, "human_approval", "awaiting_human")
 
         elapsed_ms = (time.time() - started) * 1000
@@ -1905,6 +1925,7 @@ class InvestigationPipeline:
             )
             result["observability"] = dashboard.get_dashboard_snapshot()
         except Exception:
+            logger.debug("Observability dashboard unavailable")
             result["observability"] = None
 
         return result

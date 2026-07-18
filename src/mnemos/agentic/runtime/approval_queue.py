@@ -601,7 +601,10 @@ class DurableApprovalQueue(ApprovalQueueBase):
                         r.status = "expired"
                         try:
                             await db.commit()
-                        except Exception:
+                        except Exception as exc:
+                            logger.warning(
+                                "Failed to expire request %s: %s", r.id, exc,
+                            )
                             await db.rollback()
                     else:
                         result.append(_row_to_model(r))
