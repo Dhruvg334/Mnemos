@@ -10,7 +10,7 @@ All tests are self-contained: no database, no LLM, no network calls.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -30,7 +30,6 @@ from mnemos.agentic.schemas.base import (
     RecommendedAction,
 )
 from mnemos.agentic.schemas.specialized import FinalReport
-
 
 # ======================================================================
 # Helpers: realistic mock data builders
@@ -520,7 +519,6 @@ class TestReportComposerSections:
         )
         state = _state(context={"reasoning_outputs": [out_a, out_b]})
 
-        result = state
         report = composer._synthesize_report([out_a, out_b], state)
 
         assert "rca_agent" in report.sections

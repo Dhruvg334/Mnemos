@@ -33,7 +33,6 @@ from mnemos.agentic.schemas.base import (
     ProvenanceChain,
 )
 
-
 # ── helpers ──────────────────────────────────────────────────────────
 
 
@@ -929,9 +928,9 @@ class TestModels:
         """MetricResult score must be in [0, 1]."""
         MetricResult(name="ok", score=0.0)
         MetricResult(name="ok", score=1.0)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             MetricResult(name="bad", score=1.5)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             MetricResult(name="bad", score=-0.1)
 
     def test_sample_result_creation(self) -> None:

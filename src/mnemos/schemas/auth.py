@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from mnemos.core.security import validate_password_strength
@@ -13,6 +15,36 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=256)
     model_config = {"extra": "forbid", "str_strip_whitespace": True}
+
+
+class RegisterRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=255)
+    organisation_name: str = Field(min_length=2, max_length=255)
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=256)
+    model_config = {"extra": "forbid", "str_strip_whitespace": True}
+
+    @field_validator("password")
+    @classmethod
+    def strong_password(cls, value: str) -> str:
+        validate_password_strength(value)
+        return value
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=512)
+    model_config = {"extra": "forbid", "str_strip_whitespace": True}
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+    model_config = {"extra": "forbid", "str_strip_whitespace": True}
+
+
+class RegistrationResponse(BaseModel):
+    status: str
+    email: EmailStr
+    verification_required: bool = True
 
 
 class RefreshRequest(BaseModel):
@@ -48,3 +80,4 @@ class UserResponse(ORMModel):
     email: str
     full_name: str
     is_active: bool
+    email_verified_at: datetime | None = None

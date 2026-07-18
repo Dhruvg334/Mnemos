@@ -1,7 +1,9 @@
 "use client";
 
 import { D } from "@/lib/data";
+import Link from "next/link";
 import { Icon } from "./icons";
+import { MnemosMark } from "./public/Brand";
 
 const NAV = [
   {
@@ -28,18 +30,13 @@ export default function Rail({ view, onNav }) {
 
   return (
     <nav className="flex h-screen w-[232px] shrink-0 flex-col border-r border-rail-line bg-rail text-rail-ink">
-      <div className="flex items-center gap-2.5 px-4 py-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-[#101114]">
-          <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6">
-            <rect width="24" height="24" rx="5" fill="#101114" />
-            <path d="M6 17V7l6 6 6-6v10" stroke="#2f6fe0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+      <Link href="/" className="flex items-center gap-2.5 px-4 py-4 transition hover:bg-rail-raised/60" title="Back to Mnemos home">
+        <MnemosMark size={32} inverse />
         <div className="leading-tight">
-          <div className="text-[14.5px] font-semibold">Mnemos</div>
-          <div className="text-[10.5px] uppercase tracking-wide text-rail-soft">Asset Intelligence</div>
+          <div className="text-[14.5px] font-semibold text-rail-ink">Mnemos</div>
+          <div className="text-[10.5px] uppercase tracking-wide text-rail-soft">Operating memory</div>
         </div>
-      </div>
+      </Link>
 
       <div className="scrollhide flex-1 overflow-y-auto px-2.5 pb-4">
         {NAV.map((sec) => (

@@ -57,6 +57,9 @@ async def check_neo4j_health() -> str:
         return "healthy"
     except Exception as e:
         logger.error(f"Neo4j health check failed: {e}")
+        # A failed probe must not leave a background driver or connection
+        # pool alive, especially in short-lived test and migration processes.
+        await close_neo4j()
         return "unhealthy"
 
 

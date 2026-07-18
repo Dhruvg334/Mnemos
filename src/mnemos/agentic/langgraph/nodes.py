@@ -4,7 +4,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.deps import get_graph_client, get_llm_service, get_prompt_manager
+from mnemos.agentic.providers import get_graph_client, get_llm_service, get_prompt_manager
 from mnemos.agentic.retrieval.engine import HybridRetrievalEngine
 from mnemos.agentic.retrieval.graph_rag import GraphRAGLayer
 from mnemos.agentic.retrieval.identity_resolver import AssetIdentityResolver

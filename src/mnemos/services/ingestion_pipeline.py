@@ -1,7 +1,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mnemos.agentic.deps import get_llm_service
+from mnemos.agentic.providers import get_llm_service
 from mnemos.core.logging import get_logger
 from mnemos.core.neo4j import get_driver
 from mnemos.models import Document

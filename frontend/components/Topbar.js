@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "./icons";
+import SessionControls from "./auth/SessionControls";
 
 export default function Topbar({ crumb }) {
   return (
@@ -33,13 +34,7 @@ export default function Topbar({ crumb }) {
         <button className="flex h-8 w-8 items-center justify-center rounded-md text-ink-soft hover:bg-paper-alt" title="System status">
           <Icon name="clock" className="h-4 w-4" />
         </button>
-        <div className="ml-1.5 flex items-center gap-2 border-l border-line pl-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rail font-mono text-[11px] text-rail-ink">RS</div>
-          <div className="hidden leading-tight md:block">
-            <div className="text-[12.5px] font-medium text-ink">Ravi Sridhar</div>
-            <div className="text-[10.5px] text-ink-faint">Reliability Engineer</div>
-          </div>
-        </div>
+        <SessionControls />
       </div>
     </header>
   );

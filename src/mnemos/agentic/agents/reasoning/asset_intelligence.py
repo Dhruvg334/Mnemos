@@ -11,6 +11,7 @@ No hallucinated facts.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from mnemos.agentic.agents.reasoning._base import _BaseReasoningAgent
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
@@ -387,7 +388,7 @@ class AssetIntelligenceAgent(_BaseReasoningAgent):
         similar_asset_evidence: list[dict[str, Any]] = []
         if bundle is not None:
             raw_graph = getattr(bundle, "raw_graph_data", {})
-            for entity_id, data in raw_graph.items():
+            for _entity_id, data in raw_graph.items():
                 if not isinstance(data, dict):
                     continue
                 nodes = data.get("nodes", [])
