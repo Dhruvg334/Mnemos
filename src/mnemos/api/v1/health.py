@@ -4,6 +4,7 @@ from fastapi.responses import ORJSONResponse
 from mnemos.agentic.agents.tool_metrics import tool_metrics
 from mnemos.core.config import settings
 from mnemos.services.operations.health import (
+    assess_readiness,
     graph_health_check,
     readiness_checks,
     vector_health_check,
@@ -20,11 +21,11 @@ async def live() -> dict[str, str]:
 @router.get("/ready")
 async def ready():
     checks = await readiness_checks()
-    healthy = all(value == "healthy" for value in checks.values())
+    ready_for_traffic, status = assess_readiness(checks)
     return ORJSONResponse(
-        status_code=200 if healthy else 503,
+        status_code=200 if ready_for_traffic else 503,
         content={
-            "status": "healthy" if healthy else "degraded",
+            "status": status,
             "checks": checks,
         },
     )
@@ -43,7 +44,7 @@ async def vector_health():
 async def graph_health():
     status = await graph_health_check()
     return ORJSONResponse(
-        status_code=200 if status == "healthy" else 503,
+        status_code=200 if status in {"healthy", "disabled"} else 503,
         content={"status": status},
     )
 

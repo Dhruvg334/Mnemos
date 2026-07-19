@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     ]
 
     # Neo4j Graph Database
+    neo4j_enabled: bool = True
+    neo4j_startup_required: bool = False
+    neo4j_required_for_readiness: bool = False
+    neo4j_connect_timeout_seconds: float = 5.0
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password"
