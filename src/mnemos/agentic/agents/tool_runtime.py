@@ -6,6 +6,8 @@ import asyncio
 from time import perf_counter
 from typing import Any
 
+from mnemos.agentic.agents.tool_metrics import tool_metrics
+
 MAX_TOOL_CALLS_PER_AGENT = 8
 TOOL_CALL_TIMEOUT_SECONDS = 15.0
 
@@ -74,6 +76,22 @@ async def execute_governed_tool(
         error = f"Tool '{tool_name}' failed: {type(exc).__name__}"
 
     duration_ms = round((perf_counter() - started) * 1000, 2)
+    failure_category = None
+    if not success:
+        if isinstance(error, str) and "timed out" in error:
+            failure_category = "timeout"
+        elif isinstance(error, str) and "budget exhausted" in error:
+            failure_category = "budget_exhausted"
+        elif isinstance(error, str) and "failed:" in error:
+            failure_category = "exception"
+        else:
+            failure_category = "tool_error"
+    tool_metrics.record(
+        tool_name=tool_name,
+        success=success,
+        duration_ms=duration_ms,
+        failure_category=failure_category,
+    )
     trajectory = context.setdefault("tool_trajectory", [])
     trajectory.append(
         {

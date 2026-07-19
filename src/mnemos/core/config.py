@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     security_headers_enabled: bool = True
     max_request_body_bytes: int = 2_000_000
     external_health_checks_enabled: bool = True
+    tool_health_failure_rate_threshold: float = 0.25
+    tool_health_p95_latency_ms: float = 5_000.0
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
     allowed_upload_mime_types: list[str] = [

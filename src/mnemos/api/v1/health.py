@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from fastapi.responses import ORJSONResponse
 
+from mnemos.agentic.agents.tool_metrics import tool_metrics
+from mnemos.core.config import settings
 from mnemos.services.operations.health import (
     graph_health_check,
     readiness_checks,
@@ -43,4 +45,16 @@ async def graph_health():
     return ORJSONResponse(
         status_code=200 if status == "healthy" else 503,
         content={"status": status},
+    )
+
+
+@router.get("/agent-tools")
+async def agent_tool_health() -> ORJSONResponse:
+    snapshot = tool_metrics.snapshot(
+        failure_rate_threshold=settings.tool_health_failure_rate_threshold,
+        latency_threshold_ms=settings.tool_health_p95_latency_ms,
+    )
+    return ORJSONResponse(
+        status_code=200 if snapshot["status"] == "healthy" else 503,
+        content=snapshot,
     )

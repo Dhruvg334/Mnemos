@@ -39,9 +39,6 @@ async def readiness_checks() -> dict[str, str]:
 
     checks["pgvector"] = await vector_health_check()
 
-    checks["neo4j"] = await graph_health_check()
-    checks["pgvector"] = await vector_health_check()
-
     return checks
 
 
