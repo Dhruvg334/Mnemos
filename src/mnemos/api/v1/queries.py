@@ -142,7 +142,8 @@ async def create_query(
     await db.commit()
     await db.refresh(query)
 
-    background_tasks.add_task(execute_query_background, query.id)
+    if settings.query_dispatch_mode == "background":
+        background_tasks.add_task(execute_query_background, query.id)
     return Envelope(
         data=QueryAccepted(id=query.id, status=query.status, created_at=query.created_at),
         meta=Meta(request_id=request.state.request_id),
@@ -310,7 +311,8 @@ async def retry_query(
     )
     await db.commit()
     await db.refresh(query)
-    background_tasks.add_task(execute_query_background, query.id)
+    if settings.query_dispatch_mode == "background":
+        background_tasks.add_task(execute_query_background, query.id)
     return Envelope(
         data=QueryAccepted(id=query.id, status=query.status, created_at=query.created_at),
         meta=Meta(request_id=request.state.request_id),

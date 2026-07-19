@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     idempotency_key_max_length: int = 128
     idempotency_ttl_hours: int = 24
     query_max_retry_attempts: int = 2
+    query_dispatch_mode: str = "background"
+    worker_poll_interval_seconds: float = 2.0
     ingestion_max_retry_attempts: int = 2
     security_headers_enabled: bool = True
     max_request_body_bytes: int = 2_000_000
@@ -91,6 +93,16 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value):
+        if isinstance(value, str):
+            if value.startswith("postgres://"):
+                return "postgresql+asyncpg://" + value.removeprefix("postgres://")
+            if value.startswith("postgresql://"):
+                return "postgresql+asyncpg://" + value.removeprefix("postgresql://")
+        return value
+
     @field_validator("cors_origins", "allowed_upload_mime_types", mode="before")
     @classmethod
     def parse_cors_origins(cls, value):
@@ -110,6 +122,8 @@ class Settings(BaseSettings):
                 raise ValueError("Wildcard CORS is not allowed in production")
             if self.email_delivery_mode == "smtp" and not self.smtp_host:
                 raise ValueError("SMTP_HOST is required when EMAIL_DELIVERY_MODE=smtp")
+        if self.query_dispatch_mode not in {"background", "worker"}:
+            raise ValueError("QUERY_DISPATCH_MODE must be background or worker")
         return self
 
 

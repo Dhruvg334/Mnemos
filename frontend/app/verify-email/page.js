@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Brand from "@/components/public/Brand";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const params = useSearchParams();
   const token = params.get("token");
   const [state, setState] = useState({ status: "loading", message: "Verifying your email…" });
@@ -43,5 +43,13 @@ export default function VerifyEmailPage() {
         <Link href="/signin" className="mt-5 inline-flex rounded-full bg-rail px-5 py-2.5 text-[12.5px] font-medium text-white">Continue to sign in</Link>
       </section>
     </main>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-paper-alt">Verifying…</main>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

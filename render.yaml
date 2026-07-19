@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+services:
+  - type: web
+    name: mnemos-api
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerCommand: api
+    preDeployCommand: /app/scripts/container-entrypoint.sh migrate
+    healthCheckPath: /health/live
+    envVars: &mnemos-env
+      - key: APP_ENV
+        value: production
+      - key: QUERY_DISPATCH_MODE
+        value: worker
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mnemos-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: mnemos-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: NEO4J_ENABLED
+        value: "true"
+      - key: NEO4J_STARTUP_REQUIRED
+        value: "false"
+      - key: NEO4J_REQUIRED_FOR_READINESS
+        value: "false"
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  - type: worker
+    name: mnemos-query-worker
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerCommand: worker
+    envVars: *mnemos-env
+
+  - type: keyvalue
+    name: mnemos-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: mnemos-postgres
+    plan: free
+    region: singapore
+    databaseName: mnemos
+    user: mnemos
+    postgresMajorVersion: "16"
