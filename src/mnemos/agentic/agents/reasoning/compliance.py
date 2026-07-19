@@ -17,6 +17,7 @@ import uuid
 from datetime import UTC, datetime
 
 from mnemos.agentic.agents.reasoning._base import _BaseReasoningAgent
+from mnemos.agentic.agents.reasoning.tool_enrichment import scoped_document_ids
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
 from mnemos.agentic.schemas.base import (
     Citation,
@@ -97,6 +98,16 @@ class ComplianceAgent(_BaseReasoningAgent):
             self._store_reasoning_output(state, output)
             return state
 
+        revision_results: list[dict] = []
+        for document_id in scoped_document_ids(verified):
+            result = await self.call_tool(
+                "revision_check",
+                {"document_id": document_id},
+                state=state,
+            )
+            if isinstance(result, dict) and "status" in result:
+                revision_results.append(result)
+
         checks = self._run_all_checks(verified, state)
         claims = self._build_claims(checks)
         citations = self._build_citations(verified)
@@ -131,6 +142,7 @@ class ComplianceAgent(_BaseReasoningAgent):
             ),
             reasoning_summary=self._build_summary(checks, confidence),
             metadata={
+                "governed_revision_checks": revision_results,
                 "compliance_checks": [c.model_dump() for c in checks],
                 "pass_rate": self._pass_rate(checks),
                 "total_checks": len(checks),

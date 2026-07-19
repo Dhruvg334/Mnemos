@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from time import perf_counter
 from typing import Any
 
 MAX_TOOL_CALLS_PER_AGENT = 8
+TOOL_CALL_TIMEOUT_SECONDS = 15.0
 
 
 def _safe_summary(value: Any, limit: int = 240) -> str:
@@ -49,19 +51,29 @@ async def execute_governed_tool(
     }
 
     started = perf_counter()
-    result = await server.call(
-        tool_name=tool_name,
-        arguments=arguments,
-        agent_name=agent_name,
-        investigation_id=investigation_id,
-        trace_id=trace_id,
-        user_context=user_context,
-    )
-    duration_ms = round((perf_counter() - started) * 1000, 2)
-    success = bool(getattr(result, "success", False))
-    data = getattr(result, "data", None)
-    error = getattr(result, "error", None)
+    try:
+        async with asyncio.timeout(TOOL_CALL_TIMEOUT_SECONDS):
+            result = await server.call(
+                tool_name=tool_name,
+                arguments=arguments,
+                agent_name=agent_name,
+                investigation_id=investigation_id,
+                trace_id=trace_id,
+                user_context=user_context,
+            )
+        success = bool(getattr(result, "success", False))
+        data = getattr(result, "data", None)
+        error = getattr(result, "error", None)
+    except TimeoutError:
+        success = False
+        data = None
+        error = f"Tool '{tool_name}' timed out after {TOOL_CALL_TIMEOUT_SECONDS:.0f}s"
+    except Exception as exc:  # noqa: BLE001 - tool boundaries must fail closed
+        success = False
+        data = None
+        error = f"Tool '{tool_name}' failed: {type(exc).__name__}"
 
+    duration_ms = round((perf_counter() - started) * 1000, 2)
     trajectory = context.setdefault("tool_trajectory", [])
     trajectory.append(
         {

@@ -14,6 +14,7 @@ import uuid
 from typing import Any
 
 from mnemos.agentic.agents.reasoning._base import _BaseReasoningAgent
+from mnemos.agentic.agents.reasoning.tool_enrichment import scoped_asset_ids
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
 from mnemos.agentic.schemas.base import (
     Citation,
@@ -95,6 +96,21 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
             self._store_reasoning_output(state, output)
             return state
 
+        governed_similar_failures: list[dict[str, Any]] = []
+        for asset_id in scoped_asset_ids(state, verified):
+            result = await self.call_tool(
+                "similar_failures",
+                {
+                    "asset_id": asset_id,
+                    "failure_description": state.get("query", ""),
+                    "similarity_threshold": 0.5,
+                    "max_results": 5,
+                },
+                state=state,
+            )
+            if isinstance(result, dict) and isinstance(result.get("similar_failures"), list):
+                governed_similar_failures.extend(result["similar_failures"])
+
         historical_incidents = self._extract_historical_incidents(verified)
         comparisons = self._compare_situations(historical_incidents, verified, state)
         action_effectiveness = self._evaluate_actions(comparisons)
@@ -141,6 +157,7 @@ class LessonsLearnedAgent(_BaseReasoningAgent):
                 "asset_similarity": asset_similarity,
                 "patterns": patterns,
                 "proactive_recommendations": [r.model_dump() for r in recommendations],
+                "governed_similar_failures": governed_similar_failures[:10],
             },
         )
 

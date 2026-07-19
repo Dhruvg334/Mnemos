@@ -16,6 +16,7 @@ import uuid
 from typing import Any
 
 from mnemos.agentic.agents.reasoning._base import _BaseReasoningAgent
+from mnemos.agentic.agents.reasoning.tool_enrichment import scoped_asset_ids
 from mnemos.agentic.runtime.types import AgentCapability, AgentRole
 from mnemos.agentic.schemas.base import (
     Citation,
@@ -102,6 +103,21 @@ class RCAAgent(_BaseReasoningAgent):
             self._store_reasoning_output(state, output)
             return state
 
+        tool_similar_failures: list[dict[str, Any]] = []
+        for asset_id in scoped_asset_ids(state, verified):
+            result = await self.call_tool(
+                "similar_failures",
+                {
+                    "asset_id": asset_id,
+                    "failure_description": state.get("query", ""),
+                    "similarity_threshold": 0.55,
+                    "max_results": 5,
+                },
+                state=state,
+            )
+            if isinstance(result, dict) and isinstance(result.get("similar_failures"), list):
+                tool_similar_failures.extend(result["similar_failures"])
+
         timeline = self._build_timeline(verified)
         facts = self._extract_facts(verified)
         hypotheses = self._generate_hypotheses(verified, facts, timeline)
@@ -151,6 +167,7 @@ class RCAAgent(_BaseReasoningAgent):
                 "evidence_rankings": [r.model_dump() for r in rankings],
                 "test_recommendations": [t.model_dump() for t in test_recs],
                 "similar_failures": similar,
+                "tool_similar_failures": tool_similar_failures[:10],
                 "extracted_facts": facts,
             },
         )
