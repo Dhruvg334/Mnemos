@@ -20,6 +20,12 @@ from mnemos.agentic.evaluation.models import (
 )
 from mnemos.agentic.evaluation.reporter import EvalReporter
 from mnemos.agentic.evaluation.runner import EvalRunner
+from mnemos.agentic.evaluation.tool_selection import (
+    TOOL_SELECTION_POLICIES,
+    ToolSelectionEvaluation,
+    ToolSelectionPolicy,
+    evaluate_tool_trajectory,
+)
 
 __all__ = [
     "BenchmarkReport",
@@ -35,4 +41,8 @@ __all__ = [
     "MetricResult",
     "ProductionMetrics",
     "SampleResult",
+    "TOOL_SELECTION_POLICIES",
+    "ToolSelectionEvaluation",
+    "ToolSelectionPolicy",
+    "evaluate_tool_trajectory",
 ]

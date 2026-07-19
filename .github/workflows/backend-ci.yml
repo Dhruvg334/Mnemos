@@ -49,12 +49,14 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - name: Run evaluation gate tests
-        # These run the evaluation framework against synthetic fixtures
-        # without requiring a live LLM or database connection.
-        # They enforce minimum thresholds defined in evaluation/baseline.py.
+        # Synthetic, dependency-local gates only: no live LLM, Neo4j, or database.
+        # These catch retrieval regressions plus wrong, excessive, slow, or
+        # out-of-scope governed-tool selections.
         run: |
-          python -m pytest src/mnemos/agentic/evaluation/ -q --tb=short \
-            -m "not integration" \
+          python -m pytest \
+            src/mnemos/agentic/evaluation/ \
+            tests/test_tool_selection_evaluation.py \
+            -q --tb=short -m "not integration" \
             --junitxml=evaluation-results.xml
       - name: Upload evaluation results
         if: always()
