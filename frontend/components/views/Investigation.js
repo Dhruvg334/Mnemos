@@ -5,7 +5,7 @@ import { fmtDate } from "@/lib/helpers";
 import { Cite, ConfidenceMeter, StatusPill, Card } from "../ui";
 
 export default function Investigation({ onCite, onOpenDoc }) {
-  const rca = D.rca;
+  const rca = D.rca || { timeline: [], hypotheses: [], missingEvidence: [] };
 
   return (
     <div>
@@ -26,7 +26,7 @@ export default function Investigation({ onCite, onOpenDoc }) {
                 <div className="font-mono text-[10.5px] text-ink-faint">{fmtDate(ev.date)}</div>
                 <div className="mt-0.5 text-[13px] text-ink">
                   <span className="mr-2 rounded bg-paper-sunk px-1.5 py-0.5 text-[10.5px] uppercase tracking-wide text-ink-faint">
-                    {ev.type.replace("_", " ")}
+                    {(ev.type || "").replace("_", " ")}
                   </span>
                   {ev.label}
                 </div>

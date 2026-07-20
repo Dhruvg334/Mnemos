@@ -82,7 +82,7 @@ export default function Overview({ onOpenAsset, onNav }) {
             <WidgetRow
               key={d.id}
               onClick={() => onNav("documents", { docId: d.id })}
-              left={<div><CellName>{d.title}</CellName><CellSub>{d.type.replace(/_/g, " ")} · {d.date}</CellSub></div>}
+              left={<div><CellName>{d.title}</CellName><CellSub>{(d.type || "").replace(/_/g, " ")} · {d.date}</CellSub></div>}
               right={<Tag mono>{d.id}</Tag>}
             />
           ))}

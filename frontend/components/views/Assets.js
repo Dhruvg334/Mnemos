@@ -64,13 +64,13 @@ export default function Assets({ onOpenAsset }) {
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="font-medium text-ink">{a.name}</div>
-                    <div className="text-[11.5px] text-ink-faint">{a.type.replace("_", " ")}</div>
+                    <div className="text-[11.5px] text-ink-faint">{(a.type || "").replace("_", " ")}</div>
                   </td>
                   <td className="px-4 py-2.5 text-ink-soft">{areaName(a.area)}</td>
                   <td className="px-4 py-2.5">
                     {lastFail ? (
                       <>
-                        <div className="font-medium text-ink">{lastFail.code.replace(/_/g, " ")}</div>
+                        <div className="font-medium text-ink">{(lastFail.code || "").replace(/_/g, " ")}</div>
                         <div className="text-[11.5px] text-ink-faint">{fmtDate(lastFail.at)}</div>
                       </>
                     ) : (

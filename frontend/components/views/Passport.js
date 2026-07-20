@@ -42,8 +42,8 @@ export default function Passport({ assetId, onCite, onOpenDoc, onNav }) {
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-[12.5px]">
             <MetaItem k="Location" v={`${siteName(a.site)} / ${areaName(a.area)}`} />
             <MetaItem k="Status" v={a.status} />
-            <MetaItem k="Parent" v={a.parent ? byId(D.assets, a.parent).tag : "—"} />
-            <MetaItem k="Children" v={a.children.length ? a.children.map((c) => byId(D.assets, c).tag).join(", ") : "—"} />
+              <MetaItem k="Parent" v={a.parent ? (byId(D.assets, a.parent) || {}).tag || "—" : "—"} />
+              <MetaItem k="Children" v={a.children && a.children.length ? a.children.map((c) => (byId(D.assets, c) || {}).tag || "?").join(", ") : "—"} />
             <MetaItem k="Doc revision" v={isP117 ? "SOP-MECH-017 rev 4" : "—"} />
             <MetaItem k="Evidence health" v={`${a.evidenceHealth}%`} />
             <MetaItem k="Open actions" v={a.openActions} />
@@ -137,14 +137,14 @@ function SummaryTab({ a, isP117, onCite, onOpenDoc }) {
         <h3 className="mb-2.5 text-[13px] font-semibold text-ink">Open questions / missing records</h3>
         {isP117 ? (
           <div className="space-y-2.5">
-            {D.copilotAnswer.missingEvidence.map((m, i) => (
+            {((D.copilotAnswer && D.copilotAnswer.missingEvidence) || []).map((m, i) => (
               <div key={i} className="flex items-start gap-2.5 text-[13px] text-ink-soft">
                 <Icon name="gap" className="mt-0.5 h-4 w-4 shrink-0 text-signal-amber" />
                 <span>
-                  {m.text}{" "}
-                  {m.docs.map((docId) => (
+                  {typeof m === "string" ? m : (m && m.text) || ""}{" "}
+                  {typeof m !== "string" && m && m.docs ? m.docs.map((docId) => (
                     <Cite key={docId} docId={docId} onOpen={onCite} />
-                  ))}
+                  )) : null}
                 </span>
               </div>
             ))}
@@ -170,7 +170,7 @@ function TimelineTab({ a, onCite }) {
               <div className="font-mono text-[10.5px] text-ink-faint">{fmtDate(ev.date)}</div>
               <div className="mt-0.5 text-[13px] text-ink">
                 <span className="mr-2 rounded bg-paper-sunk px-1.5 py-0.5 text-[10.5px] uppercase tracking-wide text-ink-faint">
-                  {ev.type.replace("_", " ")}
+                  {(ev.type || "").replace("_", " ")}
                 </span>
                 {ev.label} {ev.doc && <Cite docId={ev.doc} onOpen={onCite} />}
               </div>
@@ -205,7 +205,7 @@ function FailuresTab({ a }) {
               return (
                 <tr key={f.id} className="border-b border-line last:border-0">
                   <td className="whitespace-nowrap px-4 py-2.5 font-mono text-[12px]">{fmtDate(f.at)}</td>
-                  <td className="px-4 py-2.5">{f.code.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-2.5">{(f.code || "").replace(/_/g, " ")}</td>
                   <td className="px-4 py-2.5">
                     {f.severity === "high" ? (
                       <StatusPill tone="critical">High</StatusPill>
@@ -244,7 +244,7 @@ function DocumentsTab({ a, onOpenDoc }) {
         <Card key={d.id} className="cursor-pointer p-4 hover:border-line-strong" onClick={() => onOpenDoc(d.id)}>
           <h3 className="mb-2 text-[13px] font-semibold text-ink">{d.title}</h3>
           <div className="mb-2.5 flex items-center gap-2">
-            <span className="rounded bg-paper-sunk px-1.5 py-0.5 text-[11px] text-ink-soft">{d.type.replace(/_/g, " ")}</span>
+                  <span className="rounded bg-paper-sunk px-1.5 py-0.5 text-[11px] text-ink-soft">{(d.type || "").replace(/_/g, " ")}</span>
             <span className="text-[11.5px] text-ink-faint">{d.date}</span>
           </div>
           <p className="line-clamp-2 text-[12px] leading-relaxed text-ink-soft">{d.body.slice(0, 140)}…</p>
@@ -312,7 +312,7 @@ function Copilot({ a, isP117, onCite, onOpenAsset, onNav }) {
     );
   }
 
-  const ans = D.copilotAnswer;
+  const ans = D.copilotAnswer || { question: "", statusLabel: "", confidence: 0, summary: "", claims: [], contradictions: [], missingEvidence: [], graphPath: [], recommendedActions: [] };
 
   return (
     <aside className="h-fit space-y-4 rounded-md border border-line bg-paper p-4">
@@ -366,7 +366,7 @@ function Copilot({ a, isP117, onCite, onOpenAsset, onNav }) {
             <div key={i} className="flex items-start gap-2 text-[12.5px] text-ink-soft">
               <Icon name="gap" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-amber" />
               <span>
-                {m.text} <Cite docId={m.docs[0]} onOpen={onCite} />
+                {typeof m === "string" ? m : m.text}{typeof m !== "string" && m.docs ? <> <Cite docId={m.docs[0]} onOpen={onCite} /></> : null}
               </span>
             </div>
           ))}

@@ -23,6 +23,20 @@ const NAV = [
       { id: "expert", label: "Expert Knowledge", icon: "expert", count: D.expertKnowledge.length },
     ],
   },
+  {
+    section: "Intelligence",
+    items: [
+      { id: "query", label: "Query", icon: "query" },
+      { id: "agentic", label: "Agentic Trace", icon: "agentic" },
+      { id: "results", label: "Results", icon: "results" },
+    ],
+  },
+  {
+    section: "Administration",
+    items: [
+      { id: "organisation", label: "Organisation", icon: "org" },
+    ],
+  },
 ];
 
 export default function Rail({ view, onNav }) {

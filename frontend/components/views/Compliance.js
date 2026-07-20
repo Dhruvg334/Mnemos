@@ -39,7 +39,7 @@ export default function Compliance({ onOpenAsset }) {
                     <div className="font-medium text-ink">{r.code}</div>
                     <div className="text-[11.5px] text-ink-faint">{r.title}</div>
                   </td>
-                  <td className="px-4 py-2.5"><Tag variant="asset">{a.tag}</Tag></td>
+                  <td className="px-4 py-2.5"><Tag variant="asset">{(a || {}).tag || r.asset}</Tag></td>
                   <td className="max-w-[300px] px-4 py-2.5 text-ink-soft">{r.evidenceFound}</td>
                   <td className="px-4 py-2.5 font-mono text-[12px]">{r.validity}</td>
                   <td className="px-4 py-2.5 text-ink-faint">R. Sridhar</td>

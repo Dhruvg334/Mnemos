@@ -1,4 +1,32 @@
 import DocLayout from "@/components/public/DocLayout";
-import { InfrastructureDiagram } from "@/components/public/Diagrams";
-export const metadata={title:"System architecture"};
-export default function Page(){return <DocLayout eyebrow="Architecture" title="The AI layer enriches the application, but never becomes the application database." summary="Mnemos separates product UI, backend control, agent reasoning, ingestion, and knowledge storage so ownership stays clear and integration remains testable."><div className="grid gap-6"><InfrastructureDiagram/><section className="rounded-[28px] border border-line bg-paper p-6"><h2 className="text-[22px] font-semibold text-ink">Key boundaries</h2><div className="mt-4 grid gap-3">{["The frontend communicates only with the backend API.","The backend owns authentication, tenancy, workflow state, persistence, audit, retries, and public progress.","The agent service performs retrieval and reasoning, then returns a strict AgentQueryResult.","Ingestion workers create chunks, embeddings, graph entities, and evidence provenance.","PostgreSQL holds application truth; pgvector and Neo4j support retrieval, not business authority."].map(x=><div key={x} className="rounded-2xl bg-paper-alt px-4 py-4 text-[13px] leading-6 text-ink-soft">{x}</div>)}</div></section></div></DocLayout>}
+import { ArchitectureStackDiagram } from "@/components/public/Diagrams";
+
+export const metadata = { title: "System architecture" };
+
+export default function Page() {
+  return (
+    <DocLayout
+      eyebrow="Architecture"
+      title="The AI layer enriches the application, but never becomes the application database."
+      summary="Mnemos separates product UI, backend control, agent reasoning, ingestion, and knowledge storage so ownership stays clear and integration remains testable."
+    >
+      <div className="grid gap-8">
+        <ArchitectureStackDiagram />
+        <section className="rounded-[28px] border border-line bg-paper p-6">
+          <h2 className="text-[22px] font-semibold text-ink">Key boundaries</h2>
+          <div className="mt-4 grid gap-3">
+            {[
+              "The frontend communicates only with the backend API.",
+              "The backend owns authentication, tenancy, workflow state, persistence, audit, retries, and public progress.",
+              "The agent service performs retrieval and reasoning, then returns a strict AgentQueryResult.",
+              "Ingestion workers create chunks, embeddings, graph entities, and evidence provenance.",
+              "PostgreSQL holds application truth; pgvector and Neo4j support retrieval, not business authority.",
+            ].map((x) => (
+              <div key={x} className="rounded-2xl bg-paper-alt px-4 py-4 text-[13px] leading-6 text-ink-soft">{x}</div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </DocLayout>
+  );
+}

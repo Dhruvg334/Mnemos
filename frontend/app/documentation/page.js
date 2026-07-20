@@ -1,6 +1,6 @@
 import Link from "next/link";
 import DocLayout from "@/components/public/DocLayout";
-import { InfrastructureDiagram } from "@/components/public/Diagrams";
+import { ArchitectureStackDiagram } from "@/components/public/Diagrams";
 
 export const metadata = { title: "Documentation" };
 
@@ -32,7 +32,7 @@ export default function DocumentationPage() {
           </div>
         </section>
 
-        <InfrastructureDiagram />
+        <ArchitectureStackDiagram />
 
         <section>
           <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-signal-blue">Five-minute technical tour</div>
