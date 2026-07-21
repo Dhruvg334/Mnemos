@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class LLMConfig(BaseModel):
-    model_name: str = Field(default="llama3-70b-8192")
+    model_name: str = Field(default="llama-3.3-70b-versatile")
     temperature: float = Field(default=0.0)
     api_key: str | None = Field(default=None)
     base_url: str | None = Field(default="https://api.groq.com/openai/v1")
@@ -18,7 +18,7 @@ class AgenticSettings(BaseModel):
     primary_llm: LLMConfig = Field(default_factory=LLMConfig)
     fast_llm: LLMConfig = Field(
         default_factory=lambda: LLMConfig(
-            model_name="llama3-8b-8192", base_url="https://api.groq.com/openai/v1"
+            model_name="llama-3.1-8b-instant", base_url="https://api.groq.com/openai/v1"
         )
     )
 
@@ -50,12 +50,12 @@ class AgenticSettings(BaseModel):
         groq_base = "https://api.groq.com/openai/v1"
         return cls(
             primary_llm=LLMConfig(
-                model_name=os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "llama3-70b-8192")),
+                model_name=os.getenv("LLM_MODEL", os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")),
                 api_key=os.getenv("GROQ_API_KEY", os.getenv("LLM_API_KEY")),
                 base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base)),
             ),
             fast_llm=LLMConfig(
-                model_name=os.getenv("FAST_LLM_MODEL", "llama3-8b-8192"),
+                model_name=os.getenv("FAST_LLM_MODEL", "llama-3.1-8b-instant"),
                 api_key=os.getenv("GROQ_API_KEY", os.getenv("LLM_API_KEY")),
                 base_url=os.getenv("GROQ_API_BASE", os.getenv("LLM_BASE_URL", groq_base)),
             ),

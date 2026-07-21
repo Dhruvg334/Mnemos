@@ -85,9 +85,8 @@ async def register(
 ):
     """Create an active workspace account and issue a session immediately.
 
-    Email verification is intentionally deferred beyond the current hackathon round.
-    Existing inactive accounts created by the previous flow are reactivated only when
-    the submitted password matches, preventing account takeover through re-registration.
+    Existing inactive accounts are reactivated only when the submitted password
+    matches, preventing account takeover through re-registration.
     """
     await enforce_public_rate_limit(
         request,

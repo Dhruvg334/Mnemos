@@ -82,8 +82,11 @@ class LLMService:
         """
         model = self._model_for_task(task_type)
         tier = ModelTier.FAST if model == agent_settings.fast_llm.model_name else ModelTier.PRIMARY
+        provider = "groq" if "api.groq.com" in self.base_url else "openai-compatible"
+        if not self.api_key:
+            raise RuntimeError("LLM provider credentials are not configured.")
         logger.info(
-            f"LLM request: generating {response_model.__name__} model={model} tier={tier.value}"
+            f"LLM request: provider={provider} model={model} tier={tier.value} response={response_model.__name__}"
         )
 
         start = time.perf_counter()
@@ -116,7 +119,7 @@ class LLMService:
                 usage = data.get("usage", {})
                 self._telemetry.record(
                     model=model,
-                    provider="openai",
+                    provider=provider,
                     task_type=task_type,
                     model_tier=tier.value,
                     prompt_tokens=usage.get("prompt_tokens", 0),

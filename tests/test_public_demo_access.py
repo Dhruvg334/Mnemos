@@ -66,7 +66,8 @@ def test_every_demo_query_has_an_accessible_result() -> None:
         assert f"  {query_id}: {{" in source
     panel = _read("frontend/components/views/QueryPanel.js")
     assert "initialQueryId" in panel
-    assert "knownResult" in panel
+    assert 'fetch("/api/queries"' in panel
+    assert "pollQuery" in panel
     assert 'Section title="Evidence"' in panel
 
 
@@ -102,3 +103,28 @@ def test_public_home_has_interactive_operational_story() -> None:
     assert "Weighted evaluation score" in page
     assert 'role="tablist"' in workflow
     assert "Evidence chain" in workflow
+
+
+def test_signed_in_queries_use_the_authenticated_backend_pipeline() -> None:
+    panel = _read("frontend/components/views/QueryPanel.js")
+    create_route = _read("frontend/app/api/queries/route.js")
+    read_route = _read("frontend/app/api/queries/[queryId]/route.js")
+    assert 'fetch("/api/queries"' in panel
+    assert 'fetch(`/api/queries/${encodeURIComponent(queryId)}`' in panel
+    assert 'requestWithSession("/queries"' in create_route
+    assert 'requestWithSession("/sites"' in create_route
+    assert 'backendRequest(`/queries/${encodeURIComponent(queryId)}`' in read_route
+
+
+def test_public_header_reduces_authenticated_controls_to_actions() -> None:
+    source = _read("frontend/components/public/PublicHeader.js")
+    assert "session.user.full_name" not in source
+    assert ">Sign out</button>" in source
+    assert "Open workspace" in source
+
+
+def test_about_page_uses_current_team_names_and_roles() -> None:
+    source = _read("frontend/app/about/page.js")
+    assert "Akshhaya Isa" in source
+    assert "Product engineering lead" in source
+    assert "release engineering" in source

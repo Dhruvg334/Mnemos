@@ -36,7 +36,7 @@ export default function PublicHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#071522]/95 text-white backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#111216]/95 text-white backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-3.5 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0" aria-label="Go to Mnemos home">
           <Brand compact inverse />
@@ -50,7 +50,7 @@ export default function PublicHeader() {
                 key={link.href}
                 href={link.href}
                 className={`rounded-full px-4 py-2 text-[12.5px] font-medium transition ${
-                  active ? "bg-white text-[#071522]" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
+                  active ? "bg-white text-[#111216]" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
                 }`}
               >
                 {link.label}
@@ -64,11 +64,8 @@ export default function PublicHeader() {
             <div className="h-9 w-32 animate-pulse rounded-full bg-white/10" aria-label="Loading session" />
           ) : session.user ? (
             <>
-              <div className="hidden text-right sm:block">
-                <div className="max-w-[150px] truncate text-[12.5px] font-medium text-white">{session.user.full_name || session.user.email}</div>
-                <button onClick={signOut} className="text-[11px] text-slate-400 transition hover:text-white">Sign out</button>
-              </div>
-              <Link href="/dashboard" className="rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#071522] transition hover:bg-slate-200">
+              <button onClick={signOut} className="rounded-full px-4 py-2.5 text-[12.5px] font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white">Sign out</button>
+              <Link href="/dashboard" className="rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#111216] transition hover:bg-slate-200">
                 Open workspace
               </Link>
             </>
@@ -77,7 +74,7 @@ export default function PublicHeader() {
               <Link href="/signin" className="rounded-full px-4 py-2 text-[12.5px] font-medium text-slate-300 transition hover:text-white">
                 Sign in
               </Link>
-              <Link href="/signup" className="rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#071522] transition hover:bg-slate-200">
+              <Link href="/signup" className="rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#111216] transition hover:bg-slate-200">
                 Create workspace
               </Link>
             </>

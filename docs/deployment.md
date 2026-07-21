@@ -51,6 +51,14 @@ Set the public Hugging Face Space endpoint on the backend service:
 
 ```env
 CROSS_ENCODER_URL=https://<space-subdomain>.hf.space
+
+# Live agent runtime
+AGENT_GATEWAY_MODE=langgraph
+MOCK_AGENT_ENABLED=false
+GROQ_API_KEY=<secret>
+GROQ_MODEL=llama-3.3-70b-versatile
+FAST_LLM_MODEL=llama-3.1-8b-instant
+GROQ_API_BASE=https://api.groq.com/openai/v1
 ```
 
 The reranker is optional. Free Spaces can sleep after inactivity, so the retrieval pipeline must retain its timeout and fallback behaviour. Do not expose this URL as a browser credential or add provider secrets to the frontend environment.

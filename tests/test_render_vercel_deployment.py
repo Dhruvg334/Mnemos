@@ -63,3 +63,13 @@ def test_optional_graph_and_reranker_settings_are_declared_for_render() -> None:
     deployment = Path("docs/deployment.md").read_text(encoding="utf-8")
     assert "neo4j+s://" in deployment
     assert "CROSS_ENCODER_URL" in deployment
+
+
+def test_render_declares_live_groq_agent_runtime() -> None:
+    source = Path("render.yaml").read_text(encoding="utf-8")
+    assert "AGENT_GATEWAY_MODE" in source
+    assert "value: langgraph" in source
+    assert "GROQ_API_KEY" in source
+    assert "llama-3.3-70b-versatile" in source
+    assert "llama-3.1-8b-instant" in source
+    assert "https://api.groq.com/openai/v1" in source
