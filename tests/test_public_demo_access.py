@@ -7,8 +7,8 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_dashboard_middleware_does_not_require_authentication() -> None:
-    source = _read("frontend/middleware.js")
+def test_dashboard_proxy_does_not_require_authentication() -> None:
+    source = _read("frontend/proxy.js")
     assert "NextResponse.redirect" not in source
     assert "return NextResponse.next()" in source
 

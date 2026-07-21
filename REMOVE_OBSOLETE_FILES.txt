@@ -1,6 +1,0 @@
-Delete these files after extracting the patch:
-
-docs\FRONTEND_ARCHITECTURE.md
-docs\RELEASE_EVIDENCE.md
-docs\RESPONSIBLE_ENGINEERING.md
-frontend\middleware.js

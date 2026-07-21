@@ -31,3 +31,26 @@ def test_worker_and_free_api_entrypoints_are_available() -> None:
     assert "worker)" in entrypoint
     assert "python -m mnemos.worker" in entrypoint
     assert "with_for_update(skip_locked=True)" in worker
+
+
+def test_vercel_uses_pinned_node_and_stable_install_command() -> None:
+    import json
+
+    package = json.loads(Path("frontend/package.json").read_text(encoding="utf-8"))
+    vercel = json.loads(Path("frontend/vercel.json").read_text(encoding="utf-8"))
+    npmrc = Path("frontend/.npmrc").read_text(encoding="utf-8")
+
+    assert package["engines"]["node"] == "20.x"
+    assert package["packageManager"] == "npm@10.8.2"
+    assert vercel["installCommand"] == "npm install --no-audit --no-fund --prefer-offline"
+    assert vercel["buildCommand"] == "npm run build"
+    assert "audit=false" in npmrc
+    assert Path("frontend/.nvmrc").read_text(encoding="utf-8").strip() == "20"
+
+
+def test_ci_builds_frontend_with_the_same_node_major() -> None:
+    workflow = Path(".github/workflows/backend-ci.yml").read_text(encoding="utf-8")
+    assert "frontend-build:" in workflow
+    assert 'node-version: "20"' in workflow
+    assert "cache-dependency-path: frontend/package-lock.json" in workflow
+    assert "needs: [quality, evaluation-gates, frontend-build, migration]" in workflow
