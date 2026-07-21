@@ -19,11 +19,8 @@ The checked-in evaluation dataset runs without a live model or database. It is d
 
 | Metric | Score |
 |---|---:|
-| Overall weighted score | 0.8438 |
 | Weighted evaluation score | 0.8438 |
 | Citation precision | 0.9167 |
-| Citation precision | 0.9167 |
-| Abstention quality | 0.9375 |
 | Abstention quality | 0.9375 |
 
 

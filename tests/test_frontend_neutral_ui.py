@@ -11,7 +11,7 @@ def test_frontend_source_has_no_prohibited_decorative_blue_tokens():
     findings = []
     excluded = {"node_modules", ".next"}
     for path in ROOT.rglob("*"):
-        if any(part in excluded for part in path.parts):
+        if excluded.intersection(path.parts):
             continue
         if path.is_file() and path.suffix in {".js", ".css", ".svg"}:
             match = PROHIBITED.search(path.read_text(encoding="utf-8"))

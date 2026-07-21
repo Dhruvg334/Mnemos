@@ -3,7 +3,7 @@ import Brand from "./Brand";
 
 export default function PublicFooter() {
   return (
-    <footer className="border-t border-white/10 bg-[#061421] text-white">
+    <footer className="border-t border-white/10 bg-[#17181b] text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-6 lg:grid-cols-[1.5fr,1fr,1fr] lg:px-8">
         <div>
           <Brand inverse />

@@ -6,7 +6,6 @@ import { FadeIn, FloatCard } from "@/components/public/Motion";
 const METRICS = [
   ["0.8438", "Weighted evaluation score"],
   ["0.9167", "Citation precision"],
-  ["0.9167", "Citation precision"],
   ["0.9375", "Abstention quality"],
 ];
 
@@ -22,7 +21,7 @@ const CAPABILITIES = [
 export default function HomePage() {
   return (
     <PublicShell>
-      <main className="overflow-hidden bg-white">
+      <main className="public-canvas overflow-hidden">
         <section className="relative isolate flex min-h-[calc(100vh-65px)] items-center overflow-hidden bg-[#111216] text-white">
           <div className="absolute inset-0 -z-20 bg-[url('/brand/industrial-memory-hero.webp')] bg-cover bg-center opacity-35 grayscale" aria-hidden="true" />
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(17,18,22,.72),rgba(17,18,22,.94))]" aria-hidden="true" />
@@ -45,7 +44,7 @@ export default function HomePage() {
               </div>
             </FadeIn>
 
-            <FadeIn delay={0.1} className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-4">
+            <FadeIn delay={0.1} className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-3">
               {METRICS.map(([value, label]) => (
                 <div key={label} className="bg-[#111216]/92 px-4 py-4 text-left sm:px-5">
                   <div className="font-mono text-[19px] font-semibold text-white">{value}</div>
@@ -64,7 +63,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <section className="relative mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="max-w-3xl">
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.22em] text-slate-500">From fragmented records to governed action</div>
             <h2 className="mt-4 text-[38px] font-semibold leading-tight tracking-[-0.055em] text-[#111216] sm:text-[50px]">
@@ -77,7 +76,7 @@ export default function HomePage() {
           <div className="mt-10"><LandingWorkflow /></div>
         </section>
 
-        <section className="bg-[#f4f6f8] py-20 lg:py-28">
+        <section className="border-y border-[#e8e2d8] bg-[rgba(246,242,235,0.72)] py-20 backdrop-blur-[2px] lg:py-28">
           <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[.72fr,1.28fr]">
               <div>

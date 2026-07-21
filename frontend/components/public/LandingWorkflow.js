@@ -34,9 +34,9 @@ export default function LandingWorkflow() {
   const active = MODES.find((mode) => mode.id === activeId) || MODES[0];
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_32px_90px_-55px_rgba(7,21,34,.48)]">
+    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_34px_90px_-58px_rgba(30,25,18,.42)]">
       <div className="grid lg:grid-cols-[290px,1fr]">
-        <div className="border-b border-slate-200 bg-[#0a1b2d] p-5 text-white lg:border-b-0 lg:border-r lg:p-7">
+        <div className="border-b border-slate-200 bg-[#1a1c21] p-5 text-white lg:border-b-0 lg:border-r lg:p-7">
           <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Operational workflow</div>
           <div className="mt-6 grid gap-2" role="tablist" aria-label="Mnemos workflow examples">
             {MODES.map((mode, index) => (
@@ -46,7 +46,7 @@ export default function LandingWorkflow() {
                 aria-selected={activeId === mode.id}
                 onClick={() => setActiveId(mode.id)}
                 className={`grid grid-cols-[30px,1fr] items-center rounded-xl px-3 py-3 text-left transition ${
-                  activeId === mode.id ? "bg-white text-[#071522]" : "text-[#cdd0d7] hover:bg-white/[0.06] hover:text-white"
+                  activeId === mode.id ? "bg-white text-[#14151a]" : "text-[#cdd0d7] hover:bg-white/[0.06] hover:text-white"
                 }`}
               >
                 <span className="font-mono text-[10px] opacity-60">0{index + 1}</span>
@@ -59,12 +59,12 @@ export default function LandingWorkflow() {
         <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.1fr,.9fr] lg:p-10">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{active.eyebrow}</div>
-            <h3 className="mt-3 text-[29px] font-semibold leading-tight tracking-[-0.045em] text-[#071522]">{active.title}</h3>
+            <h3 className="mt-3 text-[29px] font-semibold leading-tight tracking-[-0.045em] text-[#14151a]">{active.title}</h3>
             <p className="mt-4 max-w-2xl text-[14px] leading-7 text-slate-600">{active.text}</p>
             <div className="mt-7 grid gap-3">
               {active.points.map((point) => (
-                <div key={point} className="flex items-center gap-3 text-[13px] font-medium text-[#17283c]">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0a1b2d] text-[10px] text-white">✓</span>
+                <div key={point} className="flex items-center gap-3 text-[13px] font-medium text-[#2b2e35]">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1a1c21] text-[10px] text-white">✓</span>
                   {point}
                 </div>
               ))}
@@ -74,10 +74,10 @@ export default function LandingWorkflow() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <div className="text-[11px] font-semibold text-[#071522]">Evidence chain</div>
+                <div className="text-[11px] font-semibold text-[#14151a]">Evidence chain</div>
                 <div className="mt-0.5 text-[10.5px] text-slate-500">P-117 · mechanical seal investigation</div>
               </div>
-              <span className="rounded-full bg-[#0a1b2d] px-2.5 py-1 text-[10px] font-medium text-white">Reviewed</span>
+              <span className="rounded-full bg-[#1a1c21] px-2.5 py-1 text-[10px] font-medium text-white">Reviewed</span>
             </div>
             <div className="mt-4 space-y-3">
               {[
@@ -90,7 +90,7 @@ export default function LandingWorkflow() {
                     <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{type}</span>
                     <span className="font-mono text-[9.5px] text-slate-400">{meta}</span>
                   </div>
-                  <div className="mt-2 text-[12.5px] font-medium text-[#071522]">{title}</div>
+                  <div className="mt-2 text-[12.5px] font-medium text-[#14151a]">{title}</div>
                 </div>
               ))}
             </div>

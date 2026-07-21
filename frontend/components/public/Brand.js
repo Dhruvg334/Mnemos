@@ -1,5 +1,5 @@
 export function MnemosMark({ size = 36, inverse = false }) {
-  const background = inverse ? "#071522" : "#101114";
+  const background = inverse ? "#1a1c21" : "#101114";
   const primary = "#f8fafc";
   const secondary = inverse ? "#91a2b7" : "#a8b6c8";
 
