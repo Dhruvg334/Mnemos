@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://render.com/schema/render.yaml.json
 #
-# Zero-card hackathon deployment profile.
+# Public read-only deployment profile.
 # Query execution runs inside the free API service via FastAPI background tasks.
 # The dedicated worker code remains in the repository and can be enabled later
 # by restoring a paid worker service and setting QUERY_DISPATCH_MODE=worker.
@@ -11,7 +11,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
-    dockerCommand: migrate-and-api
+    dockerCommand: /app/scripts/container-entrypoint.sh migrate-and-api
     healthCheckPath: /health/live
     envVars:
       - key: APP_ENV

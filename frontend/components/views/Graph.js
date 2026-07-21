@@ -1,196 +1,142 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { D } from "@/lib/data";
-import { Card } from "../ui";
+import { Card, Badge } from "../ui";
+
+const POSITIONS = {
+  "P-117": [420, 238],
+  "M-117": [655, 325],
+  SEAL: [420, 88],
+  COUP: [180, 148],
+  VIB: [178, 322],
+  LUBE: [660, 145],
+  SOP22: [55, 75],
+  OEM: [420, 26],
+  P091: [650, 35],
+  EXPERT: [182, 438],
+};
+
+const KIND_STYLE = {
+  asset: { fill: "#14151a", stroke: "#14151a", text: "#ffffff", label: "Asset / failure" },
+  failure: { fill: "#14151a", stroke: "#14151a", text: "#ffffff", label: "Asset / failure" },
+  finding: { fill: "#fff8e6", stroke: "#c99a2e", text: "#6f5314", label: "Finding" },
+  document: { fill: "#eef5ff", stroke: "#7aa8e8", text: "#2459a8", label: "Document" },
+  procedure: { fill: "#eef8f2", stroke: "#72ad89", text: "#286442", label: "Procedure" },
+  knowledge: { fill: "#f5efff", stroke: "#a98ad5", text: "#68448f", label: "Knowledge" },
+};
+
+const RELATION_LABELS = {
+  "P-117→M-117": "drives",
+  "P-117→SEAL": "contains",
+  "P-117→COUP": "coupled to",
+  "VIB→P-117": "observed on",
+  "LUBE→P-117": "affects",
+  "SOP22→P-117": "applies to",
+  "OEM→P-117": "references",
+  "OEM→SEAL": "references",
+  "P091→P-117": "references",
+  "P091→SEAL": "references",
+  "EXPERT→P-117": "references",
+  "EXPERT→VIB": "references",
+};
 
 export default function Graph() {
-  const nodeCount = D.graph?.nodes?.length || 0;
-  const edgeCount = D.graph?.edges?.length || 0;
+  const nodes = useMemo(() => (D.graph?.nodes || []).filter((node) => POSITIONS[node.id]), []);
+  const edges = useMemo(() => (D.graph?.edges || []).filter((edge) => POSITIONS[edge.from] && POSITIONS[edge.to]), []);
+  const [selectedId, setSelectedId] = useState("P-117");
+  const selected = nodes.find((node) => node.id === selectedId) || nodes[0];
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-2.5">
-        <span className="inline-flex items-center rounded-full bg-signal-blue-pale px-2.5 py-1 text-[11px] font-medium text-signal-blue-deep">
-          Centred on P-117
-        </span>
-        <span className="rounded-md border border-line px-2.5 py-1 text-[11.5px] text-ink-soft">
-          <strong className="text-ink">{nodeCount}</strong> nodes / <strong className="text-ink">{edgeCount}</strong> relations
-        </span>
-        <div className="flex-1" />
-        <span className="flex items-center gap-1.5 text-[11.5px] text-ink-soft">
-          <i className="inline-block h-0 w-4 border-t-2 border-ink" /> Verified
-        </span>
-        <span className="flex items-center gap-1.5 text-[11.5px] text-ink-soft">
-          <i className="inline-block h-0 w-4 border-t-2 border-dashed border-ink-faint" /> Inferred
-        </span>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="blue">Centred on P-117</Badge>
+          <span className="rounded-md border border-line bg-paper px-2.5 py-1 text-[11.5px] text-ink-soft">
+            <strong className="text-ink">{nodes.length}</strong> nodes · <strong className="text-ink">{edges.length}</strong> relations
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-[11.5px] text-ink-soft">
+          <span className="flex items-center gap-1.5"><i className="inline-block w-5 border-t-2 border-ink" /> Verified</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block w-5 border-t-2 border-dashed border-ink-faint" /> Inferred</span>
+        </div>
       </div>
-      <Card className="p-3">
-        <KnowledgeGraphSvg />
-      </Card>
+
+      <div className="grid min-h-0 grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Card className="overflow-hidden p-0">
+          <div className="diagram-grid overflow-hidden rounded-[inherit] bg-white">
+            <KnowledgeGraphSvg nodes={nodes} edges={edges} selectedId={selectedId} onSelect={setSelectedId} />
+          </div>
+        </Card>
+
+        <div className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-1">
+          <Card className="p-4">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Selected node</div>
+            <h2 className="mt-2 text-[16px] font-semibold text-ink">{selected?.label || selected?.id}</h2>
+            <div className="mt-2"><Badge tone={selected?.kind === "finding" ? "amber" : "blue"}>{selected?.kind || "node"}</Badge></div>
+            <dl className="mt-4 space-y-3 text-[12px]">
+              <div><dt className="text-ink-faint">Identifier</dt><dd className="mt-0.5 font-mono text-ink">{selected?.id}</dd></div>
+              <div><dt className="text-ink-faint">Connected relations</dt><dd className="mt-0.5 text-ink">{edges.filter((e) => e.from === selected?.id || e.to === selected?.id).length}</dd></div>
+              <div><dt className="text-ink-faint">Evidence status</dt><dd className="mt-0.5 text-ink">Reviewed demonstration record</dd></div>
+            </dl>
+          </Card>
+
+          <Card className="p-4">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Node legend</div>
+            <div className="mt-3 space-y-2.5">
+              {Object.entries(KIND_STYLE).filter(([key], index, arr) => arr.findIndex(([, value]) => value.label === KIND_STYLE[key].label) === index).map(([kind, style]) => (
+                <div key={kind} className="flex items-center justify-between gap-3 text-[12px] text-ink-soft">
+                  <span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full border" style={{ background: style.fill, borderColor: style.stroke }} />{style.label}</span>
+                  <span className="font-mono text-[10.5px] text-ink-faint">{nodes.filter((n) => n.kind === kind || (kind === "asset" && n.kind === "failure")).length}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
 
-function KnowledgeGraphSvg() {
-  const positions = {
-    "P-117": [370, 210],
-    "M-117": [560, 300],
-    SEAL: [370, 70],
-    COUP: [170, 140],
-    VIB: [170, 290],
-    LUBE: [560, 140],
-    SOP22: [40, 90],
-    OEM: [370, 10],
-    P091: [540, 20],
-    EXPERT: [170, 400],
-  };
-
-  const kindStyle = {
-    asset: { fill: "#14151a", stroke: "#14151a", text: "#ffffff" },
-    failure: { fill: "#14151a", stroke: "#14151a", text: "#ffffff" },
-    finding: { fill: "#eef0f3", stroke: "#cdd0d7", text: "#14151a" },
-    procedure: { fill: "#ffffff", stroke: "#cdd0d7", text: "#14151a" },
-    document: { fill: "#ffffff", stroke: "#cdd0d7", text: "#14151a" },
-    knowledge: { fill: "#ffffff", stroke: "#cdd0d7", text: "#14151a" },
-  };
-
-  const relationLabels = {
-    "P-117→SEAL": "experienced",
-    "P-117→COUP": "has finding",
-    "P-117→VIB": "has finding",
-    "M-117→P-117": "connected to",
-    "SEAL→LUBE": "related to",
-    "COUP→LUBE": "related to",
-    "VIB→COUP": "related to",
-    "SOP22→P-117": "applies to",
-    "OEM→P-117": "references",
-    "OEM→SEAL": "references",
-    "P091→P-117": "references",
-    "P091→SEAL": "references",
-    "EXPERT→P-117": "references",
-    "EXPERT→VIB": "references",
-  };
-
-  const filteredEdges = (D.graph?.edges || []).filter((e) => {
-    const p1 = positions[e.from];
-    const p2 = positions[e.to];
-    return p1 && p2;
-  });
-
-  const filteredNodes = (D.graph?.nodes || []).filter((n) => positions[n.id]);
-
+function KnowledgeGraphSvg({ nodes, edges, selectedId, onSelect }) {
   return (
-    <svg viewBox="0 0 640 440" className="w-full" style={{ height: "460px" }} role="img" aria-label="Knowledge graph centered on P-117">
+    <svg viewBox="0 0 820 500" className="block h-auto min-h-[420px] w-full max-w-full sm:min-h-[500px]" role="img" aria-label="Interactive knowledge graph centred on P-117">
       <defs>
-        <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#14151a" floodOpacity="0.08" />
+        <filter id="graph-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#14151a" floodOpacity="0.10" />
         </filter>
       </defs>
-      <rect width="640" height="440" fill="#ffffff" rx="8" />
+      <rect width="820" height="500" fill="rgba(255,255,255,.78)" />
 
-      {filteredEdges.map((e, i) => {
-        const [x1, y1] = positions[e.from];
-        const [x2, y2] = positions[e.to];
-        const key = `${e.from}→${e.to}`;
-        const label = relationLabels[key] || "";
-        const verified = e.verified;
+      {edges.map((edge, index) => {
+        const [x1, y1] = POSITIONS[edge.from];
+        const [x2, y2] = POSITIONS[edge.to];
+        const label = RELATION_LABELS[`${edge.from}→${edge.to}`] || "related to";
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
         return (
-          <g key={i}>
-            <line
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={verified ? "#14151a" : "#a8abb3"}
-              strokeWidth={verified ? "1.5" : "1.2"}
-              strokeDasharray={verified ? undefined : "5 4"}
-              strokeLinecap="round"
-            />
-            {label && (
-              <g>
-                <rect
-                  x={midX - label.length * 3.2 - 5}
-                  y={midY - 8}
-                  width={label.length * 6.4 + 10}
-                  height={16}
-                  rx={8}
-                  fill="#f6f7f9"
-                  stroke="#e2e4e9"
-                  strokeWidth="0.8"
-                />
-                <text
-                  x={midX} y={midY + 4}
-                  textAnchor="middle"
-                  fill="#53565f"
-                  fontSize="7.5"
-                  fontFamily="IBM Plex Sans, system-ui, sans-serif"
-                >
-                  {label}
-                </text>
-              </g>
-            )}
+          <g key={`${edge.from}-${edge.to}-${index}`}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={edge.verified ? "#353840" : "#9da1aa"} strokeWidth={edge.verified ? 1.7 : 1.25} strokeDasharray={edge.verified ? undefined : "6 5"} />
+            <rect x={midX - label.length * 3.25 - 7} y={midY - 9} width={label.length * 6.5 + 14} height="18" rx="9" fill="#fff" stroke="#dfe2e8" />
+            <text x={midX} y={midY + 3.5} textAnchor="middle" fill="#666a73" fontSize="8" fontFamily="IBM Plex Sans, system-ui, sans-serif">{label}</text>
           </g>
         );
       })}
 
-      {filteredNodes.map((n) => {
-        const [x, y] = positions[n.id];
-        const s = kindStyle[n.kind] || kindStyle.document;
-        const label = n.label || n.id;
-        const w = Math.max(74, label.length * 6.8 + 24);
-        const isCenter = n.id === "P-117";
+      {nodes.map((node) => {
+        const [x, y] = POSITIONS[node.id];
+        const style = KIND_STYLE[node.kind] || KIND_STYLE.document;
+        const label = node.label || node.id;
+        const width = Math.max(82, label.length * 7 + 28);
+        const selected = node.id === selectedId;
         return (
-          <g key={n.id} filter="url(#shadow)">
-            {isCenter && (
-              <rect
-                x={x - w / 2 - 4} y={y - 20 - 4}
-                width={w + 8} height={40 + 8}
-                rx={24}
-                fill="none"
-                stroke="#2f6fe0"
-                strokeWidth="1.5"
-                strokeDasharray="3 3"
-                opacity="0.4"
-              />
-            )}
-            <rect
-              x={x - w / 2} y={y - 20}
-              width={w} height={40}
-              rx={20}
-              fill={s.fill}
-              stroke={isCenter ? "#2f6fe0" : s.stroke}
-              strokeWidth={isCenter ? "2" : "1.3"}
-            />
-            <text
-              x={x} y={y + 4.5}
-              textAnchor="middle"
-              fill={s.text}
-              fontSize="11"
-              fontWeight={isCenter ? "700" : "500"}
-              fontFamily="IBM Plex Sans, system-ui, sans-serif"
-            >
-              {label}
-            </text>
+          <g key={node.id} filter="url(#graph-shadow)" className="cursor-pointer" onClick={() => onSelect(node.id)} role="button" tabIndex="0" aria-label={`Select ${label}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(node.id); } }}>
+            {selected ? <rect x={x - width / 2 - 6} y={y - 25} width={width + 12} height="50" rx="25" fill="#eaf2fd" stroke="#2f6fe0" strokeWidth="1.5" strokeDasharray="4 3" /> : null}
+            <rect x={x - width / 2} y={y - 19} width={width} height="38" rx="19" fill={style.fill} stroke={selected ? "#2f6fe0" : style.stroke} strokeWidth={selected ? 2 : 1.25} />
+            <text x={x} y={y + 4} textAnchor="middle" fill={style.text} fontSize="11" fontWeight={selected ? 700 : 550} fontFamily="IBM Plex Sans, system-ui, sans-serif">{label}</text>
           </g>
         );
       })}
-
-      <g transform="translate(16, 420)">
-        {[{ kind: "asset", label: "Asset / Failure" },
-          { kind: "finding", label: "Finding" },
-          { kind: "document", label: "Document" },
-          { kind: "procedure", label: "Procedure" },
-          { kind: "knowledge", label: "Knowledge" },
-        ].map((item, i) => {
-          const s = kindStyle[item.kind];
-          const ox = i * 125;
-          return (
-            <g key={item.kind}>
-              <rect x={ox} y={0} width={14} height={14} rx={7} fill={s.fill} stroke={s.stroke} strokeWidth="1" />
-              <text x={ox + 20} y={11} fill="#53565f" fontSize="9" fontFamily="IBM Plex Sans, system-ui, sans-serif">{item.label}</text>
-            </g>
-          );
-        })}
-      </g>
     </svg>
   );
 }

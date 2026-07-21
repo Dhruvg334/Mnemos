@@ -2,329 +2,341 @@
 
 # Mnemos
 
-### Industrial Knowledge Intelligence for Asset-Centric Operations
+### Industrial knowledge intelligence built around the asset
 
-**Evidence-grounded operational memory for maintenance, reliability, safety, quality, and compliance teams.**
+Evidence-grounded operational memory for maintenance, reliability, safety, quality, and compliance teams.
 
-[![Status](https://img.shields.io/badge/status-in%20development-1f6feb)](#)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey)](#)
-[![Frontend](https://img.shields.io/badge/frontend-Next.js-black)](#)
-[![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](#)
-[![Graph](https://img.shields.io/badge/graph-Neo4j-4581C3)](#)
+[![Backend CI](https://img.shields.io/badge/backend%20CI-Ruff%20%7C%20pytest-1f6feb)](.github/workflows/backend-ci.yml)
+[![Frontend](https://img.shields.io/badge/frontend-Next.js%2015-111111)](frontend)
+[![API](https://img.shields.io/badge/API-FastAPI-009688)](src/mnemos)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-not%20specified-lightgrey)](#license)
 
 </div>
 
 ---
 
-## Overview
+## What Mnemos does
 
-Industrial knowledge is rarely absent. It is fragmented across P&IDs, OEM manuals, work orders, shift logs, inspection reports, procedures, incident records, spreadsheets, emails, and the experience of senior personnel.
+Industrial knowledge is rarely missing; it is fragmented. OEM manuals, work orders, inspection records, procedures, shift logs, compliance evidence, and expert observations often live in different systems with different identifiers and revision histories.
 
-**Mnemos** converts these disconnected sources into a living, time-aware operational memory centred on industrial assets. It connects assets, events, symptoms, failures, procedures, inspections, requirements, corrective actions, and expert knowledge—then exposes that context through evidence-grounded retrieval and governed workflows.
+Mnemos organises that information around physical assets and their operational timelines. It combines a multi-tenant FastAPI backend, hybrid retrieval, a governed multi-agent investigation workflow, durable runtime persistence, and a Next.js operational dashboard.
 
-Mnemos is not a document chatbot or a CMMS replacement. Its primary unit of intelligence is the **asset and its operational history**.
+The platform is designed to answer questions such as:
 
-## Core capabilities
+- What evidence supports the suspected cause of a recurring failure?
+- Which current procedure applies to this asset configuration?
+- Where are compliance requirements missing valid evidence?
+- Has this failure pattern appeared on related assets?
+- What is known, contradicted, stale, or still missing?
 
-- **Heterogeneous ingestion** — native and scanned PDFs, drawings, spreadsheets, work-order exports, inspection records, emails, images, and field notes.
-- **Industrial knowledge graph** — asset, component, event, failure, procedure, evidence, requirement, and expert-knowledge relationships.
-- **Hybrid retrieval** — semantic retrieval, metadata filtering, graph traversal, structured queries, and reranking.
-- **Evidence-grounded copilot** — claim-level citations, confidence, contradictions, missing evidence, and abstention.
-- **RCA workspace** — timelines, observed facts, hypotheses, similar failures, rejected causes, diagnostics, and corrective actions.
-- **Compliance intelligence** — requirement-to-evidence mapping, validity checks, expiry tracking, contradiction detection, and audit packages.
-- **Lessons learned** — recurrence detection across failures, incidents, near misses, non-conformances, and ineffective actions.
-- **Field mode** — asset scanning, current procedures, failure history, hazards, open work, and evidence capture.
-- **Expert memory** — attributed, reviewable, versioned knowledge cards that cannot silently override approved procedures.
+Mnemos is not a replacement for a CMMS, EAM, QMS, or document-management system. It is an evidence and reasoning layer that connects those records into an asset-centred operational memory.
 
-## System architecture
+## Product surfaces
+
+| Surface | Purpose |
+|---|---|
+| Plant overview | Operational KPIs, high-risk assets, evidence gaps, and recent activity |
+| Asset passport | Timeline, supporting evidence, claims, missing evidence, graph context, and recommended actions |
+| Investigation workspace | RCA timeline, hypotheses, supporting/opposing evidence, diagnostics, and actions |
+| Compliance matrix | Requirement-to-asset evidence mapping, validity, gaps, and review status |
+| Knowledge graph | Interactive asset, finding, document, procedure, and expert-knowledge relationships |
+| Documents | Version-aware source library and evidence viewing |
+| Expert knowledge | Attributed, reviewable operational knowledge cards |
+| Query workspace | Natural-language investigation entry point and evidence-backed result display |
+| Agentic trace | Stage-by-stage execution visibility, timing, evidence, and missing-information disclosure |
+| Results | Searchable completed analyses with confidence and citations |
+| Organisation | Authenticated workspace, membership, account, and destructive-action controls |
+
+The dashboard includes a public read-only demonstration dataset. Authentication is required for private workspace data and mutating operations.
+
+## Architecture
 
 ```mermaid
-flowchart TB
-    A[Documents and Drawings] --> I
-    B[CMMS / EAM / QMS] --> I
-    C[Shift Logs and Emails] --> I
-    D[Expert Notes and Voice] --> I
-    E[Historian / SCADA Snapshots] --> I
-
-    I[Ingestion and Document Intelligence]
-    I --> P[OCR, Layout and Table Parsing]
-    P --> X[Entity and Relation Extraction]
-    X --> R[Asset Identity Resolution]
-    R --> V[Provenance and Validation]
-
-    V --> O[(Object Storage)]
-    V --> SQL[(PostgreSQL)]
-    V --> VS[(Vector Index)]
-    V --> KG[(Industrial Knowledge Graph)]
-    V --> TS[(Time-Series Store)]
-
-    O --> H[Hybrid Retrieval and Evidence Layer]
-    SQL --> H
-    VS --> H
-    KG --> H
-    TS --> H
-
-    H --> C1[Asset Copilot]
-    H --> C2[RCA Intelligence]
-    H --> C3[Compliance Intelligence]
-    H --> C4[Lessons Learned]
-    H --> C5[Expert Knowledge Workflow]
-
-    C1 --> UI[Desktop and Mobile Experience]
-    C2 --> UI
-    C3 --> UI
-    C4 --> UI
-    C5 --> UI
+flowchart LR
+    UI[Next.js dashboard] -->|HTTPS / JSON| API[FastAPI API]
+    API --> AUTH[JWT authentication and RBAC]
+    API --> APP[Application services]
+    APP --> ORCH[Investigation orchestrator]
+    ORCH --> PIPE[11-stage investigation pipeline]
+    PIPE --> TOOLS[Governed internal tool dispatch]
+    TOOLS --> RET[Hybrid retrieval]
+    RET --> PG[(PostgreSQL + pgvector)]
+    RET --> NEO[(Neo4j)]
+    RET --> OBJ[(S3-compatible storage)]
+    API --> REDIS[(Redis)]
+    PIPE --> RUNTIME[(Durable runtime tables)]
 ```
 
-## Knowledge model
+### Investigation pipeline
 
 ```mermaid
-graph LR
-    SITE[Site] -->|CONTAINS| AREA[Area]
-    AREA -->|CONTAINS| ASSET[Asset]
-    ASSET -->|HAS_COMPONENT| COMPONENT[Component]
-    ASSET -->|EXPERIENCED| FAILURE[Failure Event]
-    SYMPTOM[Symptom] -->|PRECEDED| FAILURE
-    WORK[Work Order] -->|ADDRESSES| FAILURE
-    INSPECTION[Inspection] -->|FOUND| OBSERVATION[Observation]
-    PROCEDURE[Procedure] -->|APPLIES_TO| ASSET
-    REQUIREMENT[Requirement] -->|APPLIES_TO| ASSET
-    REQUIREMENT -->|REQUIRES| EVIDENCE[Evidence]
-    CLAIM[Claim] -->|SUPPORTED_BY| EVIDENCE
-    KNOWLEDGE[Expert Knowledge Card] -->|CONCERNS| ASSET
-    ACTION[Corrective Action] -->|RESPONDS_TO| FAILURE
+flowchart LR
+    A[Supervisor init] --> B[Query routing]
+    B --> C[Retrieval planning]
+    C --> D[Evidence retrieval]
+    D --> E[Evidence verification]
+    E --> F{Sufficient evidence?}
+    F -- no, bounded --> C
+    F -- yes --> G[Specialist agents]
+    G --> H[Report composition]
+    H --> I{Human approval required?}
+    I -- pending --> J[Durable pause]
+    I -- approved / not required --> K[Final response]
+    K --> L[Complete + checkpoint]
 ```
 
-Every material fact and relationship carries source provenance, confidence, verification status, temporal validity, and reviewer history.
+The reflection loop is bounded. Critical decisions are not silently auto-approved. Runtime checkpoints, audit entries, investigation events, approval requests, and idempotency markers are persisted in PostgreSQL.
 
-## How an answer is produced
+## Evidence and retrieval model
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant O as Orchestrator
-    participant R as Hybrid Retriever
-    participant G as Knowledge Graph
-    participant E as Evidence Verifier
-    participant A as Answer Composer
+Mnemos combines multiple retrieval strategies rather than treating every question as flat vector search:
 
-    U->>O: Ask an asset or operational question
-    O->>R: Build retrieval plan
-    R->>G: Traverse relevant asset relationships
-    R->>R: Search documents and structured records
-    R-->>E: Candidate claims and evidence regions
-    E->>E: Verify support, conflicts, and freshness
-    E-->>A: Supported facts, uncertainty, missing evidence
-    A-->>U: Grounded answer with citations and next checks
+1. **Vector retrieval** through pgvector for semantic similarity.
+2. **Lexical retrieval** for exact industrial terms, tags, part numbers, and procedure identifiers.
+3. **Structured retrieval** for temporal, numeric, and status filters.
+4. **Graph retrieval** for asset, component, event, evidence, and failure relationships.
+5. **Multi-hop retrieval** for indirect operational relationships.
+6. **Reranking and deduplication** before evidence reaches reasoning agents.
+7. **Provenance verification, contradiction detection, and confidence scoring** before report composition.
+
+Every material claim is expected to carry source provenance. When the available evidence is insufficient, the workflow should identify missing evidence or abstain instead of fabricating certainty.
+
+## Governed agent execution
+
+The agentic layer uses specialised retrieval and reasoning agents with:
+
+- intent-selective dispatch;
+- per-agent tool allowlists;
+- tenant, site, asset, and document scope propagation;
+- bounded tool-call budgets and timeouts;
+- structured tool trajectories;
+- scope-violation and duplicate-call evaluation;
+- approval gates for governed decisions;
+- durable checkpoint and resume behaviour.
+
+The package named `agentic/mcp` is an **internal governed tool-dispatch layer**. It does not claim protocol-level compatibility with the external Model Context Protocol specification.
+
+## Repository layout
+
+```text
+.
+├── frontend/                       # Next.js 15 dashboard and server-side API proxy
+├── src/mnemos/
+│   ├── agentic/
+│   │   ├── agents/                 # Retrieval and specialist reasoning agents
+│   │   ├── evaluation/             # Deterministic evaluation and regression gates
+│   │   ├── graph/                  # Graph interfaces and Neo4j integration
+│   │   ├── mcp/                    # Governed internal tool dispatch
+│   │   ├── retrieval/              # Hybrid retrieval, reranking, citation handling
+│   │   ├── runtime/                # Pipeline, approvals, durability, idempotency, OTel
+│   │   └── services/               # LLM and resource services
+│   ├── api/                        # FastAPI route modules and dependencies
+│   ├── core/                       # Configuration, DB, middleware, logging, security
+│   ├── integrations/               # Agent and ingestion gateway adapters
+│   ├── models/                     # SQLAlchemy entities and vector models
+│   ├── schemas/                    # API contracts
+│   └── services/                   # Application services and query persistence
+├── alembic/                        # Database migrations
+├── scripts/                        # Entrypoints, seed and operational utilities
+├── tests/                          # Project-level regression and contract tests
+├── docs/                           # Architecture, security, operations and testing docs
+├── Dockerfile
+├── docker-compose.yml
+├── docker-compose.production.yml
+├── render.yaml
+└── pyproject.toml
 ```
 
 ## Technology stack
 
-| Layer | Technology |
+| Area | Current implementation |
 |---|---|
-| Web application | Next.js, TypeScript |
-| API services | FastAPI, Python |
-| Agent orchestration | LangGraph or equivalent state-machine workflow |
-| Relational store | PostgreSQL |
-| Vector retrieval | pgvector initially; Qdrant at larger scale |
-| Knowledge graph | Neo4j |
-| Object storage | MinIO or S3-compatible storage |
-| Time-series | TimescaleDB |
-| Document processing | Docling, Unstructured, PaddleOCR, custom parsers |
-| Background processing | Celery, Dramatiq, or Temporal |
-| Graph visualisation | Cytoscape.js or React Flow |
-| Deployment | Docker Compose; Kubernetes-ready service boundaries |
+| Frontend | Next.js 15, React 19, Tailwind CSS 3 |
+| API | FastAPI, Pydantic v2, ORJSON |
+| Persistence | SQLAlchemy 2 async, PostgreSQL, Alembic |
+| Vector search | pgvector |
+| Graph | Neo4j / Aura-compatible driver |
+| Cache and rate limiting | Redis |
+| Object storage | S3-compatible API |
+| Agent orchestration | LangGraph-based canonical runtime |
+| LLM integration | Configurable OpenAI-compatible provider layer and model router |
+| Observability | Structured JSON logging and OpenTelemetry hooks |
+| Testing | pytest, pytest-asyncio, Ruff, deterministic evaluation gates |
+| Deployment | Docker, managed-container API profile, serverless-compatible frontend |
 
-## Repository structure
-
-```text
-mnemos/
-├── src/
-│   └── mnemos/
-│       ├── agentic/             # AI orchestration — runtime, agents, MCP, retrieval
-│       │   ├── agents/          # Retrieval + reasoning agents (11 production agents)
-│       │   ├── runtime/         # Pipeline, state, idempotency, checkpoints, OTel
-│       │   ├── mcp/             # Internal governed tool dispatch layer
-│       │   ├── retrieval/       # Hybrid retrieval engine, reranking, citation
-│       │   ├── evaluation/      # Evaluation harness + CI gate tests
-│       │   ├── graph/           # Knowledge graph interfaces + Neo4j client
-│       │   ├── services/        # LLM service, resource pool, model router
-│       │   ├── utils/           # StructuredLogger, config, helpers
-│       │   ├── schemas/         # Pydantic models for agents, base, state
-│       │   ├── tests/           # Unit + integration tests for agentic layer
-│       │   └── runtime/tests/   # Runtime-specific tests
-│       ├── core/                # Base config, DB session factory, error types
-│       ├── integrations/        # Agent gateway factory (langgraph, http, mock)
-│       ├── models/              # SQLAlchemy ORM models
-│       ├── schemas/             # API-level pydantic schemas
-│       └── services/            # Backend services (query execution, validation)
-├── alembic/                    # Database migrations
-├── scripts/                    # Utility scripts (seed.py)
-├── tests/                      # Project-level tests
-├── docker-compose.yml
-├── docker-compose.production.yml
-├── .env.example
-└── README.md
-```
-
-## Local setup
+## Local development
 
 ### Prerequisites
 
-- Git
-- Docker Desktop with Docker Compose
+- Python 3.12
 - Node.js 20+
-- Python 3.11+
-- `pnpm`
-- An LLM endpoint configured through environment variables
+- Docker Desktop with Docker Compose
+- Git
 
-### Clone and configure
+### 1. Configure the environment
 
 ```bash
-git clone https://github.com/Dhruvg334/mnemos.git
-cd mnemos
-
 cp .env.example .env
+cp frontend/.env.example frontend/.env.local
 ```
 
-Configure the required model, database, storage, and authentication values in `.env`.
+Use development credentials only. Never commit `.env`, `.env.local`, provider keys, database URLs, or exported production data.
 
-### Run with Docker Compose
+### 2. Start infrastructure
 
 ```bash
-docker compose up --build
+docker compose up -d postgres redis minio neo4j
 ```
 
-Expected local services:
+Neo4j can be disabled locally with `NEO4J_ENABLED=false` when graph retrieval is not under test.
 
-```text
-Web application    http://localhost:3000
-API documentation  http://localhost:8000/docs
-Neo4j browser      http://localhost:7474
-MinIO console      http://localhost:9001
-```
-
-### Run services separately
-
-Backend:
+### 3. Backend
 
 ```bash
-cd src
 python -m venv .venv
-
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn mnemos.main:app --reload --port 8000
 ```
 
-### Database migrations
+Windows Command Prompt:
+
+```cmd
+call .venv\Scripts\activate.bat
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e ".[dev]"
+alembic upgrade head
+python -m uvicorn mnemos.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+macOS / Linux:
 
 ```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e '.[dev]'
 alembic upgrade head
+python -m uvicorn mnemos.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Load the synthetic demonstration dataset
+### 4. Frontend
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Default local endpoints:
+
+| Service | URL |
+|---|---|
+| Frontend | `http://localhost:3000` |
+| API liveness | `http://localhost:8000/health/live` |
+| API docs in development | `http://localhost:8000/docs` |
+| Neo4j browser | `http://localhost:7474` |
+| MinIO console | `http://localhost:9001` |
+
+### 5. Demonstration data
 
 ```bash
 python scripts/seed.py
 ```
 
-### Run tests
+Set `SEED_DEFAULT_PASSWORD` locally before running the seed command. Do not use a production password.
+
+## Quality checks
+
+Focused checks are preferred during development; the full suite runs in CI.
+
+```cmd
+python -m ruff check src tests scripts
+python -m compileall -q src tests scripts
+python -m pytest -q --strict-markers
+```
+
+Frontend production validation:
 
 ```bash
-pytest
+cd frontend
+npm ci
+npm run build
 ```
 
-## Evaluation
+See [docs/TESTING.md](docs/TESTING.md) for the test taxonomy, evaluation gates, and release evidence format.
 
-Mnemos is evaluated against explicit, reproducible criteria:
+### Verified release snapshot
 
-| Area | Metric |
+The current release was validated from a clean dependency install with the following results:
+
+| Check | Result |
+|---|---:|
+| Backend test suite | **902 passed, 2 deselected** |
+| Backend lint | **Ruff clean** |
+| Python compilation | **Passed** |
+| Frontend production build | **27 routes generated successfully** |
+| Frontend production dependency audit | **0 known vulnerabilities reported by npm audit** |
+| Deterministic evaluation gates | **Included in the passing backend suite** |
+
+These results cover deterministic, mocked-provider, persistence, API, authorisation, runtime, retrieval, and evaluation paths. They do not claim live-model accuracy or validation against a production industrial corpus. Full commands, environment details, and limitations are recorded in [docs/RELEASE_EVIDENCE.md](docs/RELEASE_EVIDENCE.md).
+
+## Security model
+
+- JWT access and refresh token rotation.
+- Password hashing and account lockout controls.
+- Role- and site-aware backend authorisation.
+- Tenant/site filters before retrieval and governed tool dispatch.
+- Read-only public demonstration; backend mutation routes remain authenticated.
+- Strict production CORS validation and no wildcard origins.
+- Request-size limits, upload MIME allowlists, rate limiting, and security headers.
+- Sanitised error persistence and structured secret-aware logging.
+- Human approval and separation-of-duties checks for governed workflows.
+- Optional Neo4j startup with explicit readiness semantics.
+
+Review [SECURITY.md](SECURITY.md) and [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) before enabling production data.
+
+## Capability status
+
+| Capability | Status |
 |---|---|
-| Document intelligence | entity and relation extraction precision, recall, and F1 |
-| Retrieval | answer relevance, retrieval recall, citation precision |
-| Evidence quality | claim-to-source support and contradiction detection |
-| Graph quality | identity-resolution accuracy and relationship completeness |
-| RCA | chronology quality, evidence coverage, and missing-diagnostic detection |
-| Compliance | requirement applicability and evidence-gap detection accuracy |
-| Safety | abstention quality and unsupported-claim rate |
-| Operational value | time-to-answer compared with manual document search |
+| Public read-only product demonstration | Available |
+| Authenticated workspace registration and login | Implemented |
+| Multi-tenant API, RBAC and site scoping | Implemented and tested |
+| Query lifecycle and persistence | Implemented and tested |
+| Canonical 11-stage runtime | Implemented |
+| Durable checkpoint, event, audit and approval storage | Implemented |
+| Approval pause and authorised resume | Implemented |
+| Governed tool dispatch and tool trajectories | Implemented |
+| Tool-selection evaluation gates | Implemented |
+| pgvector retrieval | Integrated; requires configured corpus and embeddings |
+| Neo4j retrieval | Integrated; requires configured and populated graph |
+| S3 document upload | Integrated; requires valid object-storage credentials |
+| Real provider-backed reasoning | Integrated; requires provider credentials and evaluation |
+| Dashboard live-data replacement | Incremental; demonstration views currently use curated synthetic data |
+| Email verification | Deliberately not enabled in this release |
 
-## Security and governance
+## Documentation
 
-- Role- and site-aware access control before retrieval.
-- Tenant and site boundaries on every persisted entity.
-- Encryption in transit and at rest.
-- Immutable audit records for ingestion, retrieval, agent actions, review, and approval.
-- Human approval for RCA closure, compliance decisions, and expert-knowledge validation.
-- Private-cloud, on-premise, and local-model deployment paths.
-- No autonomous plant control or maintenance approval.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security architecture](docs/SECURITY_ARCHITECTURE.md)
+- [Operations and deployment](docs/OPERATIONS.md)
+- [Testing and evaluation](docs/TESTING.md)
+- [Engineering principles](docs/ENGINEERING_PRINCIPLES.md)
+- [Responsible engineering and code ethics](docs/RESPONSIBLE_ENGINEERING.md)
+- [Frontend architecture](docs/FRONTEND_ARCHITECTURE.md)
+- [Release evidence](docs/RELEASE_EVIDENCE.md)
+- [Contributing](CONTRIBUTING.md)
 
-## Implementation status
+## Responsible-use boundaries
 
-The table below documents which capabilities are production-ready, which are integrated but need real configuration, and which are scaffolded or planned.
+Mnemos supports investigation and evidence review. It does not autonomously operate industrial equipment, close safety-critical actions, certify compliance, or replace qualified engineering judgement. Recommendations must be reviewed against current procedures, site rules, and authorised source systems.
 
-| Capability | Status | Notes |
-|---|---|---|
-| Backend API (auth, queries, RCA, compliance, documents, audit) | **Implemented & tested** | All routes operational with full lifecycle |
-| Query execution pipeline | **Implemented & tested** | Single persistence transaction in `query_execution.py` |
-| Agentic orchestrator boundary | **Implemented** | Orchestrator does no persistence; backend owns all writes |
-| Canonical workflow (`InvestigationPipeline`) | **Implemented** | 11-stage pipeline with bounded reflection loop — canonical production path |
-| Intent-selective agent dispatch | **Implemented** | Query router classifies intent; only relevant agents run |
-| Bounded reflection loop | **Implemented** | Max 3 cycles; forces continue on exhaustion |
-| Human approval gates | **Implemented & connected** | Raises `_ApprovalPendingError`; never auto-approves; API mounted in FastAPI |
-| Durable checkpoints (PostgreSQL) | **Implemented with optimistic concurrency** | `DurableCheckpointManager` with version-based locks (P0 #13) |
-| Durable audit log (PostgreSQL) | **Implemented** | `DurableAuditLogger` writes to `runtime_audit_entries` |
-| Durable event log (PostgreSQL) | **Implemented** | `DurableEventLog` writes to `runtime_investigation_events` |
-| Durable approval queue (PostgreSQL) | **Implemented — fail closed** | DB errors raise; no in-memory fallback for production (P0 #9) |
-| Approval REST API | **Implemented & authorized** | Reviewer identity from JWT principal (P0 #8) |
-| Error sanitization | **Implemented** | No raw exceptions, SQL, paths, or stack traces in persisted errors |
-| Real E2E production-path tests | **Implemented** | `test_real_e2e_pipeline.py` — real gateway, orchestrator, pipeline, agents |
-| Dead-letter queue for permanently failed runs | **Implemented** | `DeadLetterQueue` in idempotency.py (P0 #14) |
-| Tool layer (12 tools, real backends) | **Implemented** | Governed internal dispatch layer with per-agent allowlists |
-| Specialist agents (RCA, compliance, asset intel, etc.) | **Integrated** | Require real LLM API key (`OPENAI_API_KEY` or configured provider) |
-| All production agents registered | **Registered** | Registered in `MnemosAIOrchestrator._register_all_agents()` |
-| Vector retrieval (pgvector) | **Integrated** | Requires `DATABASE_URL` pointing to a pgvector-enabled PostgreSQL |
-| Graph retrieval (Neo4j) | **Integrated** | Requires `NEO4J_URI` and populated graph |
-| OpenTelemetry tracing | **Implemented** | OTLP exporter, FastAPI + SQLAlchemy instrumentation (P0 #20, P0 #21) |
-| Model routing / fallback / cost budgets | **Implemented** | Routed in `LLMService.call_structured()` via `ModelRouter`; fast/primary tier; fallback on unhealthy |
-| CI evaluation gates | **Implemented & tested** | Runs in `backend-ci.yml` as `evaluation-gates` job; 8 threshold gate tests pass |
-| Retrieval budget optimiser | **Implemented** | `RetrievalBudgetOptimiser` enforces per-strategy candidate/token budgets in retrieval engine |
-| Reproducible evaluation report | **Scaffolded** | Requires real seeded corpus and LLM configuration |
-| Frontend–backend integration | **In progress** | Auth forms present; token lifecycle integration ongoing |
+## License
 
-### Tool layer note
-
-`MnemosMCPServer` is an **internal governed tool dispatch layer**, not a protocol-compliant Model Context Protocol server. Despite the "MCP" naming (a historical artifact), it does not implement the MCP specification. If protocol-compliant MCP is required, the `mcp` Python SDK and a full transport layer would need to be added in a separate service. See `src/mnemos/agentic/mcp/__init__.py` for the full status.
-
-## Differentiation
-
-```text
-Document → Chunk → Answer
-```
-
-Mnemos follows:
-
-```text
-Asset → Event → Evidence → Relationship → Operational Decision
-```
-
-Its defensibility comes from the validated operational memory accumulated over time: plant-specific ontology, resolved asset identities, reviewed relationships, failure patterns, requirement-evidence mappings, and governed expert knowledge.
-
-## Status
-
-Mnemos is under active development for the ET AI Hackathon 2026 problem statement on Industrial Knowledge Intelligence.
+No open-source licence has been granted yet. Unless a licence is added, the repository remains all-rights-reserved by its contributors.
 
 ---
 
 <div align="center">
 
-**Mnemos — operational memory built around the asset, grounded in evidence.**
+**Mnemos — operational memory built around the asset and grounded in evidence.**
 
 </div>

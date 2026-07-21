@@ -6,7 +6,7 @@ def test_render_blueprint_defines_zero_card_free_profile() -> None:
     assert "name: mnemos-api" in source
     assert "type: web" in source
     assert "plan: free" in source
-    assert "dockerCommand: migrate-and-api" in source
+    assert "dockerCommand: /app/scripts/container-entrypoint.sh migrate-and-api" in source
     assert "healthCheckPath: /health/live" in source
     assert "name: mnemos-postgres" in source
     assert "name: mnemos-redis" in source

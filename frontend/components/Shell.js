@@ -106,8 +106,9 @@ export default function Shell() {
         <Topbar crumb={crumb} />
 
         <main id="main-scroll" className="scrollhide flex-1 overflow-y-auto animate-fade-in">
+          <div className="mx-auto w-full max-w-[1680px] px-4 pb-10 pt-5 sm:px-6 sm:pt-6 lg:px-8 xl:px-10">
           {view !== "passport" && VIEW_META[view] && view !== "query" && view !== "organisation" && view !== "agentic" && view !== "results" ? (
-            <div className="mb-5 flex flex-wrap items-start justify-between gap-3 px-6 pt-6">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="text-[22px] font-semibold text-ink">{VIEW_META[view].title}</h1>
                 <div className="mt-1 text-[13px] text-ink-faint">{VIEW_META[view].sub}</div>
@@ -121,6 +122,7 @@ export default function Shell() {
             </div>
           ) : null}
 
+          <section className="dashboard-page" aria-label={`${VIEW_META[view]?.title || view} content`}>
           {view === "overview" && <Overview onOpenAsset={openAsset} onNav={goto} />}
           {view === "assets" && <Assets onOpenAsset={openAsset} />}
           {view === "passport" && <Passport assetId={opts.assetId || "ast_p117_n"} onCite={setCiteDocId} onOpenDoc={(id) => goto("documents", { docId: id })} onNav={goto} />}
@@ -133,6 +135,8 @@ export default function Shell() {
           {view === "agentic" && <AgenticView />}
           {view === "results" && <Results onOpenDoc={(id) => { setCiteDocId(id); }} />}
           {view === "organisation" && <Organisation />}
+          </section>
+          </div>
         </main>
       </div>
 

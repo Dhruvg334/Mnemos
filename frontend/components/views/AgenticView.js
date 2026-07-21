@@ -159,7 +159,7 @@ export default function AgenticView() {
   const [selectedRun, setSelectedRun] = useState(MOCK_RUNS[0]);
 
   return (
-    <div className="flex h-full gap-5 p-6">
+    <div className="flex min-h-[calc(100vh-9rem)] gap-5">
       <div className="w-72 shrink-0">
         <Section title="Pipeline Runs" subtitle={pluralize(MOCK_RUNS.length, "recorded run")}>
           <div className="space-y-1">
@@ -230,7 +230,7 @@ export default function AgenticView() {
 
         <Divider className="my-5" />
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <Card className="p-3">
             <div className="flex items-center gap-2 text-[11px] text-ink-faint">
               <Icon name="layers" className="h-3.5 w-3.5" />

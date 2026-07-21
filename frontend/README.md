@@ -1,6 +1,6 @@
 # Mnemos frontend
 
-The Mnemos frontend is a Next.js 14 App Router application for the public product experience, technical documentation, authentication entry, and the operational industrial-intelligence dashboard.
+The Mnemos frontend is a Next.js 15 App Router application for the public product experience, technical documentation, authentication entry, and the operational industrial-intelligence dashboard.
 
 ## What is included
 
@@ -53,8 +53,8 @@ The dashboard currently uses `lib/data.js` as a transitional demo adapter. The n
 
 ## Technology
 
-- Next.js 14 App Router
-- React 18
+- Next.js 15 App Router
+- React 19
 - Tailwind CSS
 - dependency-free CSS motion with `prefers-reduced-motion` support
 - inline responsive SVG diagrams
@@ -148,7 +148,7 @@ Run dependency review before deployment:
 npm audit
 ```
 
-The repository currently remains on the existing Next.js 14 line for compatibility. Before public deployment, upgrade to an officially patched supported release and regenerate `package-lock.json` through the normal npm registry. Do not hand-edit lockfile integrity values.
+The repository currently remains on the existing Next.js 15 line for compatibility. Before public deployment, upgrade to an officially patched supported release and regenerate `package-lock.json` through the normal npm registry. Do not hand-edit lockfile integrity values.
 
 ## Integration roadmap
 
@@ -171,4 +171,4 @@ AUTH_REQUIRED=false
 AUTH_REFRESH_COOKIE_SECONDS=604800
 ```
 
-The dashboard is intentionally public as a read-only demonstration workspace. Authentication is required only for actions that modify private organisation data. New registrations are active immediately in the current hackathon release; email verification is deferred to a later round.
+The dashboard is intentionally public as a read-only demonstration workspace. Authentication is required only for actions that modify private organisation data. New registrations are active immediately in the current public release; email verification is intentionally outside the current release scope.

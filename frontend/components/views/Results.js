@@ -108,7 +108,7 @@ export default function Results({ onOpenDoc }) {
   });
 
   return (
-    <div className="p-6">
+    <div className="space-y-5">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Results</h2>

@@ -282,7 +282,7 @@ export default function Organisation() {
   const members = D.members || [];
 
   return (
-    <div className="p-6">
+    <div className="space-y-5">
       <OrgProfile org={org} />
       <div className="mt-4 mb-4">
         <TabBar tabs={[
