@@ -103,7 +103,7 @@ export default function Shell() {
       <Rail view={view} onNav={goto} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar crumb={crumb} />
+        <Topbar crumb={crumb} onNavigate={goto} />
 
         <main id="main-scroll" className="scrollhide flex-1 overflow-y-auto animate-fade-in">
           <div className="mx-auto w-full max-w-[1680px] px-4 pb-10 pt-5 sm:px-6 sm:pt-6 lg:px-8 xl:px-10">
@@ -131,7 +131,7 @@ export default function Shell() {
           {view === "graph" && <Graph />}
           {view === "documents" && <Documents activeDocId={opts.docId} onOpenAsset={openAsset} />}
           {view === "expert" && <Expert onCite={setCiteDocId} />}
-          {view === "query" && <QueryPanel onOpenDoc={(id) => { setCiteDocId(id); }} />}
+          {view === "query" && <QueryPanel initialQueryId={opts.queryId} onOpenDoc={(id) => { setCiteDocId(id); }} />}
           {view === "agentic" && <AgenticView />}
           {view === "results" && <Results onOpenDoc={(id) => { setCiteDocId(id); }} />}
           {view === "organisation" && <Organisation />}

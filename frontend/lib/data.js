@@ -127,6 +127,61 @@ const queryResults = {
     relatedAssets:["ast_p117_n","ast_hx221_n"],
     citations:["req_1","req_3","req_2"],
   },
+  q_3: {
+    summary: "North Process Plant recorded a higher rate of recurring equipment failures than South Utilities Plant in the demonstration period. The comparison is directional because South Plant has fewer indexed maintenance records and narrower evidence coverage.",
+    confidence: 68,
+    stages: [
+      { name:"Query Understanding", status:"complete", duration_ms:310, detail:"Classified as cross-site comparative analysis" },
+      { name:"Retrieval", status:"complete", duration_ms:1760, detail:"Retrieved failure records and asset populations for both sites" },
+      { name:"Evidence Analysis", status:"complete", duration_ms:1280, detail:"Normalised events by indexed asset count and evidence coverage" },
+      { name:"Reasoning", status:"complete", duration_ms:1140, detail:"Separated observed rate differences from collection bias" },
+      { name:"Compliance Check", status:"complete", duration_ms:610, detail:"No governed action requested" },
+    ],
+    evidence: [
+      { docId:"doc_011", relevance:0.89, snippet:"North Process Plant contains repeated P-117 seal-leak records across two maintenance cycles." },
+      { docId:"doc_014", relevance:0.76, snippet:"South Utilities Plant inspection coverage is lower for the selected comparison period." },
+    ],
+    missingEvidence:["Equivalent operating-hour denominator for both plants", "Complete South Plant work-order export"],
+    relatedAssets:["ast_p117_n","ast_v301_s"],
+    citations:["doc_011","doc_014"],
+  },
+  q_4: {
+    summary: "Two relevant expert-knowledge records were found for heat-exchanger fouling and adjacent reliability work. The strongest recommendation is to inspect cooling-water strainer scaling before attributing the loss entirely to exchanger internals.",
+    confidence: 79,
+    stages: [
+      { name:"Query Understanding", status:"complete", duration_ms:220, detail:"Classified as expert-knowledge retrieval" },
+      { name:"Retrieval", status:"complete", duration_ms:720, detail:"Matched field observations by condition, asset class, and plant area" },
+      { name:"Evidence Analysis", status:"complete", duration_ms:390, detail:"Checked supporting sources and review state" },
+      { name:"Reasoning", status:"complete", duration_ms:310, detail:"Ranked applicable recommendations" },
+      { name:"Compliance Check", status:"complete", duration_ms:160, detail:"Flagged pending-review content as advisory" },
+    ],
+    evidence: [
+      { docId:"doc_012", relevance:0.88, snippet:"Field observation links reduced heat-transfer performance with cooling-water strainer scaling." },
+      { docId:"doc_013", relevance:0.71, snippet:"Inspection notes recommend confirming upstream flow restriction before internal cleaning." },
+    ],
+    missingEvidence:["Latest differential-pressure trend", "Post-cleaning thermal-performance test"],
+    relatedAssets:["ast_hx221_n"],
+    citations:["doc_012","doc_013"],
+  },
+  q_5: {
+    summary: "The compliance report for P-117 is being assembled. Requirement mapping and evidence validation are complete; the final report is waiting on the current API-610 audit record.",
+    confidence: 71,
+    status: "processing",
+    stages: [
+      { name:"Query Understanding", status:"complete", duration_ms:260, detail:"Classified as asset-scoped compliance report" },
+      { name:"Retrieval", status:"complete", duration_ms:840, detail:"Retrieved four applicable requirements and linked evidence" },
+      { name:"Evidence Analysis", status:"complete", duration_ms:690, detail:"Validated revision and expiry status" },
+      { name:"Reasoning", status:"processing", duration_ms:null, detail:"Assembling requirement-level findings" },
+      { name:"Compliance Check", status:"inactive", duration_ms:null, detail:"Pending final evidence check" },
+    ],
+    evidence: [
+      { docId:"req_1", relevance:0.95, snippet:"SOP-MECH-017 is expired and requires renewed evidence." },
+      { docId:"req_2", relevance:0.86, snippet:"ISO-14224 failure coding is complete for the indexed records." },
+    ],
+    missingEvidence:["Current API-610 audit report"],
+    relatedAssets:["ast_p117_n"],
+    citations:["req_1","req_2"],
+  },
 };
 const organisation = {
   id:"org_1",

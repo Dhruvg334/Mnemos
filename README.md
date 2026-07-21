@@ -32,6 +32,20 @@ The system is designed for questions such as:
 
 Mnemos complements CMMS, EAM, QMS, and document-management systems. It acts as an evidence and reasoning layer rather than replacing the source systems that own operational records.
 
+## Why this problem matters
+
+Industrial maintenance knowledge is difficult to reuse because the evidence is split across structured work orders, unstructured reports, revision-controlled procedures, asset hierarchies, and expert observations. Research on maintenance knowledge graphs repeatedly identifies the same operational gap: fault history contains useful causal and diagnostic knowledge, but conventional systems make it difficult to search, connect, and reuse that knowledge for root-cause analysis and failure prevention.
+
+Mnemos is designed around the consequences of that fragmentation:
+
+- **Asset identity is inconsistent.** Equipment tags, aliases, parent-child relationships, and site scope must be resolved before retrieval can be trusted.
+- **Time and revision matter.** A technically relevant procedure may still be unsafe to cite when it has expired or been superseded.
+- **A fluent answer is not enough.** Reliability and compliance teams need claims linked to source regions, contradiction handling, and explicit missing evidence.
+- **Multi-agent orchestration needs controls.** Specialist agents are useful only when their tool access, scope, retries, and approval boundaries are measurable.
+- **Operational workflows outlive web requests.** Checkpoints, audit entries, approval pauses, and idempotency markers must survive process restarts.
+
+The architecture therefore combines relational state, vector and lexical retrieval, graph context, evidence provenance, deterministic policy checks, and durable workflow execution instead of treating the problem as document chat.
+
 ## Product surface
 
 | Area | Purpose |
@@ -49,6 +63,29 @@ Mnemos complements CMMS, EAM, QMS, and document-management systems. It acts as a
 | Organisation | Authenticated workspace, membership, account, and destructive-action controls |
 
 The public deployment includes a synthetic, read-only demonstration dataset. Authentication is required for private workspace data and mutating operations.
+
+## Product tour
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Plant overview dashboard" /></td>
+    <td width="50%"><img src="docs/screenshots/investigation.png" alt="Root-cause investigation workspace" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Operational overview</b><br/>Risk, evidence health, compliance gaps, and recent activity.</td>
+    <td align="center"><b>Investigation workspace</b><br/>Timelines, hypotheses, missing evidence, and recommended actions.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/graph.png" alt="Interactive asset knowledge graph" /></td>
+    <td width="50%"><img src="docs/screenshots/query-panel.png" alt="Evidence-grounded query workspace" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Knowledge graph</b><br/>Asset, document, finding, procedure, and expert-knowledge relationships.</td>
+    <td align="center"><b>Query workspace</b><br/>Pipeline stages, confidence, citations, and disclosed evidence gaps.</td>
+  </tr>
+</table>
+
+The full screenshot set is indexed in [`docs/screenshots`](docs/screenshots/README.md).
 
 ## Architecture
 
@@ -116,6 +153,19 @@ Specialised agents operate with:
 - durable checkpoint and resume behaviour.
 
 The package named `agentic/mcp` is an **internal governed tool-dispatch layer**. It does not claim protocol-level compatibility with the external Model Context Protocol specification.
+
+## Engineering characteristics
+
+| Concern | Design response |
+|---|---|
+| Tenant isolation | Organisation and site membership are re-resolved at execution boundaries; agent tools receive explicit scope rather than ambient database access. |
+| Evidence provenance | Claims and citations retain document, version, page/region, and retrieval metadata wherever the source model provides it. |
+| Retrieval diversity | Vector, lexical, structured, graph, and bounded multi-hop strategies are fused and reranked rather than relying on one similarity score. |
+| Failure recovery | Runtime checkpoints, audit records, investigation events, approval requests, and node-completion markers are persisted in PostgreSQL. |
+| Human authority | Governed decisions can pause durably and resume only after an authorised approval decision; requester/reviewer separation is enforced. |
+| Tool governance | Tool allowlists, per-agent budgets, timeouts, duplicate-call checks, scope checks, and trajectories constrain agent behaviour. |
+| Degraded dependencies | Optional graph and reranker services can fail without taking down liveness; readiness and diagnostic endpoints expose the degradation. |
+| Public access | The demonstration workspace is read-only; backend authorisation remains the control for mutations and private data. |
 
 ## Evaluation results
 
@@ -271,3 +321,11 @@ Licensed under the [Apache License 2.0](LICENSE). Reuse and redistribution are p
 **Mnemos — operational memory built around the asset and grounded in evidence.**
 
 </div>
+
+
+## Technical references
+
+- Neo4j knowledge-graph research for industrial root-cause analysis: [Procedia Computer Science, 2022](https://doi.org/10.1016/j.procs.2022.01.303)
+- Maintenance work-order knowledge extraction and reuse: [KNOWO](https://doi.org/10.1016/j.compind.2022.103824)
+- RAG evaluation dimensions: [Ragas metrics](https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/)
+- Neo4j Python driver connection guidance: [Neo4j documentation](https://neo4j.com/docs/python-manual/current/connect/)

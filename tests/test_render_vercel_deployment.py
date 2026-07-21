@@ -54,3 +54,12 @@ def test_ci_builds_frontend_with_the_same_node_major() -> None:
     assert 'node-version: "20"' in workflow
     assert "cache-dependency-path: frontend/package-lock.json" in workflow
     assert "needs: [quality, evaluation-gates, frontend-build, migration]" in workflow
+
+
+def test_optional_graph_and_reranker_settings_are_declared_for_render() -> None:
+    source = Path("render.yaml").read_text(encoding="utf-8")
+    assert "NEO4J_MAX_CONNECTION_POOL_SIZE" in source
+    assert "CROSS_ENCODER_URL" in source
+    deployment = Path("docs/deployment.md").read_text(encoding="utf-8")
+    assert "neo4j+s://" in deployment
+    assert "CROSS_ENCODER_URL" in deployment

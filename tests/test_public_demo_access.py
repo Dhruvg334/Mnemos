@@ -48,3 +48,30 @@ def test_graph_layout_prioritises_spacing_and_legibility() -> None:
     assert "idealEdgeLength: 205" in source
     assert '"text-valign": "center"' in source
     assert "wheelSensitivity: 0.42" in source
+
+
+def test_topbar_controls_are_interactive_and_navigable() -> None:
+    source = _read("frontend/components/Topbar.js")
+    assert 'setPanel("search")' in source
+    assert 'setPanel("notifications")' in source
+    assert 'setPanel("activity")' in source
+    assert 'window.addEventListener("keydown"' in source
+    assert "onNavigate(result.view" in source
+    assert "Mark all as read" in source
+
+
+def test_every_demo_query_has_an_accessible_result() -> None:
+    source = _read("frontend/lib/data.js")
+    for query_id in ("q_1", "q_2", "q_3", "q_4", "q_5"):
+        assert f"  {query_id}: {{" in source
+    panel = _read("frontend/components/views/QueryPanel.js")
+    assert "initialQueryId" in panel
+    assert "knownResult" in panel
+    assert 'Section title="Evidence"' in panel
+
+
+def test_product_screenshots_are_versioned_and_indexed() -> None:
+    screenshots = ROOT / "docs" / "screenshots"
+    assert (screenshots / "README.md").is_file()
+    for filename in ("dashboard.png", "investigation.png", "graph.png", "query-panel.png"):
+        assert (screenshots / filename).is_file()

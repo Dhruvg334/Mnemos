@@ -80,7 +80,7 @@ function EvidenceCard({ ev, onCite }) {
   );
 }
 
-export default function QueryPanel({ onOpenDoc }) {
+export default function QueryPanel({ onOpenDoc, initialQueryId = null }) {
   const [query, setQuery] = useState("");
   const [activeQueryId, setActiveQueryId] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -92,6 +92,16 @@ export default function QueryPanel({ onOpenDoc }) {
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  useEffect(() => {
+    if (!initialQueryId) return;
+    const selected = history.find((item) => item.id === initialQueryId);
+    if (!selected) return;
+    setActiveQueryId(selected.id);
+    setQuery(selected.question);
+    setIsProcessing(false);
+    setResult(D.queryResults?.[selected.id] || null);
+  }, [initialQueryId]);
+
   const handleSubmit = () => {
     const q = query.trim();
     if (!q) return;
@@ -100,9 +110,27 @@ export default function QueryPanel({ onOpenDoc }) {
       setIsProcessing(true);
       setResult(null);
       setTimeout(() => {
+        const known = history.find((item) => item.question.toLowerCase() === q.toLowerCase());
+        const knownResult = known ? D.queryResults?.[known.id] : null;
         setIsProcessing(false);
-        setResult(D.queryResults && D.queryResults.q_1);
-    }, 2500);
+        setResult(knownResult || {
+          summary: `The demonstration workspace interpreted this as an operational investigation: “${q}”. A complete private-workspace answer would run the same governed retrieval and provenance pipeline against authorised source records.`,
+          confidence: 63,
+          stages: [
+            { name:"Query Understanding", status:"complete", duration_ms:280 },
+            { name:"Retrieval", status:"complete", duration_ms:920 },
+            { name:"Evidence Analysis", status:"complete", duration_ms:640 },
+            { name:"Reasoning", status:"complete", duration_ms:520 },
+            { name:"Compliance Check", status:"complete", duration_ms:260 },
+          ],
+          evidence: [
+            { docId:"doc_010", relevance:0.79, snippet:"The public workspace uses a bounded synthetic evidence set to demonstrate traceable investigation behaviour." },
+          ],
+          missingEvidence:["Private operational records required for a production conclusion"],
+          relatedAssets:[],
+          citations:["doc_010"],
+        });
+      }, 1800);
   };
 
   const selectHistory = (id) => {
@@ -208,6 +236,16 @@ export default function QueryPanel({ onOpenDoc }) {
                 <p className="text-[13.5px] leading-relaxed text-ink">{result.summary}</p>
               </div>
             </Card>
+
+            {result.evidence && result.evidence.length > 0 ? (
+              <Section title="Evidence" subtitle="Source excerpts used by the selected analysis">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {result.evidence.map((ev) => (
+                    <EvidenceCard key={`${ev.docId}-${ev.snippet}`} ev={ev} onCite={onOpenDoc} />
+                  ))}
+                </div>
+              </Section>
+            ) : null}
 
             <div className="flex gap-4">
               {result.missingEvidence && result.missingEvidence.length > 0 ? (
