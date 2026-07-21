@@ -8,6 +8,7 @@ Controlled specialist inputs:
 {% if rca_analysis %}Reliability and RCA findings: {{ rca_analysis | tojson }}{% endif %}
 {% if compliance_package %}Compliance findings: {{ compliance_package | tojson }}{% endif %}
 {% if lessons_learned %}Knowledge findings: {{ lessons_learned | tojson }}{% endif %}
+{% if general_analysis is defined and general_analysis %}General operational findings: {{ general_analysis | tojson }}{% endif %}
 
 Return a structured FinalReport JSON object.
 

@@ -46,17 +46,19 @@ function PipelineStages({ stages }) {
         const meta = stageMeta[s.name] || { icon: "pulse", color: "bg-paper-sunk text-ink-faint" };
         const isActive = s.status === "processing";
         const isDone = s.status === "complete";
+        const isEmpty = s.status === "empty";
         return (
           <div key={s.name} className="flex items-center">
             <div className={`flex min-w-[130px] flex-col items-center gap-1.5 rounded-md border p-2.5 text-center text-[11px] ${
-              isActive ? "border-strong bg-paper-sunk" : isDone ? "border-line bg-paper" : "border-line bg-paper-sunk opacity-60"
+              isActive ? "border-strong bg-paper-sunk" : isDone ? "border-line bg-paper" : isEmpty ? "border-signal-amber/40 bg-amber-50" : "border-line bg-paper-sunk opacity-60"
             }`}>
-              <div className={`flex h-6 w-6 items-center justify-center rounded-full ${isDone ? meta.color : isActive ? "bg-rail text-white" : "bg-paper-sunk text-ink-faint"}`}>
-                {isDone ? <Icon name="check" className="h-3 w-3" /> : isActive ? <Spinner className="h-3 w-3" /> : <Icon name={meta.icon} className="h-3 w-3" />}
+              <div className={`flex h-6 w-6 items-center justify-center rounded-full ${isDone ? meta.color : isActive ? "bg-rail text-white" : isEmpty ? "bg-signal-amber text-white" : "bg-paper-sunk text-ink-faint"}`}>
+                {isDone ? <Icon name="check" className="h-3 w-3" /> : isActive ? <Spinner className="h-3 w-3" /> : <Icon name={isEmpty ? "gap" : meta.icon} className="h-3 w-3" />}
               </div>
               <div className={`font-medium leading-tight ${isActive ? "text-ink" : "text-ink"}`}>{s.name}</div>
               {s.duration_ms ? <div className="text-[10px] text-ink-faint">{fmtDuration(s.duration_ms)}</div> : null}
               {isActive ? <div className="animate-pulse text-[10px] text-ink">Running...</div> : null}
+              {isEmpty ? <div className="text-[10px] text-signal-amber">No evidence found</div> : null}
             </div>
             {i < stages.length - 1 ? (
               <div className={`h-px w-6 ${isDone ? "bg-signal-green" : "bg-line"}`} />
@@ -96,14 +98,17 @@ function liveResultToView(data) {
     relevance: citation.support_status === "supporting" ? 0.92 : 0.72,
     snippet: citation.text_excerpt || `${citation.document_title}${citation.locator ? ` · ${citation.locator}` : ""}`,
   }));
+  const confidence = Math.round(Number(data.confidence_score || 0) * 100);
+  const insufficientEvidence = confidence === 0 && evidence.length === 0;
   return {
     summary: data.answer || (data.status === "pending_approval" ? "The analysis is complete and awaiting an authorised review." : "The analysis completed without a narrative response."),
-    confidence: Math.round(Number(data.confidence_score || 0) * 100),
+    confidence,
+    insufficientEvidence,
     stages: [
       { name: "Query Understanding", status: "complete", duration_ms: 0 },
-      { name: "Retrieval", status: "complete", duration_ms: 0 },
-      { name: "Evidence Analysis", status: "complete", duration_ms: 0 },
-      { name: "Reasoning", status: "complete", duration_ms: latency },
+      { name: "Retrieval", status: insufficientEvidence ? "empty" : "complete", duration_ms: 0 },
+      { name: "Evidence Analysis", status: insufficientEvidence ? "empty" : "complete", duration_ms: 0 },
+      { name: "Reasoning", status: insufficientEvidence ? "skipped" : "complete", duration_ms: latency },
       { name: "Compliance Check", status: "complete", duration_ms: 0 },
     ],
     evidence,
@@ -289,13 +294,13 @@ export default function QueryPanel({ onOpenDoc, initialQueryId = null }) {
             <Card className="p-4">
               <div className="mb-4">
                 <div className="flex items-center justify-between">
-                  <StatusPill tone={result.confidence >= 70 ? "ok" : result.confidence >= 40 ? "warn" : "critical"}>{result.confidence}% confidence</StatusPill>
+                  <StatusPill tone={result.insufficientEvidence ? "warn" : result.confidence >= 70 ? "ok" : result.confidence >= 40 ? "warn" : "critical"}>{result.insufficientEvidence ? "Insufficient evidence" : `${result.confidence}% confidence`}</StatusPill>
                   {result.citations ? <div className="flex items-center gap-1 text-[11px] text-ink-faint"><Icon name="documents" className="h-3 w-3" />{pluralize(result.citations.length, "citation")}</div> : null}
                 </div>
                 <div className="mt-3"><PipelineStages stages={result.stages || []} /></div>
               </div>
               <Divider className="my-4" />
-              <div className="prose-doc max-w-none"><p className="text-[13.5px] leading-relaxed text-ink">{result.summary}</p></div>
+              <div className="prose-doc max-w-none"><p className="whitespace-pre-line text-[13.5px] leading-relaxed text-ink">{result.summary}</p></div>
             </Card>
 
             {result.evidence?.length ? <Section title="Evidence" subtitle="Source excerpts used by the selected analysis"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{result.evidence.map((ev) => <EvidenceCard key={`${ev.docId}-${ev.snippet}`} ev={ev} onCite={onOpenDoc} />)}</div></Section> : null}

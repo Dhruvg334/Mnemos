@@ -305,13 +305,40 @@ class ResponseComposerNode(BaseNode):
             rca_analysis=ctx.get("rca_report"),
             compliance_package=ctx.get("compliance_package"),
             lessons_learned=ctx.get("lessons_learned"),
+            general_analysis=ctx.get("general_analysis"),
         )
 
-        final_report = await self.llm.call_structured(prompt, FinalReport)
+        verified_evidence = bundle.verified_evidence or []
+        if not verified_evidence:
+            state["final_response"] = AgentResponse(
+                answer=(
+                    "I do not have enough verified workspace evidence to answer this reliably. "
+                    "Add recent maintenance history, failure records, inspection reports, current procedures, "
+                    "and work orders, then repeat the question with a site, asset, or timeframe."
+                ),
+                confidence_score=0.0,
+                claims=[],
+                missing_evidence=[
+                    "Recent maintenance history",
+                    "Failure and inspection records",
+                    "Current procedures and work orders",
+                ],
+                contradictions=[],
+                recommended_actions=[],
+                graph_paths=graph_paths,
+                metadata={"trace_id": ctx.get("trace_id"), "evidence_status": "insufficient"},
+            )
+            return state
+
+        final_report = await self.llm.call_structured(
+            prompt, FinalReport, task_type="report_composition"
+        )
+        confidence_values = [item.confidence_score for item in verified_evidence]
+        confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
 
         state["final_response"] = AgentResponse(
             answer=final_report.summary,
-            confidence_score=0.95,
+            confidence_score=confidence,
             claims=final_report.grounded_claims,
             missing_evidence=final_report.missing_evidence or [],
             contradictions=final_report.contradictions or [],

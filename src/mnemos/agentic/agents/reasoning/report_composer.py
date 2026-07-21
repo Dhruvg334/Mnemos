@@ -122,9 +122,12 @@ class ReportComposerAgent(_BaseReasoningAgent):
         """
         ctx = state.get("context", {})
         outputs: list[ReasoningOutput] = ctx.get("reasoning_outputs", [])
-        if outputs:
-            return outputs
-        return self._get_previous_reasoning(state)
+        if not outputs:
+            outputs = self._get_previous_reasoning(state)
+        deduped: dict[str, ReasoningOutput] = {}
+        for output in outputs:
+            deduped[output.agent_name] = output
+        return list(deduped.values())
 
     def _gather_approval_decisions(self, state: AgentState) -> list[dict[str, Any]]:
         """Collect human approval decisions from the audit log.
@@ -442,28 +445,38 @@ class ReportComposerAgent(_BaseReasoningAgent):
         outputs: list[ReasoningOutput],
         claims: list[GroundedClaim],
     ) -> str:
-        """Build a human-readable summary listing key findings per section."""
-        parts: list[str] = []
+        """Build an operational answer without exposing pipeline internals."""
+        supported = [c for c in claims if c.status == ClaimSupportStatus.SUPPORTED]
+        partial = [c for c in claims if c.status == ClaimSupportStatus.PARTIALLY_SUPPORTED]
+        uncertain = [c for c in claims if c.status == ClaimSupportStatus.UNCERTAIN]
 
-        parts.append(
-            f"This report synthesizes findings from {len(outputs)} reasoning "
-            f"agent(s) and presents {len(claims)} grounded claim(s)."
-        )
+        if not supported and not partial:
+            return self._build_evidence_gap_summary(outputs)
 
-        for output in outputs:
-            agent_label = output.agent_name.replace("_", " ").title()
-            parts.append(
-                f"\n**{agent_label}** ({output.reasoning_decision}): {output.reasoning_summary}"
+        findings = supported + partial
+        lines = ["Based on the verified workspace evidence, the main findings are:"]
+        for index, claim in enumerate(findings[:5], start=1):
+            qualifier = "Supported" if claim.status == ClaimSupportStatus.SUPPORTED else "Partially supported"
+            lines.append(f"{index}. {claim.text} ({qualifier.lower()}).")
+        if uncertain:
+            lines.append(
+                f"{len(uncertain)} additional finding(s) remain uncertain and should be validated before action."
             )
+        lines.append("Review the cited source records and recommended actions before making an operational decision.")
+        return "\n\n".join(lines)
 
-        supported = sum(1 for c in claims if c.status == ClaimSupportStatus.SUPPORTED)
-        refuted = sum(1 for c in claims if c.status == ClaimSupportStatus.REFUTED)
-        uncertain = sum(1 for c in claims if c.status == ClaimSupportStatus.UNCERTAIN)
-        parts.append(
-            f"\nOverall: {supported} supported, {refuted} refuted, {uncertain} uncertain claim(s)."
+    def _build_evidence_gap_summary(self, outputs: list[ReasoningOutput]) -> str:
+        missing = self._collect_missing_evidence(outputs)
+        requested = ", ".join(missing[:4]) if missing else (
+            "recent maintenance history, failure records, inspection reports, current procedures, and work orders"
         )
-
-        return " ".join(parts)
+        return (
+            "I do not have enough verified workspace evidence to answer this reliably. "
+            "No operational cause, compliance gap, or asset trend should be inferred from the current record set.\n\n"
+            f"Add or index {requested}. Then repeat the question, ideally with a site, asset, and timeframe. "
+            "For example: ‘Review North Plant failures from the last six months’ or "
+            "‘What evidence supports recurring seal failure on P-117?’"
+        )
 
     # ------------------------------------------------------------------
     # Confidence statement
@@ -513,16 +526,16 @@ class ReportComposerAgent(_BaseReasoningAgent):
         return FinalReport(
             title=title,
             summary=(
-                "No reasoning agent outputs were available for composition. "
-                "The investigation may not have progressed beyond evidence "
-                "retrieval."
+                "I do not have enough verified workspace evidence to answer this reliably. "
+                "Add recent maintenance history, failure records, inspection reports, current procedures, "
+                "and work orders, then repeat the question with a site, asset, or timeframe."
             ),
             sections={},
             grounded_claims=[],
             recommended_actions=[],
             contradictions=[],
             missing_evidence=[],
-            confidence_statement=self._build_confidence_statement(0.0),
+            confidence_statement="Insufficient evidence",
             disclaimer=self._build_disclaimer(0.0),
         )
 

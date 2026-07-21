@@ -247,8 +247,8 @@ class TestReportComposerExecute:
         assert len(report.grounded_claims) == 0
         assert len(report.recommended_actions) == 0
         assert len(report.contradictions) == 0
-        assert report.confidence_statement.startswith("Very Low")
-        assert "No reasoning agent outputs" in report.summary
+        assert report.confidence_statement == "Insufficient evidence"
+        assert "enough verified workspace evidence" in report.summary
         assert report.disclaimer
 
     @pytest.mark.asyncio
@@ -570,7 +570,7 @@ class TestReportComposerEmptyReport:
         assert len(report.grounded_claims) == 0
         assert len(report.recommended_actions) == 0
         assert len(report.contradictions) == 0
-        assert report.confidence_statement.startswith("Very Low")
+        assert report.confidence_statement == "Insufficient evidence"
         assert report.title == "Investigation Report: Test query"
 
     def test_report_composer_build_empty_report_default_query(self, composer):
@@ -625,10 +625,10 @@ class TestReportComposerSummary:
             summary="RCA completed.",
         )
         report = composer._synthesize_report([out_a], _state())
-        assert "1 reasoning agent(s)" in report.summary
-        assert "2 grounded claim(s)" in report.summary
-        assert "1 supported" in report.summary
-        assert "1 refuted" in report.summary
+        assert "Based on the verified workspace evidence" in report.summary
+        assert "text (supported)" in report.summary
+        assert "reasoning agent" not in report.summary.lower()
+        assert "Rca Agent" not in report.summary
 
 
 class TestReportComposerStoreFinal:

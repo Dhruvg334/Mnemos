@@ -29,6 +29,7 @@ Architecture::
 from __future__ import annotations
 
 import asyncio
+import copy
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any, cast
@@ -1507,7 +1508,7 @@ class InvestigationPipeline:
             for a_name, a in agents_to_run:
                 if a_name == agent_name:
                     try:
-                        result = await a.as_function(state)
+                        result = await a.as_function(copy.deepcopy(state))
                         return agent_name, result
                     except Exception as exc:
                         logger.error(f"Stage 7 [{agent_name}]: failed: {exc}")
@@ -1538,8 +1539,13 @@ class InvestigationPipeline:
                 continue
 
             result_ctx = result_state.get("context", {})
-            reasoning_outputs = result_ctx.get("reasoning_outputs", [])
-            all_reasoning_outputs.extend(reasoning_outputs)
+            reasoning_outputs = [
+                output
+                for output in result_ctx.get("reasoning_outputs", [])
+                if getattr(output, "agent_name", None) == agent_name
+            ]
+            if reasoning_outputs:
+                all_reasoning_outputs.append(reasoning_outputs[-1])
 
             result_claims = result_state.get("claims", [])
             merged_claims.extend(result_claims)
@@ -1556,9 +1562,14 @@ class InvestigationPipeline:
             _record_step(state, agent_name, "completed")
 
         ctx = dict(state.get("context", {}))
-        existing_outputs: list[Any] = ctx.get("reasoning_outputs", [])
-        existing_outputs.extend(all_reasoning_outputs)
-        ctx["reasoning_outputs"] = existing_outputs
+        existing_outputs: list[Any] = list(ctx.get("reasoning_outputs", []))
+        deduped_outputs: dict[str, Any] = {
+            getattr(output, "agent_name", f"unknown-{index}"): output
+            for index, output in enumerate(existing_outputs)
+        }
+        for output in all_reasoning_outputs:
+            deduped_outputs[getattr(output, "agent_name", "unknown")] = output
+        ctx["reasoning_outputs"] = list(deduped_outputs.values())
         state["context"] = ctx
 
         existing_claims = list(state.get("claims", []))
