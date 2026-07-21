@@ -45,6 +45,9 @@ export default function AuthForm({ initialMode = "signin" }) {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const isSignup = mode === "signup";
 
   function switchMode(nextMode) {
@@ -67,6 +70,7 @@ export default function AuthForm({ initialMode = "signin" }) {
     if (Object.keys(nextErrors).length) return;
 
     setSubmitting(true);
+    let navigationStarted = false;
     try {
       const response = await fetch(isSignup ? "/api/auth/register" : "/api/auth/login", {
         method: "POST",
@@ -89,12 +93,14 @@ export default function AuthForm({ initialMode = "signin" }) {
         setStatus({ tone: "error", message: parsed.message });
         return;
       }
-      router.push("/dashboard");
+      navigationStarted = true;
+      setRedirecting(true);
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setStatus({ tone: "error", message: "The authentication service is unavailable. Check that the backend is running." });
     } finally {
-      setSubmitting(false);
+      if (!navigationStarted) setSubmitting(false);
     }
   }
 
@@ -149,11 +155,25 @@ export default function AuthForm({ initialMode = "signin" }) {
 
           <div className={`grid gap-3 ${isSignup ? "sm:grid-cols-2" : ""}`}>
             <Field label="Password" error={errors.password}>
-              <input autoComplete={isSignup ? "new-password" : "current-password"} type="password" className={fieldClass("password")} value={values.password} onChange={(e) => update("password", e.target.value)} placeholder="••••••••••••" />
+              <PasswordInput
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                className={fieldClass("password")}
+                value={values.password}
+                onChange={(event) => update("password", event.target.value)}
+                visible={showPassword}
+                onToggle={() => setShowPassword((current) => !current)}
+              />
             </Field>
             {isSignup ? (
               <Field label="Confirm password" error={errors.confirmPassword}>
-                <input autoComplete="new-password" type="password" className={fieldClass("confirmPassword")} value={values.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} placeholder="••••••••••••" />
+                <PasswordInput
+                  autoComplete="new-password"
+                  className={fieldClass("confirmPassword")}
+                  value={values.confirmPassword}
+                  onChange={(event) => update("confirmPassword", event.target.value)}
+                  visible={showConfirmPassword}
+                  onToggle={() => setShowConfirmPassword((current) => !current)}
+                />
               </Field>
             ) : null}
           </div>
@@ -163,6 +183,22 @@ export default function AuthForm({ initialMode = "signin" }) {
           </button>
         </form>
 
+        {(submitting || redirecting) ? (
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-signal-blue-line bg-signal-blue-pale/70 px-4 py-3.5" role="status" aria-live="polite">
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-signal-blue/25 border-t-signal-blue" />
+            </span>
+            <div>
+              <div className="text-[12.5px] font-semibold text-signal-blue-deep">
+                {redirecting ? "Workspace ready" : isSignup ? "Creating your workspace" : "Signing you in"}
+              </div>
+              <div className="mt-0.5 text-[11.5px] text-ink-soft">
+                {redirecting ? "Opening your dashboard…" : "Securing your session and preparing the workspace…"}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {status ? (
           <div className={`mt-3 rounded-xl border px-3.5 py-2.5 text-[12px] leading-5 ${status.tone === "error" ? "border-signal-red-line bg-signal-red-pale text-signal-red" : "border-signal-blue-line bg-signal-blue-pale text-signal-blue-deep"}`} role="status">
             {status.message}
@@ -171,6 +207,50 @@ export default function AuthForm({ initialMode = "signin" }) {
         <div className="mt-4 text-center text-[11.5px] text-ink-faint">Tokens are stored in HttpOnly cookies through the Next.js authentication boundary.</div>
       </div>
     </div>
+  );
+}
+
+function PasswordInput({ autoComplete, className, value, onChange, visible, onToggle }) {
+  return (
+    <div className="relative">
+      <input
+        autoComplete={autoComplete}
+        type={visible ? "text" : "password"}
+        className={`${className} pr-11`}
+        value={value}
+        onChange={onChange}
+        placeholder="••••••••••••"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="absolute right-2.5 top-1/2 mt-[3px] flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-faint transition hover:bg-paper-alt hover:text-ink focus:outline-none focus:ring-2 focus:ring-signal-blue/30"
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+      >
+        {visible ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.6" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+      <path d="m3 3 18 18" />
+      <path d="M10.6 6.15A10.4 10.4 0 0 1 12 6c6 0 9.5 6 9.5 6a16.2 16.2 0 0 1-2.2 2.85" />
+      <path d="M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6a9.7 9.7 0 0 0 3.2-.53" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
   );
 }
 

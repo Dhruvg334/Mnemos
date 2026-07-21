@@ -6,7 +6,7 @@ async function readUser(token) {
 }
 
 export async function GET() {
-  let token = getAccessToken();
+  let token = await getAccessToken();
   if (!token) token = await refreshSession();
   if (!token) return NextResponse.json({ error: { code: "UNAUTHENTICATED", message: "No active session." } }, { status: 401 });
 

@@ -6,12 +6,12 @@ import { D } from "@/lib/data";
 import { Badge, Card } from "../ui";
 
 const KIND_META = {
-  asset: { label: "Asset / failure", background: "#14151a", border: "#14151a", color: "#ffffff" },
-  failure: { label: "Asset / failure", background: "#14151a", border: "#14151a", color: "#ffffff" },
-  finding: { label: "Finding", background: "#fff8e6", border: "#c99a2e", color: "#6f5314" },
-  document: { label: "Document", background: "#eef5ff", border: "#7aa8e8", color: "#2459a8" },
-  procedure: { label: "Procedure", background: "#eef8f2", border: "#72ad89", color: "#286442" },
-  knowledge: { label: "Knowledge", background: "#f5efff", border: "#a98ad5", color: "#68448f" },
+  asset: { label: "Asset / failure", background: "#15171c", border: "#15171c", color: "#ffffff" },
+  failure: { label: "Asset / failure", background: "#15171c", border: "#15171c", color: "#ffffff" },
+  finding: { label: "Finding", background: "#fff8e7", border: "#c9931d", color: "#684b0b" },
+  document: { label: "Document", background: "#edf5ff", border: "#6f9ee8", color: "#174f9e" },
+  procedure: { label: "Procedure", background: "#edf8f1", border: "#67a47f", color: "#225c3a" },
+  knowledge: { label: "Knowledge", background: "#f5efff", border: "#9f7ad2", color: "#603a89" },
 };
 
 const RELATION_LABELS = {
@@ -20,6 +20,9 @@ const RELATION_LABELS = {
   "OEM→P-117": "references", "OEM→SEAL": "references", "P091→P-117": "references",
   "P091→SEAL": "references", "EXPERT→P-117": "references", "EXPERT→VIB": "references",
 };
+
+const MIN_ZOOM = 0.28;
+const MAX_ZOOM = 3.2;
 
 export default function Graph() {
   const containerRef = useRef(null);
@@ -31,75 +34,158 @@ export default function Graph() {
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
+
     const elements = [
-      ...nodes.map((node) => ({ data: { id: node.id, label: node.label || node.id, kind: node.kind } })),
-      ...edges.map((edge, index) => ({ data: {
-        id: `${edge.from}-${edge.to}-${index}`, source: edge.from, target: edge.to,
-        label: RELATION_LABELS[`${edge.from}→${edge.to}`] || "related to", verified: Boolean(edge.verified),
-      } })),
+      ...nodes.map((node) => ({
+        data: { id: node.id, label: node.label || node.id, kind: node.kind },
+      })),
+      ...edges.map((edge, index) => ({
+        data: {
+          id: `${edge.from}-${edge.to}-${index}`,
+          source: edge.from,
+          target: edge.to,
+          label: RELATION_LABELS[`${edge.from}→${edge.to}`] || "related to",
+          verified: Boolean(edge.verified),
+        },
+      })),
     ];
+
     const cy = cytoscape({
       container: containerRef.current,
       elements,
-      minZoom: 0.45,
-      maxZoom: 2.2,
-      wheelSensitivity: 0.16,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      wheelSensitivity: 0.42,
       boxSelectionEnabled: false,
       autoungrabify: false,
       style: [
-        { selector: "node", style: {
-          "background-color": (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).background,
-          "border-color": (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).border,
-          "border-width": 1.5,
-          color: (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).color,
-          label: "data(label)",
-          width: 72,
-          height: 34,
-          shape: "round-rectangle",
-          "font-family": "IBM Plex Sans, system-ui, sans-serif",
-          "font-size": 10.5,
-          "font-weight": 600,
-          "text-wrap": "ellipsis",
-          "text-max-width": 62,
-          "overlay-opacity": 0,
-        } },
-        { selector: "node:selected", style: { "border-color": "#2f6fe0", "border-width": 3, "underlay-color": "#dbeafe", "underlay-opacity": 0.9, "underlay-padding": 7 } },
-        { selector: "edge", style: {
-          width: 1.4,
-          "line-color": "#525866",
-          "target-arrow-color": "#525866",
-          "target-arrow-shape": "triangle",
-          "curve-style": "bezier",
-          label: "data(label)",
-          "font-size": 8,
-          color: "#6b7280",
-          "text-background-color": "#ffffff",
-          "text-background-opacity": 0.92,
-          "text-background-padding": 3,
-          "text-rotation": "autorotate",
-          "overlay-opacity": 0,
-        } },
-        { selector: "edge[verified = 0]", style: { "line-style": "dashed", "line-color": "#9ca3af", "target-arrow-color": "#9ca3af" } },
+        {
+          selector: "node",
+          style: {
+            "background-color": (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).background,
+            "border-color": (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).border,
+            "border-width": 1.6,
+            color: (ele) => (KIND_META[ele.data("kind")] || KIND_META.document).color,
+            label: "data(label)",
+            width: 96,
+            height: 44,
+            shape: "round-rectangle",
+            "font-family": "IBM Plex Sans, system-ui, sans-serif",
+            "font-size": 11.5,
+            "font-weight": 600,
+            "text-wrap": "wrap",
+            "text-max-width": 82,
+            "text-valign": "center",
+            "text-halign": "center",
+            "text-overflow-wrap": "anywhere",
+            "min-zoomed-font-size": 7,
+            "overlay-opacity": 0,
+          },
+        },
+        {
+          selector: "node:selected",
+          style: {
+            "border-color": "#2563eb",
+            "border-width": 3,
+            "underlay-color": "#dbeafe",
+            "underlay-opacity": 0.95,
+            "underlay-padding": 8,
+          },
+        },
+        {
+          selector: "edge",
+          style: {
+            width: 1.7,
+            "line-color": "#596171",
+            "target-arrow-color": "#596171",
+            "target-arrow-shape": "triangle",
+            "arrow-scale": 0.8,
+            "curve-style": "bezier",
+            label: "data(label)",
+            "font-size": 9,
+            "font-weight": 500,
+            color: "#515968",
+            "text-background-color": "#ffffff",
+            "text-background-opacity": 0.96,
+            "text-background-padding": 3,
+            "text-border-color": "#e5e7eb",
+            "text-border-width": 1,
+            "text-border-opacity": 0.9,
+            "text-rotation": "autorotate",
+            "min-zoomed-font-size": 7,
+            "overlay-opacity": 0,
+          },
+        },
+        {
+          selector: "edge[verified = 0]",
+          style: {
+            "line-style": "dashed",
+            "line-color": "#9aa2af",
+            "target-arrow-color": "#9aa2af",
+          },
+        },
       ],
-      layout: { name: "cose", animate: false, fit: true, padding: 48, nodeRepulsion: 100000, idealEdgeLength: 115, edgeElasticity: 90, gravity: 0.28, numIter: 900 },
+      layout: {
+        name: "cose",
+        animate: false,
+        fit: true,
+        padding: 70,
+        nodeRepulsion: 620000,
+        idealEdgeLength: 205,
+        edgeElasticity: 70,
+        nestingFactor: 1.25,
+        gravity: 0.12,
+        componentSpacing: 150,
+        numIter: 1800,
+        initialTemp: 250,
+        coolingFactor: 0.96,
+        minTemp: 1,
+        randomize: true,
+      },
     });
-    cy.$id("P-117").select();
+
+    const primary = cy.$id("P-117");
+    primary.select();
     cy.on("tap", "node", (event) => setSelectedId(event.target.id()));
     cyRef.current = cy;
-    const observer = new ResizeObserver(() => { cy.resize(); cy.fit(undefined, 42); });
+
+    requestAnimationFrame(() => cy.fit(undefined, 72));
+    const observer = new ResizeObserver(() => {
+      cy.resize();
+      cy.fit(undefined, 72);
+    });
     observer.observe(containerRef.current);
-    return () => { observer.disconnect(); cy.destroy(); cyRef.current = null; };
+
+    return () => {
+      observer.disconnect();
+      cy.destroy();
+      cyRef.current = null;
+    };
   }, [edges, nodes]);
 
   const zoomBy = (factor) => {
-    const cy = cyRef.current; if (!cy) return;
-    cy.animate({ zoom: Math.min(2.2, Math.max(0.45, cy.zoom() * factor)), center: { eles: cy.$(":selected") } }, { duration: 180 });
+    const cy = cyRef.current;
+    if (!cy) return;
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, cy.zoom() * factor));
+    cy.animate(
+      { zoom: nextZoom, center: { eles: cy.$(":selected").length ? cy.$(":selected") : cy.elements() } },
+      { duration: 90 },
+    );
   };
-  const fit = () => cyRef.current?.animate({ fit: { eles: cyRef.current.elements(), padding: 42 } }, { duration: 220 });
+
+  const fit = () => cyRef.current?.animate(
+    { fit: { eles: cyRef.current.elements(), padding: 72 } },
+    { duration: 180 },
+  );
+
   const centre = () => {
-    const cy = cyRef.current; if (!cy) return;
-    const node = cy.$id("P-117"); cy.elements().unselect(); node.select(); setSelectedId("P-117");
-    cy.animate({ center: { eles: node }, zoom: 1.12 }, { duration: 260 });
+    const cy = cyRef.current;
+    if (!cy) return;
+    const node = cy.$id("P-117");
+    cy.elements().unselect();
+    node.select();
+    setSelectedId("P-117");
+    cy.animate({ center: { eles: node }, zoom: 1.25 }, { duration: 180 });
   };
 
   return (
@@ -107,41 +193,62 @@ export default function Graph() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="blue">Centred on P-117</Badge>
-          <span className="rounded-md border border-line bg-paper px-2.5 py-1 text-[11.5px] text-ink-soft"><strong className="text-ink">{nodes.length}</strong> nodes · <strong className="text-ink">{edges.length}</strong> relations</span>
+          <span className="rounded-md border border-line bg-paper px-2.5 py-1 text-[11.5px] text-ink-soft">
+            <strong className="text-ink">{nodes.length}</strong> nodes · <strong className="text-ink">{edges.length}</strong> relations
+          </span>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-white p-1" aria-label="Graph controls">
-          <button className="graph-control" onClick={() => zoomBy(1.2)} aria-label="Zoom in">+</button>
-          <button className="graph-control" onClick={() => zoomBy(0.82)} aria-label="Zoom out">−</button>
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-white p-1 shadow-sm" aria-label="Graph controls">
+          <button className="graph-control" onClick={() => zoomBy(1.55)} aria-label="Zoom in">+</button>
+          <button className="graph-control" onClick={() => zoomBy(0.64)} aria-label="Zoom out">−</button>
           <button className="graph-control px-2.5" onClick={fit}>Fit</button>
           <button className="graph-control px-2.5" onClick={centre}>Centre</button>
         </div>
       </div>
 
-      <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
-        <Card className="overflow-hidden p-0">
-          <div className="relative h-[560px] min-h-[440px] bg-white sm:h-[620px]">
-            <div ref={containerRef} className="absolute inset-0 graph-canvas" role="application" aria-label="Interactive knowledge graph. Drag nodes, pan the canvas, or use the zoom controls." tabIndex={0} onKeyDown={(event) => { if (event.key === "+" || event.key === "=") zoomBy(1.2); if (event.key === "-") zoomBy(0.82); if (event.key.toLowerCase() === "f") fit(); }} />
-            <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-line bg-white/90 px-2.5 py-1.5 text-[10.5px] text-ink-faint shadow-sm">Drag to move · Scroll to zoom · Drag nodes to inspect relationships</div>
+      <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <Card className="overflow-hidden p-0 shadow-sm">
+          <div className="relative h-[620px] min-h-[500px] bg-white sm:h-[680px]">
+            <div
+              ref={containerRef}
+              className="absolute inset-0 graph-canvas"
+              role="application"
+              aria-label="Interactive knowledge graph. Drag nodes, pan the canvas, or use the zoom controls."
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "+" || event.key === "=") zoomBy(1.55);
+                if (event.key === "-") zoomBy(0.64);
+                if (event.key.toLowerCase() === "f") fit();
+              }}
+            />
+            <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-line bg-white/95 px-3 py-2 text-[10.5px] text-ink-faint shadow-sm">
+              Drag canvas to pan · Scroll to zoom · Drag a node to refine the layout
+            </div>
           </div>
         </Card>
 
         <div className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
-          <Card className="p-4">
+          <Card className="p-5">
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Selected node</div>
-            <h2 className="mt-2 text-[16px] font-semibold text-ink">{selected?.label || selected?.id}</h2>
+            <h2 className="mt-2 text-[17px] font-semibold text-ink">{selected?.label || selected?.id}</h2>
             <div className="mt-2"><Badge tone={selected?.kind === "finding" ? "amber" : "blue"}>{selected?.kind || "node"}</Badge></div>
-            <dl className="mt-4 space-y-3 text-[12px]">
-              <div><dt className="text-ink-faint">Identifier</dt><dd className="mt-0.5 font-mono text-ink">{selected?.id}</dd></div>
-              <div><dt className="text-ink-faint">Connected relations</dt><dd className="mt-0.5 text-ink">{edges.filter((edge) => edge.from === selected?.id || edge.to === selected?.id).length}</dd></div>
-              <div><dt className="text-ink-faint">Evidence status</dt><dd className="mt-0.5 text-ink">Reviewed demonstration record</dd></div>
+            <dl className="mt-5 space-y-4 text-[12px]">
+              <div><dt className="text-ink-faint">Identifier</dt><dd className="mt-1 font-mono text-ink">{selected?.id}</dd></div>
+              <div><dt className="text-ink-faint">Connected relations</dt><dd className="mt-1 text-ink">{edges.filter((edge) => edge.from === selected?.id || edge.to === selected?.id).length}</dd></div>
+              <div><dt className="text-ink-faint">Evidence status</dt><dd className="mt-1 text-ink">Reviewed demonstration record</dd></div>
             </dl>
           </Card>
-          <Card className="p-4">
+          <Card className="p-5">
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Node legend</div>
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-4 space-y-3">
               {["asset", "finding", "document", "procedure", "knowledge"].map((kind) => {
-                const meta = KIND_META[kind]; const count = nodes.filter((node) => node.kind === kind || (kind === "asset" && node.kind === "failure")).length;
-                return <div key={kind} className="flex items-center justify-between gap-3 text-[12px] text-ink-soft"><span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full border" style={{ background: meta.background, borderColor: meta.border }} />{meta.label}</span><span className="font-mono text-[10.5px] text-ink-faint">{count}</span></div>;
+                const meta = KIND_META[kind];
+                const count = nodes.filter((node) => node.kind === kind || (kind === "asset" && node.kind === "failure")).length;
+                return (
+                  <div key={kind} className="flex items-center justify-between gap-3 text-[12px] text-ink-soft">
+                    <span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full border" style={{ background: meta.background, borderColor: meta.border }} />{meta.label}</span>
+                    <span className="font-mono text-[10.5px] text-ink-faint">{count}</span>
+                  </div>
+                );
               })}
             </div>
           </Card>

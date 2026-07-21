@@ -11,6 +11,6 @@ export async function POST(request) {
     body: JSON.stringify(body),
   });
   if (!response.ok) return NextResponse.json(payload, { status: response.status });
-  setSessionCookies(payload.data);
+  await setSessionCookies(payload.data);
   return NextResponse.json({ data: { authenticated: true }, meta: payload.meta });
 }
