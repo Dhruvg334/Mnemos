@@ -34,7 +34,7 @@ body {
 body {
   font-family: var(--font-ui);
   background:
-    radial-gradient(circle at top, rgba(47, 111, 224, 0.06), transparent 28%),
+    radial-gradient(circle at top, rgba(8, 23, 40, 0.08), transparent 28%),
     #f6f7f9;
   color: #14151a;
   -webkit-font-smoothing: antialiased;
@@ -42,12 +42,12 @@ body {
 }
 
 ::selection {
-  background: #eaf2fd;
-  color: #1f4fb0;
+  background: #dce3eb;
+  color: #071522;
 }
 
 :focus-visible {
-  outline: 2px solid #2f6fe0;
+  outline: 2px solid #20364f;
   outline-offset: 2px;
 }
 

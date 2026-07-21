@@ -75,3 +75,30 @@ def test_product_screenshots_are_versioned_and_indexed() -> None:
     assert (screenshots / "README.md").is_file()
     for filename in ("dashboard.png", "investigation.png", "graph.png", "query-panel.png"):
         assert (screenshots / filename).is_file()
+
+
+def test_public_header_hides_auth_actions_for_active_session() -> None:
+    source = _read("frontend/components/public/PublicHeader.js")
+    assert 'fetch("/api/auth/session"' in source
+    assert "session.user ?" in source
+    assert "Open workspace" in source
+    assert "async function signOut" in source
+
+
+def test_public_brand_assets_are_consistent_and_file_based() -> None:
+    layout = _read("frontend/app/layout.js")
+    brand = _read("frontend/components/public/Brand.js")
+    assert '"/brand/mnemos-mark.svg"' in layout
+    assert "M128 31L203 72V160L128 204L53 160V72L128 31Z" in brand
+    assert (ROOT / "frontend" / "app" / "icon.svg").is_file()
+    assert (ROOT / "frontend" / "public" / "brand" / "industrial-memory-hero.webp").is_file()
+
+
+def test_public_home_has_interactive_operational_story() -> None:
+    page = _read("frontend/app/page.js")
+    workflow = _read("frontend/components/public/LandingWorkflow.js")
+    assert "industrial-memory-hero.webp" in page
+    assert "LandingWorkflow" in page
+    assert "Weighted evaluation score" in page
+    assert 'role="tablist"' in workflow
+    assert "Evidence chain" in workflow
