@@ -3,7 +3,6 @@ from pathlib import Path
 from mnemos.agentic.agents.reasoning.report_composer import ReportComposerAgent
 from mnemos.agentic.schemas.base import ReasoningDecision, ReasoningOutput
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
