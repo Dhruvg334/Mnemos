@@ -55,7 +55,7 @@ export default function Passport({ assetId, onCite, onOpenDoc, onNav }) {
           </button>
           <button
             onClick={() => onNav("investigation")}
-            className="rounded-md bg-signal-blue px-3 py-1.5 text-[12.5px] font-medium text-white hover:bg-signal-blue-deep"
+            className="rounded-md bg-rail px-3 py-1.5 text-[12.5px] font-medium text-white hover:bg-rail"
           >
             Open investigation
           </button>
@@ -303,7 +303,7 @@ function Copilot({ a, isP117, onCite, onOpenAsset, onNav }) {
         </div>
         <p className="mt-3 text-[12.5px] leading-relaxed text-ink-faint">
           This demo has a scripted answer available for{" "}
-          <button onClick={() => onOpenAsset("ast_p117_n")} className="font-semibold text-signal-blue-deep hover:underline">
+          <button onClick={() => onOpenAsset("ast_p117_n")} className="font-semibold text-ink hover:underline">
             P-117
           </button>
           . Open its asset passport to see a full evidence-grounded answer, contradiction check, and graph reasoning path.
@@ -333,7 +333,7 @@ function Copilot({ a, isP117, onCite, onOpenAsset, onNav }) {
             <div
               key={i}
               className={`rounded-md border px-3 py-2 text-[12.5px] leading-relaxed ${
-                c.type === "inference" ? "border-signal-blue-line bg-signal-blue-pale/40 text-ink" : "border-line text-ink"
+                c.type === "inference" ? "border-line bg-paper-sunk/40 text-ink" : "border-line text-ink"
               }`}
             >
               {c.text}
@@ -411,8 +411,8 @@ function CopilotHead({ tag }) {
     <div className="flex items-center justify-between">
       <h3 className="flex items-center gap-2 text-[13px] font-semibold text-ink">
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal-blue opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-signal-blue" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rail opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-rail" />
         </span>
         Copilot
       </h3>

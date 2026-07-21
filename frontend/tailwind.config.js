@@ -30,10 +30,6 @@ export default {
           soft: "#9a9dab",
         },
         signal: {
-          blue: "#2f6fe0",
-          "blue-deep": "#1f4fb0",
-          "blue-pale": "#eaf2fd",
-          "blue-line": "#bdd6f7",
           amber: "#8a6d1f",
           "amber-pale": "#faf3e0",
           red: "#a23b2e",

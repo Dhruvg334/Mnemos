@@ -22,7 +22,7 @@ export default function DocumentationPage() {
       <div className="grid gap-10">
         <section className="grid gap-8 border-b border-line pb-10 lg:grid-cols-[0.75fr,1.25fr]">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-signal-blue">Thirty-second model</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-ink">Thirty-second model</div>
             <h2 className="mt-3 text-[28px] font-semibold tracking-[-0.04em] text-ink">Mnemos connects evidence, reasoning, and governed action.</h2>
           </div>
           <div className="grid gap-4 text-[14px] leading-7 text-ink-soft">
@@ -35,11 +35,11 @@ export default function DocumentationPage() {
         <ArchitectureStackDiagram />
 
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-signal-blue">Five-minute technical tour</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-ink">Five-minute technical tour</div>
           <div className="mt-5 divide-y divide-line border-y border-line">
             {tour.map(([number, title, text, href]) => (
               <Link key={href} href={href} className="grid gap-3 py-5 transition hover:bg-paper-alt md:grid-cols-[44px,220px,1fr,92px] md:px-3">
-                <span className="font-mono text-[10.5px] text-signal-blue">{number}</span>
+                <span className="font-mono text-[10.5px] text-ink">{number}</span>
                 <span className="text-[14px] font-semibold text-ink">{title}</span>
                 <span className="text-[13px] leading-6 text-ink-soft">{text}</span>
                 <span className="text-[12px] font-medium text-ink-faint md:text-right">Open →</span>
@@ -50,7 +50,7 @@ export default function DocumentationPage() {
 
         <section className="grid gap-8 border-t border-line pt-10 lg:grid-cols-[0.8fr,1.2fr]">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-signal-blue">What makes it technically distinctive</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.19em] text-ink">What makes it technically distinctive</div>
             <h2 className="mt-3 text-[28px] font-semibold tracking-[-0.04em] text-ink">Depth is concentrated in the system, not dumped onto the operator.</h2>
           </div>
           <div className="divide-y divide-line border-y border-line">

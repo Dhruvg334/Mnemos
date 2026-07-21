@@ -76,26 +76,26 @@ function StageNode({ stage, meta, isActive, isComplete, isInactive, isExpandable
     <div>
       <button onClick={isExpandable ? onToggle : undefined}
         className={`flex w-full min-w-[140px] flex-col items-center gap-1.5 rounded-md border p-3 text-center transition ${
-          isActive ? "border-signal-blue bg-signal-blue-pale shadow-sm" :
+          isActive ? "border-strong bg-paper-sunk shadow-sm" :
           isComplete ? "border-line bg-paper hover:border-line-strong" :
           isInactive ? "border-line bg-paper-sunk opacity-50" : "border-line bg-paper"
         } ${isExpandable ? "cursor-pointer" : ""}`}>
         <div className={`flex h-7 w-7 items-center justify-center rounded-full ${
-          isComplete ? meta.color : isActive ? "bg-signal-blue text-white" : "bg-paper-sunk text-ink-faint"
+          isComplete ? meta.color : isActive ? "bg-rail text-white" : "bg-paper-sunk text-ink-faint"
         }`}>
           {isComplete ? <Icon name="check" className="h-3.5 w-3.5" /> :
            isActive ? <Spinner className="h-3.5 w-3.5 text-white" /> :
            isInactive ? <span className="text-[10px] font-medium">—</span> :
            <Icon name={meta.icon} className="h-3.5 w-3.5" />}
         </div>
-        <div className={`text-[11px] font-medium leading-tight ${isActive ? "text-signal-blue" : "text-ink"}`}>
+        <div className={`text-[11px] font-medium leading-tight ${isActive ? "text-ink" : "text-ink"}`}>
           {stage.label}
         </div>
         {stage.duration_ms ? (
           <div className="text-[10px] text-ink-faint">{fmtDuration(stage.duration_ms)}</div>
         ) : null}
         {isActive ? (
-          <div className="animate-pulse text-[10px] text-signal-blue">processing...</div>
+          <div className="animate-pulse text-[10px] text-ink">processing...</div>
         ) : stage.status === "partial" ? (
           <Badge tone="amber">Partial</Badge>
         ) : stage.status === "complete" ? (
@@ -114,9 +114,9 @@ function StageNode({ stage, meta, isActive, isComplete, isInactive, isExpandable
 function PipelineFlow({ run }) {
   const [expandedStage, setExpandedStage] = useState(null);
   const stageMeta = {
-    understand: { icon: "search", color: "bg-signal-blue text-white" },
+    understand: { icon: "search", color: "bg-rail text-white" },
     retrieve: { icon: "db", color: "bg-signal-green text-white" },
-    analyze: { icon: "layers", color: "bg-signal-blue-deep text-white" },
+    analyze: { icon: "layers", color: "bg-rail text-white" },
     reason: { icon: "brain", color: "bg-signal-amber text-white" },
     compliance: { icon: "shield", color: "bg-signal-red text-white" },
     report: { icon: "results", color: "bg-rail text-rail-ink" },
@@ -145,7 +145,7 @@ function PipelineFlow({ run }) {
                 onToggle={() => setExpandedStage(expandedStage === def.id ? null : def.id)}
               />
               {i < PIPELINE_DEF.length - 1 ? (
-                <div className={`h-px w-4 ${isComplete ? "bg-signal-green" : isActive ? "bg-signal-blue" : "bg-line"}`} />
+                <div className={`h-px w-4 ${isComplete ? "bg-signal-green" : isActive ? "bg-rail" : "bg-line"}`} />
               ) : null}
             </div>
           );
@@ -166,7 +166,7 @@ export default function AgenticView() {
             {MOCK_RUNS.map((run) => (
               <button key={run.id} onClick={() => setSelectedRun(run)}
                 className={`w-full rounded-md px-3 py-2.5 text-left text-[12.5px] transition ${
-                  selectedRun.id === run.id ? "bg-signal-blue-pale text-signal-blue-deep" : "hover:bg-paper-alt text-ink"
+                  selectedRun.id === run.id ? "bg-paper-sunk text-ink" : "hover:bg-paper-alt text-ink"
                 }`}>
                 <div className="line-clamp-2 leading-snug">{run.query}</div>
                 <div className="mt-1.5 flex items-center gap-2">
@@ -201,7 +201,7 @@ export default function AgenticView() {
               {selectedRun.evidence.map((ev, i) => (
                 <div key={i} className="rounded-md border border-line bg-paper-alt p-3">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="font-mono text-[11px] text-signal-blue-deep">⌐{ev.docId}</span>
+                    <span className="font-mono text-[11px] text-ink">⌐{ev.docId}</span>
                     <span className="text-[10px] text-ink-faint">relevance {Math.round(ev.relevance * 100)}%</span>
                   </div>
                   <p className="text-[12.5px] leading-snug text-ink-soft">{ev.snippet}</p>

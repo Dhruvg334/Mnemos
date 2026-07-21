@@ -60,6 +60,13 @@ class S3Storage:
         )
         return int(response["ContentLength"])
 
+    async def read_object(self, object_key: str) -> bytes:
+        def work() -> bytes:
+            response = self.client.get_object(Bucket=self.bucket, Key=object_key)
+            return response["Body"].read()
+
+        return await asyncio.to_thread(work)
+
     async def delete_object(self, object_key: str) -> None:
         await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=object_key)
 

@@ -52,7 +52,7 @@ function MembersTable({ members, onInvite, onManage }) {
       <div className="mb-3 flex items-center justify-between">
         <SearchInput value={search} onChange={setSearch} onClear={() => setSearch("")} placeholder="Search members..." />
         <button onClick={onInvite}
-          className="flex items-center gap-1.5 rounded-md bg-signal-blue px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-signal-blue-deep">
+          className="flex items-center gap-1.5 rounded-md bg-rail px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-rail">
           <Icon name="users" className="h-3.5 w-3.5" />
           Invite member
         </button>
@@ -125,7 +125,7 @@ function InviteForm({ onClose }) {
         <div>
           <label className="mb-1 block text-[11.5px] font-medium text-ink">Email address</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-line bg-paper px-3 py-1.5 text-[13px] text-ink outline-none transition placeholder:text-ink-faint focus:border-signal-blue focus:ring-1 focus:ring-signal-blue"
+            className="w-full rounded-md border border-line bg-paper px-3 py-1.5 text-[13px] text-ink outline-none transition placeholder:text-ink-faint focus:border-strong focus:ring-1 focus:ring-signal-blue"
             placeholder="colleague@company.com" />
         </div>
         <div>
@@ -134,7 +134,7 @@ function InviteForm({ onClose }) {
             {["Viewer", "Editor", "Admin"].map((r) => (
               <button key={r} onClick={() => setRole(r)}
                 className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition ${
-                  role === r ? "bg-signal-blue text-white" : "bg-paper-sunk text-ink-faint hover:text-ink"
+                  role === r ? "bg-rail text-white" : "bg-paper-sunk text-ink-faint hover:text-ink"
                 }`}>{r}</button>
             ))}
           </div>
@@ -145,7 +145,7 @@ function InviteForm({ onClose }) {
             Cancel
           </button>
           <button disabled={!email}
-            className="rounded-md bg-signal-blue px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-signal-blue-deep disabled:opacity-50">
+            className="rounded-md bg-rail px-3 py-1.5 text-[12px] font-medium text-white transition hover:bg-rail disabled:opacity-50">
             Send invite
           </button>
         </div>

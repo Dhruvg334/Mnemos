@@ -90,19 +90,20 @@ class QueryRouterAgent(_BaseRetrievalAgent):
 
         self.guardrails.detect_injection(query)
 
+        broad_review_examples = (
+            "what can i improve", "what needs attention", "where should i focus",
+            "what should i prioritise", "what should i prioritize", "operational review",
+            "what looks risky",
+        )
+        is_broad_review = any(example in query.lower() for example in broad_review_examples)
         prompt = (
-            f"Analyse this industrial query and extract:\n"
-            f"- intent: one of asset_info, rca, compliance, lessons_learned, general\n"
-            f"- entities: list of asset tags, document names, or identifiers mentioned\n"
-            f"- confidence: float 0.0-1.0\n"
-            f"- time_range: any implied time range (e.g. 'last 3 months', '2024')\n"
-            f"- site_context: any site code or name mentioned\n"
-            f"- clarification_needed: true if the query mentions ambiguous entities "
-            f"(e.g. multiple assets with the same name across sites, vague references "
-            f"like 'the pump' without specifying which, or incomplete identifiers)\n"
-            f"- clarification_questions: specific questions to resolve ambiguity "
-            f"(only when clarification_needed is true)\n\n"
-            f"Query: '{query}'"
+            "Classify this industrial operations question. Return JSON matching the schema.\n"
+            "Use general for broad portfolio-review questions asking what to improve, prioritise, "
+            "review, or investigate across a site. Broad wording alone is not ambiguity and must not "
+            "trigger clarification. Only request clarification when a named asset or site could resolve "
+            "to multiple materially different records. Missing evidence is handled after retrieval.\n"
+            "Extract explicit asset tags, site names, timeframes, and objectives without inventing them.\n"
+            f"Broad portfolio review: {is_broad_review}.\nQuestion: {query}"
         )
 
         classification: QueryClassification = await self.llm.call_structured(

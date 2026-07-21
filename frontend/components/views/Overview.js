@@ -34,7 +34,7 @@ export default function Overview({ onOpenAsset, onNav }) {
 
       <div className="mt-3.5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Card className="p-4">
-          <WidgetHead title="Top bad-actor assets" action={<button onClick={() => onNav("assets")} className="text-[12px] font-medium text-signal-blue-deep hover:underline">View all</button>} />
+          <WidgetHead title="Top bad-actor assets" action={<button onClick={() => onNav("assets")} className="text-[12px] font-medium text-ink hover:underline">View all</button>} />
           {highRisk.map((a) => (
             <WidgetRow
               key={a.id}
@@ -51,7 +51,7 @@ export default function Overview({ onOpenAsset, onNav }) {
         </Card>
 
         <Card className="p-4">
-          <WidgetHead title="Recurring failures detected" action={<button onClick={() => onNav("investigation")} className="text-[12px] font-medium text-signal-blue-deep hover:underline">Open investigation</button>} />
+          <WidgetHead title="Recurring failures detected" action={<button onClick={() => onNav("investigation")} className="text-[12px] font-medium text-ink hover:underline">Open investigation</button>} />
           {recurring.map((r) => (
             <WidgetRow
               key={r.asset}
@@ -63,7 +63,7 @@ export default function Overview({ onOpenAsset, onNav }) {
         </Card>
 
         <Card className="p-4">
-          <WidgetHead title="Expiring or expired evidence" action={<button onClick={() => onNav("compliance")} className="text-[12px] font-medium text-signal-blue-deep hover:underline">View compliance</button>} />
+          <WidgetHead title="Expiring or expired evidence" action={<button onClick={() => onNav("compliance")} className="text-[12px] font-medium text-ink hover:underline">View compliance</button>} />
           {expiring.map((r) => (
             <WidgetRow
               key={r.id}
@@ -77,7 +77,7 @@ export default function Overview({ onOpenAsset, onNav }) {
 
       <div className="mt-3.5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Card className="p-4">
-          <WidgetHead title="Recently ingested documents" action={<button onClick={() => onNav("documents")} className="text-[12px] font-medium text-signal-blue-deep hover:underline">Open library</button>} />
+          <WidgetHead title="Recently ingested documents" action={<button onClick={() => onNav("documents")} className="text-[12px] font-medium text-ink hover:underline">Open library</button>} />
           {D.docs.slice(0, 5).map((d) => (
             <WidgetRow
               key={d.id}
@@ -89,7 +89,7 @@ export default function Overview({ onOpenAsset, onNav }) {
         </Card>
 
         <Card className="p-4">
-          <WidgetHead title="Expert knowledge awaiting validation" action={<button onClick={() => onNav("expert")} className="text-[12px] font-medium text-signal-blue-deep hover:underline">Review queue</button>} />
+          <WidgetHead title="Expert knowledge awaiting validation" action={<button onClick={() => onNav("expert")} className="text-[12px] font-medium text-ink hover:underline">Review queue</button>} />
           {expertPending.map((e) => (
             <WidgetRow
               key={e.title}

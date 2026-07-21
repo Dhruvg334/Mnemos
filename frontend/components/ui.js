@@ -6,7 +6,7 @@ const STATUS_STYLES = {
   ok: "bg-signal-green-pale text-signal-green",
   warn: "bg-signal-amber-pale text-signal-amber",
   critical: "bg-signal-red-pale text-signal-red",
-  blue: "bg-signal-blue-pale text-signal-blue-deep",
+  blue: "bg-paper-sunk text-ink",
   muted: "bg-paper-sunk text-ink-faint",
 };
 
@@ -44,7 +44,7 @@ export function Cite({ docId, onOpen }) {
   const d = byId(D.docs, docId);
   return (
     <button type="button" onClick={() => onOpen(docId)}
-      className="inline-flex items-center rounded border border-signal-blue-line bg-signal-blue-pale px-1.5 py-0.5 font-mono text-[11px] text-signal-blue-deep transition hover:bg-signal-blue-line/60"
+      className="inline-flex items-center rounded border border-line bg-paper-sunk px-1.5 py-0.5 font-mono text-[11px] text-ink transition hover:bg-rail-line/60"
       title={d ? d.title : docId}>
       ⌐{d ? d.id : docId}
     </button>
@@ -129,7 +129,7 @@ export function DocTypeLabel({ type }) {
 
 export function Spinner({ className = "" }) {
   return (
-    <svg className={`animate-spin h-4 w-4 text-signal-blue ${className}`} viewBox="0 0 24 24" fill="none">
+    <svg className={`animate-spin h-4 w-4 text-ink ${className}`} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
       <path d="M12 2a10 10 0 019.95 9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
@@ -163,7 +163,7 @@ export function CardSkeleton({ rows = 3 }) {
 
 export function ProgressBar({ value, max = 100, tone = "blue" }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
-  const colors = { blue: "bg-signal-blue", green: "bg-signal-green", amber: "bg-signal-amber", red: "bg-signal-red" };
+  const colors = { blue: "bg-rail", green: "bg-signal-green", amber: "bg-signal-amber", red: "bg-signal-red" };
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-sunk">
       <div className={`h-full rounded-full transition-all duration-500 ${colors[tone] || colors.blue}`} style={{ width: `${pct}%` }} />
@@ -182,7 +182,7 @@ export function Avatar({ id, name, size = "md" }) {
 
 export function Badge({ children, tone = "blue" }) {
   const colors = {
-    blue: "bg-signal-blue-pale text-signal-blue-deep border-signal-blue-line",
+    blue: "bg-paper-sunk text-ink border-line",
     green: "bg-signal-green-pale text-signal-green",
     amber: "bg-signal-amber-pale text-signal-amber",
     red: "bg-signal-red-pale text-signal-red",
@@ -197,7 +197,7 @@ export function SearchInput({ value, onChange, onClear, placeholder = "Search...
       <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-line bg-paper py-2 pl-9 pr-8 text-[13px] text-ink outline-none transition placeholder:text-ink-faint focus:border-signal-blue focus:ring-1 focus:ring-signal-blue" />
+        className="w-full rounded-md border border-line bg-paper py-2 pl-9 pr-8 text-[13px] text-ink outline-none transition placeholder:text-ink-faint focus:border-strong focus:ring-1 focus:ring-signal-blue" />
       {value ? (
         <button onClick={onClear} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink">
           <Icon name="close" className="h-4 w-4" />

@@ -13,7 +13,7 @@ export default function PublicFooter() {
         </div>
         <div>
           <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-slate-500">Product</h3>
-          <div className="mt-4 grid gap-3 text-[13px] text-slate-300">
+          <div className="mt-4 grid gap-3 text-[13px] text-[#cdd0d7]">
             <Link href="/dashboard" className="hover:text-white">Live workspace</Link>
             <Link href="/documentation" className="hover:text-white">Documentation</Link>
             <Link href="/about" className="hover:text-white">About</Link>
@@ -21,7 +21,7 @@ export default function PublicFooter() {
         </div>
         <div>
           <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-slate-500">Engineering</h3>
-          <div className="mt-4 grid gap-3 text-[13px] text-slate-300">
+          <div className="mt-4 grid gap-3 text-[13px] text-[#cdd0d7]">
             <Link href="/documentation/architecture" className="hover:text-white">Architecture</Link>
             <Link href="/documentation/retrieval" className="hover:text-white">Retrieval</Link>
             <Link href="/documentation/governance" className="hover:text-white">Governance</Link>

@@ -13,7 +13,7 @@ function QueryHistory({ queries, activeId, onSelect }) {
       {queries.map((q) => (
         <button key={q.id} onClick={() => onSelect(q.id)}
           className={`w-full rounded-md px-3 py-2.5 text-left text-[12.5px] transition ${
-            activeId === q.id ? "bg-signal-blue-pale text-signal-blue-deep" : "hover:bg-paper-alt text-ink"
+            activeId === q.id ? "bg-paper-sunk text-ink" : "hover:bg-paper-alt text-ink"
           }`}>
           <div className="flex items-start justify-between gap-2">
             <span className="line-clamp-2 leading-snug">{q.question}</span>
@@ -33,9 +33,9 @@ function QueryHistory({ queries, activeId, onSelect }) {
 
 function PipelineStages({ stages }) {
   const stageMeta = {
-    "Query Understanding": { icon: "search", color: "bg-signal-blue text-white" },
+    "Query Understanding": { icon: "search", color: "bg-rail text-white" },
     Retrieval: { icon: "db", color: "bg-signal-green text-white" },
-    "Evidence Analysis": { icon: "layers", color: "bg-signal-blue-deep text-white" },
+    "Evidence Analysis": { icon: "layers", color: "bg-rail text-white" },
     Reasoning: { icon: "brain", color: "bg-signal-amber text-white" },
     "Compliance Check": { icon: "shield", color: "bg-signal-red text-white" },
     "Report Generation": { icon: "results", color: "bg-rail text-rail-ink" },
@@ -49,14 +49,14 @@ function PipelineStages({ stages }) {
         return (
           <div key={s.name} className="flex items-center">
             <div className={`flex min-w-[130px] flex-col items-center gap-1.5 rounded-md border p-2.5 text-center text-[11px] ${
-              isActive ? "border-signal-blue bg-signal-blue-pale" : isDone ? "border-line bg-paper" : "border-line bg-paper-sunk opacity-60"
+              isActive ? "border-strong bg-paper-sunk" : isDone ? "border-line bg-paper" : "border-line bg-paper-sunk opacity-60"
             }`}>
-              <div className={`flex h-6 w-6 items-center justify-center rounded-full ${isDone ? meta.color : isActive ? "bg-signal-blue text-white" : "bg-paper-sunk text-ink-faint"}`}>
+              <div className={`flex h-6 w-6 items-center justify-center rounded-full ${isDone ? meta.color : isActive ? "bg-rail text-white" : "bg-paper-sunk text-ink-faint"}`}>
                 {isDone ? <Icon name="check" className="h-3 w-3" /> : isActive ? <Spinner className="h-3 w-3" /> : <Icon name={meta.icon} className="h-3 w-3" />}
               </div>
-              <div className={`font-medium leading-tight ${isActive ? "text-signal-blue" : "text-ink"}`}>{s.name}</div>
+              <div className={`font-medium leading-tight ${isActive ? "text-ink" : "text-ink"}`}>{s.name}</div>
               {s.duration_ms ? <div className="text-[10px] text-ink-faint">{fmtDuration(s.duration_ms)}</div> : null}
-              {isActive ? <div className="animate-pulse text-[10px] text-signal-blue">Running...</div> : null}
+              {isActive ? <div className="animate-pulse text-[10px] text-ink">Running...</div> : null}
             </div>
             {i < stages.length - 1 ? (
               <div className={`h-px w-6 ${isDone ? "bg-signal-green" : "bg-line"}`} />
@@ -72,7 +72,7 @@ function EvidenceCard({ ev, onCite }) {
   return (
     <div className="rounded-md border border-line bg-paper-alt p-3">
       <div className="mb-1.5 flex items-center justify-between">
-        <cite onClick={() => onCite(ev.docId)} className="cursor-pointer font-mono text-[11px] text-signal-blue-deep not-italic hover:underline">⌐{ev.docId}</cite>
+        <cite onClick={() => onCite(ev.docId)} className="cursor-pointer font-mono text-[11px] text-ink not-italic hover:underline">⌐{ev.docId}</cite>
         <span className="text-[10px] text-ink-faint">relevance {Math.round(ev.relevance * 100)}%</span>
       </div>
       <p className="text-[12.5px] leading-snug text-ink-soft">{ev.snippet}</p>

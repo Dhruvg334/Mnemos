@@ -46,7 +46,7 @@ export default function LandingWorkflow() {
                 aria-selected={activeId === mode.id}
                 onClick={() => setActiveId(mode.id)}
                 className={`grid grid-cols-[30px,1fr] items-center rounded-xl px-3 py-3 text-left transition ${
-                  activeId === mode.id ? "bg-white text-[#071522]" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
+                  activeId === mode.id ? "bg-white text-[#071522]" : "text-[#cdd0d7] hover:bg-white/[0.06] hover:text-white"
                 }`}
               >
                 <span className="font-mono text-[10px] opacity-60">0{index + 1}</span>

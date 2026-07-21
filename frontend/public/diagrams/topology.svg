@@ -4,7 +4,7 @@
       <path d="M0,0 L10,5 L0,10 Z" fill="#8b8e97"/>
     </marker>
     <marker id="b" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#2f6fe0"/>
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2b2e35"/>
     </marker>
   </defs>
   <rect width="760" height="420" fill="#ffffff" rx="12"/>
@@ -20,7 +20,7 @@
 
   <!-- Vercel -->
   <rect x="16" y="104" width="218" height="130" rx="10" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="16" y="104" width="5" height="130" rx="2.5" fill="#2f6fe0"/>
+  <rect x="16" y="104" width="5" height="130" rx="2.5" fill="#2b2e35"/>
   <text x="125" y="126" fill="#14151a" font-size="11" font-weight="700" text-anchor="middle">Vercel (CDN)</text>
   <line x1="65" y1="136" x2="185" y2="136" stroke="#e2e4e9" stroke-width="0.8"/>
   <text x="125" y="150" fill="#53565f" font-size="8" text-anchor="middle">Next.js 14 Frontend</text>
@@ -38,14 +38,14 @@
   <text x="504" y="126" fill="#14151a" font-size="11" font-weight="700" text-anchor="middle">Render Cloud (Docker - Free Tier)</text>
 
   <rect x="278" y="140" width="218" height="78" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1"/>
-  <rect x="278" y="140" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="278" y="140" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="387" y="158" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">FastAPI Application</text>
   <text x="387" y="174" fill="#53565f" font-size="7.5" text-anchor="middle">API · Auth · Tenancy</text>
   <text x="387" y="188" fill="#53565f" font-size="7.5" text-anchor="middle">Rate limits · Audit</text>
   <text x="387" y="202" fill="#53565f" font-size="7.5" text-anchor="middle">Query orchestration</text>
 
   <rect x="510" y="140" width="218" height="78" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1"/>
-  <rect x="510" y="140" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="510" y="140" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="619" y="158" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Background Worker</text>
   <text x="619" y="174" fill="#53565f" font-size="7.5" text-anchor="middle">Query dispatch mode</text>
   <text x="619" y="188" fill="#53565f" font-size="7.5" text-anchor="middle">Ingestion processing</text>
@@ -59,7 +59,7 @@
 
   <!-- Docker Compose (Self-hosted) -->
   <rect x="16" y="266" width="348" height="136" rx="10" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="16" y="266" width="5" height="136" rx="2.5" fill="#2f6fe0"/>
+  <rect x="16" y="266" width="5" height="136" rx="2.5" fill="#2b2e35"/>
   <text x="190" y="288" fill="#14151a" font-size="11" font-weight="700" text-anchor="middle">Docker Compose (Self-hosted)</text>
   <line x1="50" y1="298" x2="330" y2="298" stroke="#e2e4e9" stroke-width="0.8"/>
 
@@ -80,7 +80,7 @@
 
   <!-- HF Spaces -->
   <rect x="396" y="266" width="348" height="136" rx="10" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="396" y="266" width="5" height="136" rx="2.5" fill="#2f6fe0"/>
+  <rect x="396" y="266" width="5" height="136" rx="2.5" fill="#2b2e35"/>
   <text x="570" y="288" fill="#14151a" font-size="11" font-weight="700" text-anchor="middle">Hugging Face Spaces (Optional)</text>
   <line x1="430" y1="298" x2="710" y2="298" stroke="#e2e4e9" stroke-width="0.8"/>
 

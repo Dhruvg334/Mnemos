@@ -8,8 +8,8 @@
 
   <!-- Layer 1: Frontend -->
   <rect x="100" y="20" width="520" height="68" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="100" y="20" width="5" height="68" rx="2.5" fill="#2f6fe0"/>
-  <text x="125" y="42" fill="#2f6fe0" font-size="9" font-weight="700" letter-spacing="1.5">FRONTEND LAYER</text>
+  <rect x="100" y="20" width="5" height="68" rx="2.5" fill="#2b2e35"/>
+  <text x="125" y="42" fill="#2b2e35" font-size="9" font-weight="700" letter-spacing="1.5">FRONTEND LAYER</text>
   <text x="125" y="58" fill="#14151a" font-size="13" font-weight="600">Next.js 14 · React 18 · Tailwind CSS</text>
   <text x="125" y="74" fill="#53565f" font-size="9">Server Components · Streaming SSR · Vercel deployment</text>
   <path d="M620 54 L640 54 L640 80" stroke="#8b8e97" stroke-width="1.2" fill="none" marker-end="url(#a)"/>
@@ -18,8 +18,8 @@
 
   <!-- Layer 2: API -->
   <rect x="100" y="98" width="520" height="68" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="100" y="98" width="5" height="68" rx="2.5" fill="#2f6fe0"/>
-  <text x="125" y="120" fill="#2f6fe0" font-size="9" font-weight="700" letter-spacing="1.5">API LAYER</text>
+  <rect x="100" y="98" width="5" height="68" rx="2.5" fill="#2b2e35"/>
+  <text x="125" y="120" fill="#2b2e35" font-size="9" font-weight="700" letter-spacing="1.5">API LAYER</text>
   <text x="125" y="136" fill="#14151a" font-size="13" font-weight="600">FastAPI · Pydantic v2 · SQLAlchemy 2.0</text>
   <text x="125" y="152" fill="#53565f" font-size="9">Async REST endpoints · OpenAPI · Alembic migrations · JWT auth</text>
   <path d="M620 132 L640 132 L640 158" stroke="#8b8e97" stroke-width="1.2" fill="none" marker-end="url(#a)"/>
@@ -28,8 +28,8 @@
 
   <!-- Layer 3: Service -->
   <rect x="100" y="176" width="520" height="68" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="100" y="176" width="5" height="68" rx="2.5" fill="#2f6fe0"/>
-  <text x="125" y="198" fill="#2f6fe0" font-size="9" font-weight="700" letter-spacing="1.5">SERVICE LAYER</text>
+  <rect x="100" y="176" width="5" height="68" rx="2.5" fill="#2b2e35"/>
+  <text x="125" y="198" fill="#2b2e35" font-size="9" font-weight="700" letter-spacing="1.5">SERVICE LAYER</text>
   <text x="125" y="214" fill="#14151a" font-size="13" font-weight="600">Query Execution · Ingestion · Audit</text>
   <text x="125" y="230" fill="#53565f" font-size="9">Idempotency · Agent validation · Email delivery · Background dispatch</text>
   <path d="M620 210 L640 210 L640 236" stroke="#8b8e97" stroke-width="1.2" fill="none" marker-end="url(#a)"/>
@@ -38,8 +38,8 @@
 
   <!-- Layer 4: Agentic -->
   <rect x="100" y="254" width="520" height="68" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="100" y="254" width="5" height="68" rx="2.5" fill="#2f6fe0"/>
-  <text x="125" y="276" fill="#2f6fe0" font-size="9" font-weight="700" letter-spacing="1.5">AGENTIC LAYER</text>
+  <rect x="100" y="254" width="5" height="68" rx="2.5" fill="#2b2e35"/>
+  <text x="125" y="276" fill="#2b2e35" font-size="9" font-weight="700" letter-spacing="1.5">AGENTIC LAYER</text>
   <text x="125" y="292" fill="#14151a" font-size="13" font-weight="600">InvestigationPipeline · MCP Server · Guardrails</text>
   <text x="125" y="308" fill="#53565f" font-size="9">11-stage runtime · 6 specialised agents · Human approval gate</text>
   <path d="M620 288 L640 288 L640 314" stroke="#8b8e97" stroke-width="1.2" fill="none" marker-end="url(#a)"/>
@@ -48,8 +48,8 @@
 
   <!-- Layer 5: Retrieval & Integrations -->
   <rect x="100" y="332" width="520" height="68" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="100" y="332" width="5" height="68" rx="2.5" fill="#2f6fe0"/>
-  <text x="125" y="354" fill="#2f6fe0" font-size="9" font-weight="700" letter-spacing="1.5">RETRIEVAL &amp; INTEGRATIONS</text>
+  <rect x="100" y="332" width="5" height="68" rx="2.5" fill="#2b2e35"/>
+  <text x="125" y="354" fill="#2b2e35" font-size="9" font-weight="700" letter-spacing="1.5">RETRIEVAL &amp; INTEGRATIONS</text>
   <text x="125" y="370" fill="#14151a" font-size="13" font-weight="600">HybridRetrievalEngine · Cross-Encoder · S3 · Gateways</text>
   <text x="125" y="386" fill="#53565f" font-size="9">pgvector · Full-text · Graph RAG · Structured · Multi-hop · Reranker</text>
   <path d="M620 366 L640 366 L640 392" stroke="#8b8e97" stroke-width="1.2" fill="none" marker-end="url(#a)"/>

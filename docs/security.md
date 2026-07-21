@@ -23,3 +23,7 @@ Secrets belong in deployment environment stores, not source control. Logs must n
 ## Residual risks
 
 The free demonstration deployment has cold starts and background-task interruption risk. Optional graph and object-storage integrations may be unavailable. Model output remains advisory and must be reviewed against current authorised evidence.
+
+## Upload boundary
+
+The browser never receives backend credentials. It receives only an expiring presigned upload URL after server-side authentication, role validation, MIME and size checks, checksum duplicate detection and filename sanitisation. Confirmation revalidates object metadata and records the action in the audit log. Tenant and site identifiers are persisted on chunks and applied during retrieval.

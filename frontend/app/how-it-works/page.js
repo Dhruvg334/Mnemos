@@ -16,7 +16,7 @@ export default function HowItWorksPage() {
       <section className="border-b border-line">
         <div className="mx-auto max-w-7xl px-5 py-20 sm:px-7 lg:px-8">
           <div className="max-w-3xl">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-signal-blue-deep">How it works</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-ink">How it works</div>
             <h1 className="mt-4 text-[40px] font-semibold leading-[1.1] tracking-[-0.035em] text-ink sm:text-[48px]">From industrial records to evidence-backed operational intelligence.</h1>
             <p className="mt-5 max-w-2xl text-[15px] leading-7 text-ink-soft">Mnemos combines document intelligence, asset identity, graph relationships and retrieval evaluation while keeping application security and persistence under backend control.</p>
           </div>
@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
         <div className="grid gap-0 border-l border-t border-line">
           {stages.map(([n, title, text]) => (
             <div key={n} className="grid border-b border-r border-line md:grid-cols-[120px_220px_1fr]">
-              <div className="border-b border-line p-5 font-mono text-[12px] text-signal-blue-deep md:border-b-0 md:border-r">{n}</div>
+              <div className="border-b border-line p-5 font-mono text-[12px] text-ink md:border-b-0 md:border-r">{n}</div>
               <div className="border-b border-line p-5 text-[16px] font-semibold text-ink md:border-b-0 md:border-r">{title}</div>
               <div className="p-5 text-[13px] leading-6 text-ink-soft">{text}</div>
             </div>

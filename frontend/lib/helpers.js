@@ -9,7 +9,7 @@ export const areaName = (id) => DUMMY_AREAS[id] || id || "—";
 export const pluralize = (n, s, p) => `${n} ${n === 1 ? s : p || s + "s"}`;
 export const initials = (name) => (name || "").split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 export const avatarColor = (id) => {
-  const colors = ["bg-signal-blue", "bg-signal-green", "bg-signal-amber", "bg-signal-red", "bg-rail-soft", "bg-signal-blue-deep"];
+  const colors = ["bg-rail", "bg-signal-green", "bg-signal-amber", "bg-signal-red", "bg-rail-soft", "bg-rail"];
   let hash = 0;
   for (let i = 0; i < (id || "").length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];

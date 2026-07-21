@@ -10,7 +10,7 @@ function CitationChip({ docId, docs, onCite }) {
   const d = docs.find((x) => x.id === docId);
   return (
     <button onClick={() => onCite(docId)}
-      className="inline-flex items-center gap-1 rounded border border-signal-blue-line bg-signal-blue-pale px-1.5 py-0.5 font-mono text-[11px] text-signal-blue-deep transition hover:bg-signal-blue-line/60">
+      className="inline-flex items-center gap-1 rounded border border-line bg-paper-sunk px-1.5 py-0.5 font-mono text-[11px] text-ink transition hover:bg-rail-line/60">
       <Icon name="documents" className="h-3 w-3" />
       {d ? d.title : docId}
     </button>
@@ -25,7 +25,7 @@ function ResultCard({ result, index, docs, onOpenDoc }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-signal-blue text-[10px] font-bold text-white">{index + 1}</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rail text-[10px] font-bold text-white">{index + 1}</span>
               <span className="text-[13px] font-medium text-ink">{result.query || "Query result"}</span>
               <StatusPill tone={result.confidence >= 70 ? "ok" : result.confidence >= 40 ? "warn" : "critical"}>
                 {Math.round(result.confidence)}%

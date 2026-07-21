@@ -65,7 +65,7 @@ export function SessionProvider({ children }) {
             </p>
             <div className="mt-5 flex justify-center gap-3">
               <button onClick={() => setLockedAction(null)} className="rounded-md border border-line px-4 py-2 text-[12.5px] font-medium text-ink hover:bg-paper-alt">Continue demo</button>
-              <button onClick={() => router.push("/signin")} className="rounded-md bg-signal-blue px-4 py-2 text-[12.5px] font-medium text-white hover:bg-signal-blue-deep">Sign in</button>
+              <button onClick={() => router.push("/signin")} className="rounded-md bg-rail px-4 py-2 text-[12.5px] font-medium text-white hover:bg-rail">Sign in</button>
             </div>
           </div>
         </div>

@@ -20,13 +20,13 @@ The checked-in evaluation dataset runs without a live model or database. It is d
 | Metric | Score |
 |---|---:|
 | Overall weighted score | 0.8438 |
-| Routing accuracy | 1.0000 |
-| Retrieval recall | 1.0000 |
+| Weighted evaluation score | 0.8438 |
 | Citation precision | 0.9167 |
-| Grounded-answer rate | 1.0000 |
+| Citation precision | 0.9167 |
 | Abstention quality | 0.9375 |
-| Tool recovery | 1.0000 |
-| Workflow completion | 1.0000 |
+| Abstention quality | 0.9375 |
+
+
 
 The baseline uses deterministic synthetic investigation states and the same metric implementation used by CI gates. Scores should be interpreted as pipeline-regression evidence, not production accuracy.
 

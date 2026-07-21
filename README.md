@@ -174,13 +174,13 @@ The checked-in deterministic evaluation dataset provides a reproducible regressi
 | Metric | Score |
 |---|---:|
 | Overall weighted score | **0.8438** |
-| Routing accuracy | **1.0000** |
-| Retrieval recall | **1.0000** |
+| Weighted evaluation score | **0.8438** |
 | Citation precision | **0.9167** |
-| Grounded-answer rate | **1.0000** |
+| Citation precision | **0.9167** |
 | Abstention quality | **0.9375** |
-| Tool recovery | **1.0000** |
-| Workflow completion | **1.0000** |
+| Abstention quality | **0.9375** |
+
+
 
 These scores measure deterministic pipeline behaviour and regression resistance; they are not presented as production model accuracy. Provider-backed RAGAS support exists for answer relevance, context precision, context recall, and faithfulness, but no aggregate RAGAS score is published without a pinned corpus, model pair, retrieval configuration, and retained run artefact.
 

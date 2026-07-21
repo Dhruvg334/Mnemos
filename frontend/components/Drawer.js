@@ -24,7 +24,7 @@ export default function Drawer({ docId, onClose, onOpenDoc }) {
           <>
             <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
               <div>
-                <div className="text-[10.5px] font-medium uppercase tracking-wide text-signal-blue-deep">
+                <div className="text-[10.5px] font-medium uppercase tracking-wide text-ink">
                   {docTypeLabel(d.type)} · {d.id}
                 </div>
                 <h3 className="mt-1 text-[15px] font-semibold text-ink">{d.title}</h3>
@@ -43,7 +43,7 @@ export default function Drawer({ docId, onClose, onOpenDoc }) {
                 </span>
                 <button
                   onClick={() => onOpenDoc(d.id)}
-                  className="font-medium text-signal-blue-deep hover:underline"
+                  className="font-medium text-ink hover:underline"
                 >
                   Open in Documents →
                 </button>

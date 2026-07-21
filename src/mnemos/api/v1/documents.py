@@ -206,7 +206,7 @@ async def confirm_upload(
         )
     )
     job = await ingestion.queue(db, doc)
-    await ingestion.run_mock(db, doc, job)
+    await ingestion.run(db, doc, job)
     await write_audit(
         db,
         organisation_id=doc.organisation_id,
@@ -301,7 +301,7 @@ async def reprocess(
     if not doc.storage_key:
         raise AppError("DOCUMENT_NOT_READY", "Document has no stored object.", 409)
     job = await ingestion.queue(db, doc)
-    await ingestion.run_mock(db, doc, job)
+    await ingestion.run(db, doc, job)
     await db.commit()
     data = ProcessingStatusResponse(
         document_id=doc.id,

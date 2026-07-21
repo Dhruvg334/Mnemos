@@ -115,7 +115,7 @@ export default function Shell() {
               </div>
               {VIEW_META[view].action && (
                 <button onClick={() => goto(VIEW_META[view].action.nav)}
-                  className="rounded-md bg-signal-blue px-3.5 py-2 text-[12.5px] font-medium text-white hover:bg-signal-blue-deep">
+                  className="rounded-md bg-rail px-3.5 py-2 text-[12.5px] font-medium text-white hover:bg-rail">
                   {VIEW_META[view].action.label}
                 </button>
               )}

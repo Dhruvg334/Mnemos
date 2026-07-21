@@ -18,7 +18,7 @@ export default function AboutPage() {
           <div className="relative mx-auto max-w-6xl text-center">
             <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">About Mnemos</div>
             <h1 className="mx-auto mt-4 max-w-4xl text-[40px] font-semibold leading-[1.02] tracking-[-0.055em] sm:text-[56px]">Operational intelligence should preserve context, evidence, and human authority.</h1>
-            <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-7 text-slate-300">Mnemos is an asset-centred operating memory for reliability, maintenance, operations, and compliance teams. It connects fragmented records and makes the reasoning behind a decision visible.</p>
+            <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-7 text-[#cdd0d7]">Mnemos is an asset-centred operating memory for reliability, maintenance, operations, and compliance teams. It connects fragmented records and makes the reasoning behind a decision visible.</p>
           </div>
         </section>
 
@@ -57,14 +57,14 @@ export default function AboutPage() {
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Team</div>
                 <h2 className="mt-3 text-[31px] font-semibold tracking-[-0.045em]">Three engineering streams, one product contract.</h2>
               </div>
-              <Link href="/documentation" className="text-[12.5px] font-medium text-slate-300 hover:text-white">Read the engineering documentation →</Link>
+              <Link href="/documentation" className="text-[12.5px] font-medium text-[#cdd0d7] hover:text-white">Read the engineering documentation →</Link>
             </div>
             <div className="mt-8 divide-y divide-white/10 border-y border-white/10">
               {team.map(([name, role, detail], index) => (
                 <div key={name} className="grid gap-2 py-5 md:grid-cols-[40px,170px,220px,1fr]">
                   <div className="font-mono text-[10px] text-slate-500">0{index + 1}</div>
                   <div className="text-[14px] font-semibold text-white">{name}</div>
-                  <div className="text-[12.5px] font-medium text-slate-300">{role}</div>
+                  <div className="text-[12.5px] font-medium text-[#cdd0d7]">{role}</div>
                   <div className="text-[12.5px] leading-6 text-slate-400">{detail}</div>
                 </div>
               ))}

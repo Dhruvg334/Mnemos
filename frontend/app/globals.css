@@ -110,7 +110,7 @@ a {
   background: #cdd0d7;
 }
 .tick.on {
-  background: #2f6fe0;
+  background: #2b2e35;
 }
 
 .healthbar {
@@ -154,7 +154,7 @@ a {
   background: #a23b2e;
 }
 .tl-item.type-work_order .tl-dot {
-  background: #2f6fe0;
+  background: #2b2e35;
 }
 .tl-item.type-inspection .tl-dot {
   background: #8a6d1f;

@@ -8,7 +8,7 @@
   <text x="24" y="24" fill="#14151a" font-size="13" font-weight="700">Agentic Pipeline Workflow</text>
 
   <rect x="16" y="50" width="106" height="78" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.3"/>
-  <rect x="16" y="50" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="16" y="50" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="69" y="70" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Query</text>
   <text x="69" y="84" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Understanding</text>
   <text x="69" y="102" fill="#53565f" font-size="7.5" text-anchor="middle">classify intent</text>
@@ -17,7 +17,7 @@
   <line x1="122" y1="89" x2="142" y2="89" stroke="#8b8e97" stroke-width="1.3" marker-end="url(#a)"/>
 
   <rect x="146" y="50" width="106" height="78" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.3"/>
-  <rect x="146" y="50" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="146" y="50" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="199" y="70" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Retrieval</text>
   <text x="199" y="102" fill="#53565f" font-size="7.5" text-anchor="middle">5 strategies</text>
   <text x="199" y="116" fill="#53565f" font-size="7.5" text-anchor="middle">cross-encoder</text>
@@ -25,7 +25,7 @@
   <line x1="252" y1="89" x2="272" y2="89" stroke="#8b8e97" stroke-width="1.3" marker-end="url(#a)"/>
 
   <rect x="276" y="50" width="106" height="78" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.3"/>
-  <rect x="276" y="50" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="276" y="50" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="329" y="70" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Evidence</text>
   <text x="329" y="84" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Analysis</text>
   <text x="329" y="102" fill="#53565f" font-size="7.5" text-anchor="middle">score relevance</text>
@@ -34,7 +34,7 @@
   <line x1="382" y1="89" x2="402" y2="89" stroke="#8b8e97" stroke-width="1.3" marker-end="url(#a)"/>
 
   <rect x="406" y="50" width="106" height="78" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.3"/>
-  <rect x="406" y="50" width="4" height="78" rx="2" fill="#2f6fe0"/>
+  <rect x="406" y="50" width="4" height="78" rx="2" fill="#2b2e35"/>
   <text x="459" y="70" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Reasoning</text>
   <text x="459" y="102" fill="#53565f" font-size="7.5" text-anchor="middle">hypotheses</text>
   <text x="459" y="116" fill="#53565f" font-size="7.5" text-anchor="middle">confidence scoring</text>

@@ -162,7 +162,7 @@ function ActivityPanel({ title, items, onClose, onNavigate, onClear }) {
               }}
               className="flex w-full gap-3 rounded-lg px-3 py-3 text-left hover:bg-paper-alt"
             >
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-signal-blue" />
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-rail" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12.5px] font-medium text-ink">{item.title}</span>
                 <span className="mt-1 block text-[11.5px] leading-relaxed text-ink-faint">{item.detail}</span>
@@ -175,7 +175,7 @@ function ActivityPanel({ title, items, onClose, onNavigate, onClear }) {
         </div>
         {onClear ? (
           <div className="border-t border-line px-4 py-2.5 text-right">
-            <button type="button" onClick={onClear} className="text-[11.5px] font-medium text-signal-blue-deep hover:underline">Mark all as read</button>
+            <button type="button" onClick={onClear} className="text-[11.5px] font-medium text-ink hover:underline">Mark all as read</button>
           </div>
         ) : null}
       </section>
@@ -205,7 +205,7 @@ export default function Topbar({ crumb, onNavigate }) {
         <div className="text-[13px] text-ink-soft">{crumb}</div>
 
         <div className="ml-1 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-signal-blue-pale px-2.5 py-1 text-[11px] font-medium text-signal-blue-deep">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-paper-sunk px-2.5 py-1 text-[11px] font-medium text-ink">
             <Icon name="plant" className="h-3 w-3" />
             North Process Plant
           </span>
@@ -230,7 +230,7 @@ export default function Topbar({ crumb, onNavigate }) {
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => setPanel("notifications")} className="relative flex h-8 w-8 items-center justify-center rounded-md text-ink-soft hover:bg-paper-alt" title="Notifications" aria-label={`${notifications.length} unread notifications`}>
             <Icon name="bell" className="h-4 w-4" />
-            {notifications.length ? <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-signal-blue" /> : null}
+            {notifications.length ? <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rail" /> : null}
           </button>
           <button type="button" onClick={() => setPanel("activity")} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-soft hover:bg-paper-alt" title="Recent activity" aria-label="Open recent activity">
             <Icon name="clock" className="h-4 w-4" />

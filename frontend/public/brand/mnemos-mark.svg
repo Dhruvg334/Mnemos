@@ -1,11 +1,11 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="256" height="256" rx="58" fill="#081728"/>
+  <rect width="256" height="256" rx="58" fill="#101114"/>
   <path d="M128 31L203 72V160L128 204L53 160V72L128 31Z" stroke="#F8FAFC" stroke-width="12" stroke-linejoin="round"/>
-  <path d="M128 70L169 93V141L128 165L87 141V93L128 70Z" stroke="#9FB0C5" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M128 70L169 93V141L128 165L87 141V93L128 70Z" stroke="#8b8e97" stroke-width="9" stroke-linejoin="round"/>
   <path d="M53 76L128 119L203 76M128 119V204" stroke="#F8FAFC" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M87 95L128 119L169 95" stroke="#9FB0C5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M87 95L128 119L169 95" stroke="#8b8e97" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
   <circle cx="53" cy="76" r="13" fill="#F8FAFC"/>
   <circle cx="203" cy="76" r="13" fill="#F8FAFC"/>
   <circle cx="128" cy="204" r="13" fill="#F8FAFC"/>
-  <circle cx="128" cy="119" r="16" fill="#081728" stroke="#F8FAFC" stroke-width="9"/>
+  <circle cx="128" cy="119" r="16" fill="#101114" stroke="#F8FAFC" stroke-width="9"/>
 </svg>

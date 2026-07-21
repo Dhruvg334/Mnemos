@@ -104,7 +104,7 @@ export default function AuthForm({ initialMode = "signin" }) {
     }
   }
 
-  const fieldClass = (name) => `mt-1.5 w-full rounded-xl border bg-paper px-3.5 py-2.5 text-[13px] text-ink outline-none transition placeholder:text-ink-faint ${errors[name] ? "border-signal-red bg-signal-red-pale/40" : "border-line focus:border-signal-blue"}`;
+  const fieldClass = (name) => `mt-1.5 w-full rounded-xl border bg-paper px-3.5 py-2.5 text-[13px] text-ink outline-none transition placeholder:text-ink-faint ${errors[name] ? "border-signal-red bg-signal-red-pale/40" : "border-line focus:border-strong"}`;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-alt px-5 py-6">
@@ -130,7 +130,7 @@ export default function AuthForm({ initialMode = "signin" }) {
         </div>
 
         <div className="mt-5">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-signal-blue">{isSignup ? "Create your workspace" : "Secure access"}</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink">{isSignup ? "Create your workspace" : "Secure access"}</div>
           <h1 className="mt-2 text-[25px] font-semibold tracking-[-0.04em] text-ink">{isSignup ? "Create your Mnemos workspace" : "Welcome back"}</h1>
           <p className="mt-2 text-[13px] leading-6 text-ink-soft">
             {isSignup ? "Create an organization-scoped account and start working with your own operational data." : "Access your approved plants, assets, investigations, and evidence."}
@@ -184,12 +184,12 @@ export default function AuthForm({ initialMode = "signin" }) {
         </form>
 
         {(submitting || redirecting) ? (
-          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-signal-blue-line bg-signal-blue-pale/70 px-4 py-3.5" role="status" aria-live="polite">
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-paper-sunk/70 px-4 py-3.5" role="status" aria-live="polite">
             <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-signal-blue/25 border-t-signal-blue" />
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-strong/25 border-t-signal-blue" />
             </span>
             <div>
-              <div className="text-[12.5px] font-semibold text-signal-blue-deep">
+              <div className="text-[12.5px] font-semibold text-ink">
                 {redirecting ? "Workspace ready" : isSignup ? "Creating your workspace" : "Signing you in"}
               </div>
               <div className="mt-0.5 text-[11.5px] text-ink-soft">
@@ -200,7 +200,7 @@ export default function AuthForm({ initialMode = "signin" }) {
         ) : null}
 
         {status ? (
-          <div className={`mt-3 rounded-xl border px-3.5 py-2.5 text-[12px] leading-5 ${status.tone === "error" ? "border-signal-red-line bg-signal-red-pale text-signal-red" : "border-signal-blue-line bg-signal-blue-pale text-signal-blue-deep"}`} role="status">
+          <div className={`mt-3 rounded-xl border px-3.5 py-2.5 text-[12px] leading-5 ${status.tone === "error" ? "border-signal-red-line bg-signal-red-pale text-signal-red" : "border-line bg-paper-sunk text-ink"}`} role="status">
             {status.message}
           </div>
         ) : null}

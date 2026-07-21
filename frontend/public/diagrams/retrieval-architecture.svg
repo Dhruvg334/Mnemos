@@ -7,7 +7,7 @@
       <path d="M0,0 L10,5 L0,10 Z" fill="#ac3030"/>
     </marker>
     <marker id="c" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#2f6fe0"/>
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2b2e35"/>
     </marker>
   </defs>
   <rect width="760" height="420" fill="#ffffff" rx="12"/>
@@ -15,7 +15,7 @@
 
   <!-- User Query -->
   <rect x="16" y="70" width="90" height="52" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="16" y="70" width="4" height="52" rx="2" fill="#2f6fe0"/>
+  <rect x="16" y="70" width="4" height="52" rx="2" fill="#2b2e35"/>
   <text x="61" y="92" fill="#14151a" font-size="10" font-weight="600" text-anchor="middle">User Query</text>
   <text x="61" y="108" fill="#53565f" font-size="7.5" text-anchor="middle">Natural language</text>
 
@@ -23,37 +23,37 @@
 
   <!-- Query Router -->
   <rect x="130" y="55" width="120" height="72" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="130" y="55" width="4" height="72" rx="2" fill="#2f6fe0"/>
+  <rect x="130" y="55" width="4" height="72" rx="2" fill="#2b2e35"/>
   <text x="190" y="78" fill="#14151a" font-size="10" font-weight="600" text-anchor="middle">Query Router</text>
   <text x="190" y="96" fill="#53565f" font-size="7.5" text-anchor="middle">Classify intent</text>
   <text x="190" y="110" fill="#53565f" font-size="7.5" text-anchor="middle">Extract entities</text>
 
   <!-- Intent dispatch label -->
-  <text x="250" y="48" fill="#2f6fe0" font-size="7" font-weight="600">Intent-based dispatch</text>
+  <text x="250" y="48" fill="#2b2e35" font-size="7" font-weight="600">Intent-based dispatch</text>
 
   <!-- 5 parallel retrieval strategies -->
   <rect x="290" y="20" width="130" height="48" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="290" y="20" width="3" height="48" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="20" width="3" height="48" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="40" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Vector (pgvector)</text>
   <text x="355" y="56" fill="#53565f" font-size="7" text-anchor="middle">HNSW · 1536-dim · Cosine</text>
 
   <rect x="290" y="75" width="130" height="48" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="290" y="75" width="3" height="48" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="75" width="3" height="48" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="95" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Lexical (Full-text)</text>
   <text x="355" y="111" fill="#53565f" font-size="7" text-anchor="middle">ILIKE · TSVector · RRF</text>
 
   <rect x="290" y="130" width="130" height="48" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="290" y="130" width="3" height="48" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="130" width="3" height="48" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="150" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Graph RAG (Neo4j)</text>
   <text x="355" y="166" fill="#53565f" font-size="7" text-anchor="middle">Cypher · Entity traverse</text>
 
   <rect x="290" y="185" width="130" height="48" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="290" y="185" width="3" height="48" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="185" width="3" height="48" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="205" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Structured (SQL)</text>
   <text x="355" y="221" fill="#53565f" font-size="7" text-anchor="middle">Temporal · Numeric filter</text>
 
   <rect x="290" y="240" width="130" height="48" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="290" y="240" width="3" height="48" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="240" width="3" height="48" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="260" fill="#14151a" font-size="8.5" font-weight="600" text-anchor="middle">Multi-hop</text>
   <text x="355" y="276" fill="#53565f" font-size="7" text-anchor="middle">Graph traversal · Fusion</text>
 
@@ -73,7 +73,7 @@
 
   <!-- Merge & Deduplicate -->
   <rect x="450" y="85" width="120" height="60" rx="8" fill="#f6f7f9" stroke="#e2e4e9" stroke-width="1.5"/>
-  <rect x="450" y="85" width="4" height="60" rx="2" fill="#2f6fe0"/>
+  <rect x="450" y="85" width="4" height="60" rx="2" fill="#2b2e35"/>
   <text x="510" y="110" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Merge &amp;</text>
   <text x="510" y="126" fill="#14151a" font-size="9" font-weight="600" text-anchor="middle">Deduplicate</text>
 
@@ -90,14 +90,14 @@
 
   <!-- Post-processing row -->
   <rect x="450" y="174" width="120" height="40" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="450" y="174" width="3" height="40" rx="1.5" fill="#2f6fe0"/>
+  <rect x="450" y="174" width="3" height="40" rx="1.5" fill="#2b2e35"/>
   <text x="510" y="192" fill="#14151a" font-size="8" font-weight="600" text-anchor="middle">Contradiction</text>
   <text x="510" y="206" fill="#53565f" font-size="7" text-anchor="middle">Detection</text>
 
   <line x1="570" y1="194" x2="594" y2="194" stroke="#cdd0d7" stroke-width="1"/>
 
   <rect x="598" y="174" width="120" height="40" rx="6" fill="#ffffff" stroke="#e2e4e9" stroke-width="1.2"/>
-  <rect x="598" y="174" width="3" height="40" rx="1.5" fill="#2f6fe0"/>
+  <rect x="598" y="174" width="3" height="40" rx="1.5" fill="#2b2e35"/>
   <text x="658" y="192" fill="#14151a" font-size="8" font-weight="600" text-anchor="middle">Source Reliability</text>
   <text x="658" y="206" fill="#53565f" font-size="7" text-anchor="middle">Scoring</text>
 
@@ -122,7 +122,7 @@
 
   <!-- Budget Optimizer -->
   <rect x="290" y="310" width="130" height="30" rx="4" fill="#f6f7f9" stroke="#cdd0d7" stroke-width="1" stroke-dasharray="4 3"/>
-  <rect x="290" y="310" width="3" height="30" rx="1.5" fill="#2f6fe0"/>
+  <rect x="290" y="310" width="3" height="30" rx="1.5" fill="#2b2e35"/>
   <text x="355" y="326" fill="#14151a" font-size="7.5" font-weight="600" text-anchor="middle">Budget Optimizer</text>
   <text x="355" y="336" fill="#53565f" font-size="6.5" text-anchor="middle">Token-aware routing</text>
 
@@ -132,11 +132,11 @@
   <text x="675" y="326" fill="#14151a" font-size="7.5" font-weight="600" text-anchor="middle">Source Reliability DB</text>
   <text x="675" y="336" fill="#53565f" font-size="6.5" text-anchor="middle">Provenance tracking</text>
 
-  <line x1="355" y1="310" x2="355" y2="288" stroke="#2f6fe0" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#c)"/>
+  <line x1="355" y1="310" x2="355" y2="288" stroke="#2b2e35" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#c)"/>
   <line x1="675" y1="310" x2="658" y2="214" stroke="#ac3030" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#b)"/>
 
   <!-- Connected boxes indicator -->
-  <circle cx="258" cy="95" r="3" fill="#2f6fe0"/>
-  <circle cx="258" cy="104" r="3" fill="#2f6fe0"/>
-  <circle cx="258" cy="113" r="3" fill="#2f6fe0"/>
+  <circle cx="258" cy="95" r="3" fill="#2b2e35"/>
+  <circle cx="258" cy="104" r="3" fill="#2b2e35"/>
+  <circle cx="258" cy="113" r="3" fill="#2b2e35"/>
 </svg>

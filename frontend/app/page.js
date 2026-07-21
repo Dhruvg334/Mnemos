@@ -5,9 +5,9 @@ import { FadeIn, FloatCard } from "@/components/public/Motion";
 
 const METRICS = [
   ["0.8438", "Weighted evaluation score"],
-  ["1.0000", "Retrieval recall"],
   ["0.9167", "Citation precision"],
-  ["1.0000", "Grounded-answer rate"],
+  ["0.9167", "Citation precision"],
+  ["0.9375", "Abstention quality"],
 ];
 
 const CAPABILITIES = [
@@ -30,17 +30,17 @@ export default function HomePage() {
 
           <div className="mx-auto w-full max-w-6xl px-5 py-12 text-center sm:px-6 lg:px-8 lg:py-16">
             <FadeIn className="mx-auto max-w-4xl">
-              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">
+              <div className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#cdd0d7] backdrop-blur">
                 Industrial operating memory
               </div>
               <h1 className="mx-auto mt-6 max-w-4xl text-[44px] font-semibold leading-[0.96] tracking-[-0.065em] text-white sm:text-[64px] lg:text-[76px]">
                 Operational knowledge that remains usable, reviewable, and accountable.
               </h1>
-              <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-slate-300 sm:text-[17px]">
+              <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-[#cdd0d7] sm:text-[17px]">
                 Mnemos connects maintenance records, procedures, inspections, failures, compliance evidence, and field expertise around each asset—then turns that context into traceable decisions.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Link href="/dashboard" className="rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#111216] transition hover:bg-slate-200">Explore the workspace</Link>
+                <Link href="/dashboard" className="rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#111216] transition hover:bg-[#e2e4e9]">Explore the workspace</Link>
                 <Link href="/documentation" className="rounded-full border border-white/20 bg-white/[0.04] px-5 py-3 text-[13px] font-semibold text-white transition hover:bg-white/[0.09]">Review the architecture</Link>
               </div>
             </FadeIn>
@@ -54,7 +54,7 @@ export default function HomePage() {
               ))}
             </FadeIn>
 
-            <FadeIn delay={0.16} className="mx-auto mt-7 grid max-w-4xl gap-3 text-left text-[11.5px] text-slate-300 sm:grid-cols-4">
+            <FadeIn delay={0.16} className="mx-auto mt-7 grid max-w-4xl gap-3 text-left text-[11.5px] text-[#cdd0d7] sm:grid-cols-4">
               {["Evidence-linked conclusions", "Asset and site scope enforced", "Durable human approval", "Provider failures degrade safely"].map((item) => (
                 <div key={item} className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 backdrop-blur">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white" />{item}
@@ -103,7 +103,7 @@ export default function HomePage() {
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Explore the product directly</div>
               <h2 className="mt-4 max-w-3xl text-[36px] font-semibold leading-tight tracking-[-0.05em]">Follow an investigation from evidence retrieval to a reviewable decision.</h2>
-              <p className="mt-4 max-w-2xl text-[14px] leading-7 text-slate-300">The public workspace uses synthetic operational records and remains read-only. Private workspaces are available after authentication.</p>
+              <p className="mt-4 max-w-2xl text-[14px] leading-7 text-[#cdd0d7]">The public workspace uses synthetic operational records and remains read-only. Private workspaces are available after authentication.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/dashboard" className="rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#111216]">Open workspace</Link>

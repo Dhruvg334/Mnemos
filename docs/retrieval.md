@@ -21,3 +21,7 @@ Every retrieval request carries tenant, site, asset, document, and classificatio
 ## Evaluation
 
 Deterministic gates cover routing, retrieval recall, citation precision, grounded-answer rate, abstention, tool recovery, and workflow completion. Provider-backed RAGAS evaluation is supported separately and should only be reported with the exact model, corpus, dataset, and run artefact.
+
+## Uploaded evidence
+
+Authenticated retrieval is expected to use persisted `document_chunks` and `evidence_regions` filtered by organisation and site. Public demonstration records remain synthetic and are never mixed into signed-in query execution. Vector retrieval is conditional on successful embedding; lexical retrieval remains available when embeddings are pending or failed. Neo4j and the reranker enrich ranking when configured but are not the source of truth for citations.

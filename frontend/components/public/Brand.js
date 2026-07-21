@@ -1,5 +1,5 @@
 export function MnemosMark({ size = 36, inverse = false }) {
-  const background = inverse ? "#071522" : "#081728";
+  const background = inverse ? "#071522" : "#101114";
   const primary = "#f8fafc";
   const secondary = inverse ? "#91a2b7" : "#a8b6c8";
 
@@ -23,7 +23,7 @@ export default function Brand({ compact = false, inverse = false }) {
     <div className="flex items-center gap-3">
       <MnemosMark size={compact ? 34 : 40} inverse={inverse} />
       <div className="leading-tight">
-        <div className={`text-[15px] font-semibold tracking-[-0.025em] ${inverse ? "text-white" : "text-[#081728]"}`}>
+        <div className={`text-[15px] font-semibold tracking-[-0.025em] ${inverse ? "text-white" : "text-[#101114]"}`}>
           Mnemos
         </div>
         {!compact ? (
