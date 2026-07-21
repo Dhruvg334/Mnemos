@@ -1,5 +1,4 @@
 import re
-import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
@@ -19,7 +18,6 @@ from mnemos.core.security import (
     verify_password,
 )
 from mnemos.models import (
-    EmailVerificationToken,
     Membership,
     Organisation,
     RefreshToken,
@@ -33,14 +31,10 @@ from mnemos.schemas.auth import (
     PasswordChangeRequest,
     RefreshRequest,
     RegisterRequest,
-    RegistrationResponse,
-    ResendVerificationRequest,
     TokenResponse,
     UserResponse,
-    VerifyEmailRequest,
 )
 from mnemos.schemas.common import Envelope, Meta
-from mnemos.services.email_delivery import send_verification_email
 
 router = APIRouter(tags=["auth"])
 
@@ -63,38 +57,6 @@ def _site_code(name: str) -> str:
     return (normalized[:48] or "primary-site") + "-main"
 
 
-async def _create_verification_token(db: AsyncSession, user: User) -> str:
-    now = datetime.now(UTC)
-    existing = list(
-        (
-            await db.scalars(
-                select(EmailVerificationToken).where(
-                    EmailVerificationToken.user_id == user.id,
-                    EmailVerificationToken.consumed_at.is_(None),
-                )
-            )
-        ).all()
-    )
-    for token in existing:
-        token.consumed_at = now
-
-    raw = secrets.token_urlsafe(48)
-    db.add(
-        EmailVerificationToken(
-            user_id=user.id,
-            token_hash=hash_refresh_token(raw),
-            expires_at=now + timedelta(minutes=settings.email_verification_expire_minutes),
-        )
-    )
-    await db.flush()
-    return raw
-
-
-async def _deliver_verification(user: User, raw_token: str) -> None:
-    url = f"{settings.frontend_base_url.rstrip('/')}/verify-email?token={raw_token}"
-    await send_verification_email(recipient=user.email, verification_url=url)
-
-
 async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
     raw = create_refresh_token()
     db.add(
@@ -113,14 +75,20 @@ async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
 
 @router.post(
     "/auth/register",
-    response_model=Envelope[RegistrationResponse],
-    status_code=202,
+    response_model=Envelope[TokenResponse],
+    status_code=201,
 )
 async def register(
     payload: RegisterRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    """Create an active workspace account and issue a session immediately.
+
+    Email verification is intentionally deferred beyond the current hackathon round.
+    Existing inactive accounts created by the previous flow are reactivated only when
+    the submitted password matches, preventing account takeover through re-registration.
+    """
     await enforce_public_rate_limit(
         request,
         _client_identity(request),
@@ -130,17 +98,14 @@ async def register(
     email = str(payload.email).lower()
     existing = await db.scalar(select(User).where(User.email == email))
     if existing is not None:
-        if not existing.is_active:
-            raw = await _create_verification_token(db, existing)
-            await db.commit()
-            await _deliver_verification(existing, raw)
-        return Envelope(
-            data=RegistrationResponse(
-                status="verification_pending",
-                email=email,
-            ),
-            meta=Meta(request_id=request.state.request_id),
-        )
+        if not verify_password(payload.password, existing.password_hash):
+            raise AppError("EMAIL_ALREADY_REGISTERED", "An account already exists for this email.", 409)
+        existing.is_active = True
+        existing.email_verified_at = None
+        existing.full_name = payload.full_name
+        tokens = await _issue_tokens(db, existing)
+        await db.commit()
+        return Envelope(data=tokens, meta=Meta(request_id=request.state.request_id))
 
     organisation = Organisation(name=payload.organisation_name)
     db.add(organisation)
@@ -154,7 +119,7 @@ async def register(
         email=email,
         full_name=payload.full_name,
         password_hash=hash_password(payload.password),
-        is_active=False,
+        is_active=True,
     )
     db.add_all([site, user])
     await db.flush()
@@ -166,77 +131,9 @@ async def register(
             role="organisation_admin",
         )
     )
-    raw = await _create_verification_token(db, user)
+    tokens = await _issue_tokens(db, user)
     await db.commit()
-    await _deliver_verification(user, raw)
-    return Envelope(
-        data=RegistrationResponse(
-            status="verification_pending",
-            email=email,
-        ),
-        meta=Meta(request_id=request.state.request_id),
-    )
-
-
-@router.post(
-    "/auth/verify-email",
-    response_model=Envelope[dict[str, bool]],
-)
-async def verify_email(
-    payload: VerifyEmailRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    now = datetime.now(UTC)
-    token = await db.scalar(
-        select(EmailVerificationToken)
-        .where(EmailVerificationToken.token_hash == hash_refresh_token(payload.token))
-        .with_for_update()
-    )
-    if token is None or token.consumed_at is not None or _as_utc(token.expires_at) <= now:
-        raise AppError(
-            "INVALID_VERIFICATION_TOKEN",
-            "Verification link is invalid or expired.",
-            400,
-        )
-    user = await db.get(User, token.user_id)
-    if user is None:
-        raise AppError("INVALID_VERIFICATION_TOKEN", "Verification link is invalid.", 400)
-    token.consumed_at = now
-    user.email_verified_at = now
-    user.is_active = True
-    await db.commit()
-    return Envelope(
-        data={"verified": True},
-        meta=Meta(request_id=request.state.request_id),
-    )
-
-
-@router.post(
-    "/auth/resend-verification",
-    response_model=Envelope[dict[str, bool]],
-    status_code=202,
-)
-async def resend_verification(
-    payload: ResendVerificationRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    await enforce_public_rate_limit(
-        request,
-        _client_identity(request),
-        limit=settings.rate_limit_login_requests,
-        window_seconds=settings.rate_limit_login_window_seconds,
-    )
-    user = await db.scalar(select(User).where(User.email == str(payload.email).lower()))
-    if user is not None and not user.is_active:
-        raw = await _create_verification_token(db, user)
-        await db.commit()
-        await _deliver_verification(user, raw)
-    return Envelope(
-        data={"accepted": True},
-        meta=Meta(request_id=request.state.request_id),
-    )
+    return Envelope(data=tokens, meta=Meta(request_id=request.state.request_id))
 
 
 @router.post("/auth/login", response_model=Envelope[TokenResponse])

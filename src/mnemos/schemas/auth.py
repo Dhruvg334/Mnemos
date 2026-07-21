@@ -31,22 +31,6 @@ class RegisterRequest(BaseModel):
         return value
 
 
-class VerifyEmailRequest(BaseModel):
-    token: str = Field(min_length=32, max_length=512)
-    model_config = {"extra": "forbid", "str_strip_whitespace": True}
-
-
-class ResendVerificationRequest(BaseModel):
-    email: EmailStr
-    model_config = {"extra": "forbid", "str_strip_whitespace": True}
-
-
-class RegistrationResponse(BaseModel):
-    status: str
-    email: EmailStr
-    verification_required: bool = True
-
-
 class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=32, max_length=512)
     model_config = {"extra": "forbid"}

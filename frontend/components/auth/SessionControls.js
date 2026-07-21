@@ -1,41 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useSession } from "./SessionContext";
 
 function initials(name) {
-  return (name || "User")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
+  return (name || "User").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 }
 
 export default function SessionControls() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { user, loading, logout } = useSession();
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then(async (response) => (response.ok ? response.json() : null))
-      .then((payload) => active && setUser(payload?.data || null))
-      .catch(() => null);
-    return () => { active = false; };
-  }, []);
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-    router.push("/signin");
-    router.refresh();
-  }
+  if (loading) return <div className="h-8 w-20 animate-pulse rounded-md bg-paper-sunk" />;
 
   if (!user) {
     return (
-      <a href="/signin" className="rounded-md border border-line px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:bg-paper-alt">
-        Sign in
-      </a>
+      <div className="ml-1.5 flex items-center gap-2 border-l border-line pl-3">
+        <span className="hidden rounded-full bg-signal-amber-pale px-2.5 py-1 text-[10.5px] font-medium text-signal-amber sm:inline-flex">Read-only demo</span>
+        <Link href="/signin" className="rounded-md border border-line px-3 py-1.5 text-[12px] font-medium text-ink-soft hover:bg-paper-alt">Sign in</Link>
+      </div>
     );
   }
 

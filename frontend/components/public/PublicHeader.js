@@ -42,7 +42,7 @@ export default function PublicHeader() {
             Sign in
           </Link>
           <Link href="/signup" className="rounded-full bg-rail px-4 py-2 text-[12.5px] font-medium text-white transition hover:bg-rail-raised">
-            Request access
+            Create workspace
           </Link>
         </div>
       </div>

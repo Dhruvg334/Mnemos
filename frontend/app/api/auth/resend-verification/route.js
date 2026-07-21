@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { backendRequest } from "@/lib/server/auth";
 
-export async function POST(request) {
-  const body = await request.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: { code: "INVALID_REQUEST", message: "Invalid request body." } }, { status: 400 });
-  const { response, payload } = await backendRequest("/auth/resend-verification", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  return NextResponse.json(payload, { status: response.status });
+export async function POST() {
+  return NextResponse.json(
+    { error: { code: "FEATURE_DEFERRED", message: "Email verification is not enabled in this release." } },
+    { status: 410 },
+  );
 }

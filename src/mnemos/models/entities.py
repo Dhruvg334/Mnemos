@@ -135,19 +135,6 @@ class RefreshToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
-class EmailVerificationToken(Base):
-    __tablename__ = "email_verification_tokens"
-
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("evt"))
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, index=True
-    )
-    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-
 class Membership(Base):
     __tablename__ = "memberships"
     __table_args__ = (

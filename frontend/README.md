@@ -171,4 +171,4 @@ AUTH_REQUIRED=false
 AUTH_REFRESH_COOKIE_SECONDS=604800
 ```
 
-Set `AUTH_REQUIRED=true` when the backend is available and dashboard access should require an authenticated session. New registrations create an inactive organization administrator account, send a one-time verification link, and activate the account only after verification. `EMAIL_DELIVERY_MODE=log` is suitable for local development; SMTP settings are required for real email delivery.
+The dashboard is intentionally public as a read-only demonstration workspace. Authentication is required only for actions that modify private organisation data. New registrations are active immediately in the current hackathon release; email verification is deferred to a later round.

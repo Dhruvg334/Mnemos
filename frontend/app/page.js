@@ -16,7 +16,7 @@ export default function HomePage() {
               Mnemos connects maintenance history, procedures, inspections, failures, compliance evidence, and expert knowledge around the assets your teams operate.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
-              <Link href="/dashboard" className="rounded-full bg-rail px-5 py-3 text-[13px] font-medium text-white transition hover:bg-rail-raised">Enter workspace</Link>
+              <Link href="/dashboard" className="rounded-full bg-rail px-5 py-3 text-[13px] font-medium text-white transition hover:bg-rail-raised">Explore live demo</Link>
               <Link href="/documentation" className="rounded-full border border-line bg-paper px-5 py-3 text-[13px] font-medium text-ink transition hover:bg-paper-alt">See how it works</Link>
             </div>
             <div className="mt-8 flex flex-wrap justify-center gap-x-7 gap-y-3 text-[12px] text-ink-faint">

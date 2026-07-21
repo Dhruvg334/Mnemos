@@ -89,14 +89,8 @@ export default function AuthForm({ initialMode = "signin" }) {
         setStatus({ tone: "error", message: parsed.message });
         return;
       }
-      if (isSignup) {
-        setStatus({ tone: "success", message: "Account created. Check your email to verify the workspace before signing in." });
-        setMode("signin");
-        setValues((current) => ({ ...current, password: "", confirmPassword: "" }));
-      } else {
-        router.push("/dashboard");
-        router.refresh();
-      }
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       setStatus({ tone: "error", message: "The authentication service is unavailable. Check that the backend is running." });
     } finally {
@@ -130,10 +124,10 @@ export default function AuthForm({ initialMode = "signin" }) {
         </div>
 
         <div className="mt-5">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-signal-blue">{isSignup ? "Verified workspace access" : "Secure access"}</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-signal-blue">{isSignup ? "Create your workspace" : "Secure access"}</div>
           <h1 className="mt-2 text-[25px] font-semibold tracking-[-0.04em] text-ink">{isSignup ? "Create your Mnemos workspace" : "Welcome back"}</h1>
           <p className="mt-2 text-[13px] leading-6 text-ink-soft">
-            {isSignup ? "Create an organization-scoped account. Access activates after email verification." : "Access your approved plants, assets, investigations, and evidence."}
+            {isSignup ? "Create an organization-scoped account and start working with your own operational data." : "Access your approved plants, assets, investigations, and evidence."}
           </p>
         </div>
 

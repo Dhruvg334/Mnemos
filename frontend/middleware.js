@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 
-export function middleware(request) {
-  if (process.env.AUTH_REQUIRED !== "true") return NextResponse.next();
-  const refreshToken = request.cookies.get("mnemos_refresh")?.value;
-  if (refreshToken) return NextResponse.next();
-  const signInUrl = new URL("/signin", request.url);
-  signInUrl.searchParams.set("next", request.nextUrl.pathname);
-  return NextResponse.redirect(signInUrl);
+// The dashboard is intentionally public for the hackathon demo. Mutation
+// endpoints remain protected by backend authentication and role checks.
+export function middleware() {
+  return NextResponse.next();
 }
 
-export const config = {
-  matcher: ["/dashboard/:path*"],
-};
+export const config = { matcher: ["/dashboard/:path*"] };

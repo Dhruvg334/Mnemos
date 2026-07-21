@@ -19,6 +19,7 @@ import QueryPanel from "./views/QueryPanel";
 import AgenticView from "./views/AgenticView";
 import Results from "./views/Results";
 import Organisation from "./views/Organisation";
+import { SessionProvider } from "./auth/SessionContext";
 
 const VIEW_META = {
   overview: {
@@ -97,6 +98,7 @@ export default function Shell() {
     );
 
   return (
+    <SessionProvider>
     <div className="flex h-screen w-full overflow-hidden bg-paper-alt">
       <Rail view={view} onNav={goto} />
 
@@ -136,5 +138,6 @@ export default function Shell() {
 
       <Drawer docId={citeDocId} onClose={() => setCiteDocId(null)} onOpenDoc={(id) => { setCiteDocId(null); goto("documents", { docId: id }); }} />
     </div>
+    </SessionProvider>
   );
 }

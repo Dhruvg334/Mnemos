@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { backendRequest } from "@/lib/server/auth";
+import { backendRequest, setSessionCookies } from "@/lib/server/auth";
 
 export async function POST(request) {
   const body = await request.json().catch(() => null);
@@ -8,5 +8,7 @@ export async function POST(request) {
     method: "POST",
     body: JSON.stringify(body),
   });
-  return NextResponse.json(payload, { status: response.status });
+  if (!response.ok) return NextResponse.json(payload, { status: response.status });
+  setSessionCookies(payload.data);
+  return NextResponse.json({ data: { authenticated: true }, meta: payload.meta }, { status: 201 });
 }

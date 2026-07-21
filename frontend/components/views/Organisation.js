@@ -5,6 +5,7 @@ import { D } from "@/lib/data";
 import { fmtDate, initials, pluralize } from "@/lib/helpers";
 import { Card, Tag, StatusPill, Badge, EmptyState, Section, Divider, Avatar, SearchInput, TabBar } from "../ui";
 import { Icon } from "../icons";
+import { useSession } from "../auth/SessionContext";
 
 function OrgProfile({ org }) {
   return (
@@ -38,7 +39,7 @@ function OrgProfile({ org }) {
   );
 }
 
-function MembersTable({ members, onInvite }) {
+function MembersTable({ members, onInvite, onManage }) {
   const [search, setSearch] = useState("");
   const filtered = members.filter((m) =>
     !search || (m.name || "").toLowerCase().includes(search.toLowerCase()) || (m.email || "").toLowerCase().includes(search.toLowerCase())
@@ -91,7 +92,7 @@ function MembersTable({ members, onInvite }) {
                   {m.lastActive ? fmtDate(m.lastActive) : <span className="text-ink-faint">—</span>}
                 </td>
                 <td className="px-4 py-2.5">
-                  <button className="rounded p-1 text-ink-faint transition hover:bg-paper-sunk hover:text-ink">
+                  <button onClick={() => onManage?.(m)} className="rounded p-1 text-ink-faint transition hover:bg-paper-sunk hover:text-ink">
                     <Icon name="settings" className="h-4 w-4" />
                   </button>
                 </td>
@@ -153,41 +154,17 @@ function InviteForm({ onClose }) {
   );
 }
 
-function LockedActionModal({ action, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl border border-line bg-paper p-6 shadow-xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-signal-amber-pale">
-          <Icon name="lock" className="h-6 w-6 text-signal-amber" />
-        </div>
-        <h3 className="mb-2 text-center text-[15px] font-semibold text-ink">{action} locked</h3>
-        <p className="mb-5 text-center text-[12.5px] leading-relaxed text-ink-faint">
-          This action can only be performed when logged in. Please sign in to your account to use this feature.
-        </p>
-        <div className="flex justify-center gap-3">
-          <button onClick={onClose}
-            className="rounded-md border border-line px-4 py-2 text-[12.5px] font-medium text-ink transition hover:bg-paper-alt">
-            Cancel
-          </button>
-          <button onClick={() => window.location.href = "/signin"}
-            className="rounded-md bg-signal-blue px-4 py-2 text-[12.5px] font-medium text-white transition hover:bg-signal-blue-deep">
-            Sign in
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function OrgSettings() {
-  const [lockedAction, setLockedAction] = useState(null);
+  const { user, requireAuthentication } = useSession();
   const [selectedDocs, setSelectedDocs] = useState([]);
   const org = D.organisation;
   const docs = D.docs || [];
   const totalSize = docs.reduce((acc, d) => acc + (d.size_kb || 0), 0);
-  const currentUser = { id: "usr_1", name: "Alex Chen", email: "alex@npi-industries.com" };
+  const currentUser = user
+    ? { id: user.id, name: user.full_name, email: user.email }
+    : { id: "demo_viewer", name: "Demo visitor", email: "Read-only public workspace" };
 
-  const locked = (action) => setLockedAction(action);
+  const locked = (action, callback) => requireAuthentication(action, callback);
   const allSelected = docs.length > 0 && selectedDocs.length === docs.length;
   const someSelected = selectedDocs.length > 0 && !allSelected;
   const toggleAll = () => setSelectedDocs(allSelected ? [] : docs.map((d) => d.id));
@@ -195,8 +172,11 @@ function OrgSettings() {
 
   return (
     <div className="space-y-4">
-      {lockedAction ? <LockedActionModal action={lockedAction} onClose={() => setLockedAction(null)} /> : null}
-
+      {!user ? (
+        <div className="rounded-lg border border-signal-amber-line bg-signal-amber-pale px-4 py-3 text-[12.5px] text-signal-amber">
+          Demo mode is read-only. Account, member, document, and organisation changes require authentication.
+        </div>
+      ) : null}
       <Card className="p-4">
         <Section title="User ID">
           <div className="flex items-center justify-between rounded-md border border-line bg-paper-alt px-3 py-2">
@@ -295,6 +275,7 @@ function OrgSettings() {
 }
 
 export default function Organisation() {
+  const { requireAuthentication } = useSession();
   const [tab, setTab] = useState("members");
   const [showInvite, setShowInvite] = useState(false);
   const org = D.organisation;
@@ -311,7 +292,7 @@ export default function Organisation() {
       </div>
       {tab === "members" ? (
         <div className="space-y-3">
-          <MembersTable members={members} onInvite={() => setShowInvite(true)} />
+          <MembersTable members={members} onInvite={() => requireAuthentication("invite members", () => setShowInvite(true))} onManage={() => requireAuthentication("manage members")} />
           {showInvite ? <InviteForm onClose={() => setShowInvite(false)} /> : null}
         </div>
       ) : (
