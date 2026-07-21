@@ -10,12 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mnemos.agentic.runtime.guardrail_policy import GuardrailPolicyEngine
 from mnemos.core.db import SessionLocal
 from mnemos.core.errors import AppError
+from mnemos.core.logging import get_logger
 from mnemos.integrations.agents import get_agent_gateway
 from mnemos.models import AgentRun, Citation, Membership, Query, QueryClaim, QueryEvent
 from mnemos.schemas.agent import AgentOptions, AgentQueryRequest, AgentScope
 from mnemos.services.agent_validation import validate_agent_result
 
 _query_policy = GuardrailPolicyEngine()
+logger = get_logger("mnemos.query_execution")
 
 
 _SAFE_ERROR_MESSAGES = {
@@ -32,8 +34,6 @@ _SAFE_ERROR_MESSAGES = {
 def _hash_payload(payload: dict) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
-
-
 
 
 async def _resolve_query_membership(
@@ -126,6 +126,17 @@ async def execute_query_background(query_id: str) -> None:
             return
 
         gateway = get_agent_gateway()
+        logger.info(
+            "Query execution started",
+            extra={
+                "query_id": query.id,
+                "tenant_id": query.organisation_id,
+                "site_id": query.site_id,
+                "execution_stage": "dispatch",
+                "query_status": "running",
+                "provider": gateway.name,
+            },
+        )
         run = AgentRun(
             query_id=query.id,
             organisation_id=query.organisation_id,
@@ -174,6 +185,21 @@ async def execute_query_background(query_id: str) -> None:
             )
             await db.commit()
             result = await gateway.execute_query(request)
+            logger.info(
+                "Agent gateway returned",
+                extra={
+                    "query_id": query.id,
+                    "tenant_id": query.organisation_id,
+                    "site_id": query.site_id,
+                    "execution_stage": "agent_response",
+                    "provider": gateway.name,
+                    "verified_evidence_count": len(result.citations),
+                    "query_status": result.status,
+                    "fallback_activated": bool(result.run_metadata.fallback_used)
+                    if hasattr(result.run_metadata, "fallback_used")
+                    else False,
+                },
+            )
             await db.refresh(query)
             if query.status == "cancelled":
                 run.status = "cancelled"
@@ -272,9 +298,30 @@ async def execute_query_background(query_id: str) -> None:
                     message="Query completed",
                 )
             await db.commit()
+            logger.info(
+                "Query execution completed",
+                extra={
+                    "query_id": query.id,
+                    "tenant_id": query.organisation_id,
+                    "site_id": query.site_id,
+                    "execution_stage": "completed",
+                    "verified_evidence_count": len(result.citations),
+                    "query_status": result.status,
+                },
+            )
         except Exception as exc:
             await db.rollback()
             error_code, error_message = _safe_error(exc)
+            logger.error(
+                "Query execution failed",
+                extra={
+                    "query_id": query_id,
+                    "execution_stage": "failed",
+                    "error_category": error_code,
+                    "query_status": "failed",
+                },
+                exc_info=True,
+            )
             query = await db.get(Query, query_id)
             run = await db.get(AgentRun, run_id)
             if query is not None:

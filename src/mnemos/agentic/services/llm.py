@@ -127,15 +127,68 @@ class LLMService:
                     cached_tokens=usage.get("cached_tokens", 0),
                     latency_ms=round(latency_ms, 1),
                     response_model=response_model.__name__,
+                    prompt_type=task_type,
+                    fallback_activated=False,
                 )
                 self._router.record_latency(tier, latency_ms)
 
                 return response_model.model_validate_json(content)
-            except httpx.HTTPStatusError as e:
-                logger.error(f"LLM API Error {e.response.status_code}")
+            except httpx.TimeoutException:
+                self._telemetry.record(
+                    model=model,
+                    provider=provider,
+                    task_type=task_type,
+                    prompt_type=task_type,
+                    fallback_activated=False,
+                    error_category="timeout",
+                )
+                logger.error(
+                    f"LLM request failed: provider={provider} model={model} "
+                    f"prompt_type={task_type} error_category=timeout"
+                )
                 raise
-            except Exception as e:
-                logger.error(f"Structured LLM execution failed: {type(e).__name__}", exc_info=True)
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                category = (
+                    "invalid_credentials"
+                    if status in {401, 403}
+                    else "rate_limit"
+                    if status == 429
+                    else "provider_http_error"
+                )
+                self._telemetry.record(
+                    model=model,
+                    provider=provider,
+                    task_type=task_type,
+                    prompt_type=task_type,
+                    fallback_activated=False,
+                    error_category=category,
+                    status_code=status,
+                )
+                logger.error(
+                    f"LLM request failed: provider={provider} model={model} "
+                    f"prompt_type={task_type} error_category={category} status={status}"
+                )
+                raise
+            except Exception as exc:
+                category = (
+                    "malformed_response"
+                    if isinstance(exc, KeyError | ValueError)
+                    else type(exc).__name__
+                )
+                self._telemetry.record(
+                    model=model,
+                    provider=provider,
+                    task_type=task_type,
+                    prompt_type=task_type,
+                    fallback_activated=False,
+                    error_category=category,
+                )
+                logger.error(
+                    f"Structured LLM execution failed: provider={provider} model={model} "
+                    f"prompt_type={task_type} error_category={category}",
+                    exc_info=True,
+                )
                 raise
 
     async def get_embeddings(self, text: str) -> list[float]:
