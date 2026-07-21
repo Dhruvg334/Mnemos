@@ -1,7 +1,9 @@
 from functools import lru_cache
+import json
+from typing import Annotated
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     login_lock_threshold: int = 5
     login_lock_minutes: int = 15
     dev_login_enabled: bool = True
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     mock_agent_enabled: bool = True
     agent_gateway_mode: str = "mock"
     agent_service_url: str = "http://agent-service:8100"
@@ -64,7 +66,7 @@ class Settings(BaseSettings):
     tool_health_p95_latency_ms: float = 5_000.0
     max_upload_size_bytes: int = 52_428_800
     upload_session_expire_minutes: int = 15
-    allowed_upload_mime_types: list[str] = [
+    allowed_upload_mime_types: Annotated[list[str], NoDecode] = [
         "application/pdf",
         "text/markdown",
         "text/plain",
@@ -97,10 +99,18 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", "allowed_upload_mime_types", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value):
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
+    def parse_string_list(cls, value):
+        if not isinstance(value, str):
+            return value
+        raw = value.strip()
+        if not raw:
+            return []
+        if raw.startswith("["):
+            decoded = json.loads(raw)
+            if not isinstance(decoded, list) or not all(isinstance(item, str) for item in decoded):
+                raise ValueError("Expected a JSON array of strings")
+            return [item.strip() for item in decoded if item.strip()]
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
     @model_validator(mode="after")
     def validate_secure_configuration(self):

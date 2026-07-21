@@ -265,3 +265,13 @@ a {
     max-width: none;
   }
 }
+
+
+.graph-canvas {
+  background-image: linear-gradient(rgba(215,218,224,.55) 1px, transparent 1px), linear-gradient(90deg, rgba(215,218,224,.55) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.graph-control {
+  min-width: 2rem; height: 2rem; border-radius: .45rem; color: #53565f; font-size: 12px; font-weight: 600;
+}
+.graph-control:hover { background: #eef2f7; color: #14151a; }

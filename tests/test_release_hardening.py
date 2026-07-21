@@ -41,11 +41,10 @@ def test_public_documentation_does_not_claim_external_mcp_compatibility() -> Non
 
 def test_release_documentation_is_environment_neutral() -> None:
     public_docs = [
-        Path("README.md"),
-        Path("docs/ARCHITECTURE.md"),
-        Path("docs/OPERATIONS.md"),
-        Path("docs/SECURITY_ARCHITECTURE.md"),
-        Path("docs/RESPONSIBLE_ENGINEERING.md"),
+        Path("docs/architecture.md"),
+        Path("docs/operations.md"),
+        Path("docs/security.md"),
+        Path("docs/deployment.md"),
     ]
     text = "\n".join(path.read_text(encoding="utf-8") for path in public_docs).lower()
     assert "onrender.com" not in text
@@ -58,6 +57,7 @@ def test_public_demo_ui_remains_responsive_and_keyboard_accessible() -> None:
     graph = Path("frontend/components/views/Graph.js").read_text(encoding="utf-8")
     shell = Path("frontend/components/Shell.js").read_text(encoding="utf-8")
     assert 'min-w-[760px]' not in graph
+    assert 'cytoscape' in graph
     assert 'onKeyDown=' in graph
     assert 'dashboard-page' in shell
 

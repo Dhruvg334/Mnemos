@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-// The dashboard is intentionally public for the hackathon demo. Mutation
+// The dashboard is intentionally public for the public demonstration. Mutation
 // endpoints remain protected by backend authentication and role checks.
-export function middleware() {
+export function proxy() {
   return NextResponse.next();
 }
 

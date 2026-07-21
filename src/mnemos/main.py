@@ -95,6 +95,19 @@ app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(Exception, unexpected_error_handler)
 
+
+
+@app.get("/", include_in_schema=False)
+async def service_index() -> dict[str, object]:
+    """Return non-sensitive service metadata for operators and uptime checks."""
+    return {
+        "name": settings.app_name,
+        "version": settings.app_version,
+        "status": "operational",
+        "api_prefix": settings.api_v1_prefix,
+        "health": {"live": "/health/live", "ready": "/health/ready"},
+    }
+
 app.include_router(health.router)
 app.include_router(auth.router, prefix=settings.api_v1_prefix)
 app.include_router(sites.router, prefix=settings.api_v1_prefix)
