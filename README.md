@@ -7,6 +7,7 @@
 Evidence-grounded operational memory for maintenance, reliability, safety, quality, and compliance teams.
 
 [![Live deployment](https://img.shields.io/badge/live-deployment-111827?logo=vercel&logoColor=white)](https://mnemos-lake.vercel.app)
+[![Watch demo](https://img.shields.io/badge/watch-demo-B8872E?logo=youtube&logoColor=white)](https://youtu.be/fs54N2vzHsM)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](frontend)
 [![PostgreSQL + pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](docs/retrieval.md)
@@ -63,6 +64,20 @@ The architecture therefore combines relational state, vector and lexical retriev
 | Organisation | Authenticated workspace, membership, account, and destructive-action controls |
 
 The public deployment includes a synthetic, read-only demonstration dataset. Authentication is required for private workspace data and mutating operations.
+
+## Demo walkthrough
+
+<div align="center">
+
+[![Watch the Mnemos product walkthrough](https://img.youtube.com/vi/fs54N2vzHsM/maxresdefault.jpg)](https://youtu.be/fs54N2vzHsM)
+
+**[Watch the complete Mnemos demo on YouTube](https://youtu.be/fs54N2vzHsM)**
+
+</div>
+
+The walkthrough covers the public product experience end to end: the operational overview, asset passports, evidence-backed queries, investigation timelines, causal hypotheses, compliance coverage, the interactive knowledge graph, source documents, expert knowledge governance, agentic execution traces, result review, role-based access, and the technical documentation surface.
+
+The demonstration workspace is synthetic and read-only. It is intended to show the product model and interaction design without exposing private operational data.
 
 ## Product tour
 
