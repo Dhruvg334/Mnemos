@@ -4,7 +4,9 @@
 
 ### Industrial knowledge intelligence built around the asset
 
-Evidence-grounded operational memory for maintenance, reliability, safety, quality, and compliance teams.
+Mnemos turns fragmented maintenance records, inspections, procedures, and field knowledge into evidence-backed operational decisions.
+
+[Live product](https://mnemos-lake.vercel.app) · [Demo walkthrough](https://youtu.be/fs54N2vzHsM) · [Documentation](docs/README.md)
 
 [![Live deployment](https://img.shields.io/badge/live-deployment-111827?logo=vercel&logoColor=white)](https://mnemos-lake.vercel.app)
 [![Watch demo](https://img.shields.io/badge/watch-demo-B8872E?logo=youtube&logoColor=white)](https://youtu.be/fs54N2vzHsM)
@@ -19,9 +21,9 @@ Evidence-grounded operational memory for maintenance, reliability, safety, quali
 
 ## Overview
 
-Industrial knowledge is rarely absent; it is fragmented. Manuals, work orders, inspection records, procedures, shift notes, compliance evidence, and expert observations often live in separate systems with inconsistent identifiers and revision histories.
+Industrial teams already have the records they need. The problem is that manuals, work orders, inspections, procedures, shift notes, compliance evidence, and expert observations are distributed across systems that do not preserve a shared operational narrative.
 
-Mnemos organises that information around physical assets and their operational timelines. It combines hybrid retrieval, governed multi-agent investigation, durable workflow state, evidence provenance, and a responsive operational dashboard.
+Mnemos rebuilds that narrative around physical assets and time. It combines guarded ingestion, hybrid retrieval, graph-assisted context, evidence verification, durable investigation workflows, and human approval into one operational workspace.
 
 The system is designed for questions such as:
 
@@ -47,6 +49,14 @@ Mnemos is designed around the consequences of that fragmentation:
 
 The architecture therefore combines relational state, vector and lexical retrieval, graph context, evidence provenance, deterministic policy checks, and durable workflow execution instead of treating the problem as document chat.
 
+## What makes Mnemos different
+
+- **Asset-centred memory:** evidence is resolved to the organisation, site, asset, document version, and operational timeframe before it is used.
+- **Traceable answers:** material claims retain citations, source regions, confidence, contradictions, and missing-evidence disclosures.
+- **Governed reasoning:** specialist agents operate within explicit scope, tool, retry, timeout, and approval boundaries.
+- **Durable investigations:** checkpoints, review pauses, audit records, and idempotency markers survive beyond a single web request.
+- **Human authority:** critical conclusions remain reviewable and cannot silently bypass role-based approval.
+
 ## Product surface
 
 | Area | Purpose |
@@ -67,17 +77,11 @@ The public deployment includes a synthetic, read-only demonstration dataset. Aut
 
 ## Demo walkthrough
 
-<div align="center">
+**[Watch the complete Mnemos product walkthrough on YouTube →](https://youtu.be/fs54N2vzHsM)**
 
-[![Watch the Mnemos product walkthrough](https://img.youtube.com/vi/fs54N2vzHsM/maxresdefault.jpg)](https://youtu.be/fs54N2vzHsM)
+The four-minute walkthrough follows the product from the public operating model into the live demonstration workspace. It covers plant risk visibility, asset histories, evidence-backed queries, root-cause investigations, compliance coverage, the knowledge graph, governed expert knowledge, agent execution traces, review workflows, access control, and the technical documentation surface.
 
-**[Watch the complete Mnemos demo on YouTube](https://youtu.be/fs54N2vzHsM)**
-
-</div>
-
-The walkthrough covers the public product experience end to end: the operational overview, asset passports, evidence-backed queries, investigation timelines, causal hypotheses, compliance coverage, the interactive knowledge graph, source documents, expert knowledge governance, agentic execution traces, result review, role-based access, and the technical documentation surface.
-
-The demonstration workspace is synthetic and read-only. It is intended to show the product model and interaction design without exposing private operational data.
+The public workspace uses synthetic, read-only data so the complete interaction model can be explored without exposing private operational records.
 
 ## Product tour
 

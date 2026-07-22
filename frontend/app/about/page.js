@@ -50,6 +50,47 @@ export default function AboutPage() {
           </div>
         </section>
 
+        <section className="border-y border-[#e2e4e9] bg-[#f4f1ea] py-14">
+          <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+            <div className="grid items-end gap-6 lg:grid-cols-[1fr,auto]">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#777168]">Product walkthrough</div>
+                <h2 className="mt-3 max-w-3xl text-[31px] font-semibold tracking-[-0.045em] text-[#111216] sm:text-[38px]">See how evidence becomes an operational decision.</h2>
+                <p className="mt-4 max-w-3xl text-[13.5px] leading-7 text-[#5c5953]">The complete walkthrough follows Mnemos from plant-level risk visibility into asset histories, evidence-backed queries, root-cause investigations, compliance coverage, knowledge relationships, expert review, and governed execution.</p>
+              </div>
+              <a
+                href="https://youtu.be/fs54N2vzHsM"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-fit items-center gap-2 rounded-full bg-[#17181b] px-5 py-3 text-[13px] font-semibold text-white transition hover:bg-[#2b2e35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#8b6726]"
+              >
+                Open on YouTube
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+
+            <div className="mt-8 overflow-hidden rounded-[26px] border border-[#d8d2c7] bg-[#111216] p-2 shadow-[0_24px_70px_rgba(20,21,26,0.16)] sm:p-3">
+              <div className="aspect-video overflow-hidden rounded-[19px] bg-black">
+                <iframe
+                  className="h-full w-full"
+                  src="https://www.youtube-nocookie.com/embed/fs54N2vzHsM?rel=0"
+                  title="Mnemos product walkthrough"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 text-[12.5px] text-[#5c5953] sm:grid-cols-3">
+              <div className="rounded-xl border border-[#ddd7cc] bg-white/65 px-4 py-3"><span className="font-semibold text-[#17181b]">Investigate:</span> reconstruct asset history and competing causes.</div>
+              <div className="rounded-xl border border-[#ddd7cc] bg-white/65 px-4 py-3"><span className="font-semibold text-[#17181b]">Verify:</span> inspect citations, contradictions, and evidence gaps.</div>
+              <div className="rounded-xl border border-[#ddd7cc] bg-white/65 px-4 py-3"><span className="font-semibold text-[#17181b]">Govern:</span> retain review authority and an auditable decision trail.</div>
+            </div>
+          </div>
+        </section>
+
         <section className="bg-[#111216] py-14 text-white">
           <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
